@@ -1,8 +1,10 @@
+import { monday, dayAt, usableStock, procurement } from "./domain.js";
+import { loadState, saveState } from "./storage.js";
+import SettingsPanel from "./components/SettingsPanel.jsx";
 // 从原站公开页面恢复的交互界面，保留原有文案、状态流转及计算规则。
 import {
   ingredient,
   initialRecipes,
-  initialFridge,
   recipeCategories,
   stockCategories,
   today,
@@ -56,11 +58,10 @@ const navigationItems = [
   ["周菜单", CalendarDays],
   ["我的冰箱", Refrigerator],
 ];
-const monday = value => { const date = new Date(value + "T12:00:00"); date.setDate(date.getDate() - (date.getDay() + 6) % 7); return date.toLocaleDateString("sv-SE"); };
-const dayAt = (value, offset) => {const date = new Date(value + "T12:00:00"); date.setDate(date.getDate() + offset); return date.toLocaleDateString("sv-SE");};
-const usableStock = stock => !stock.days || dayAt(stock.date || today(), Number(stock.days)) > today();
 function App() {
   const [page, setPage] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("正在加载");
   const [recipes, setRecipes] = useState(initialRecipes);
   const [fridge, setFridge] = useState([]);
   // 修改点单只更新 quantities；确认后才更新采购缺口与周菜单素材。
@@ -69,7 +70,12 @@ function App() {
   const [weeks, setWeeks] = useState({});
   const [week, setWeek] = useState(monday(today()));
   const plan = weeks[week] || {};
-  const setPlan = update => setWeeks(current => ({...current, [week]: typeof update === "function" ? update(current[week] || {}) : update}));
+  const setPlan = (update) =>
+    setWeeks((current) => ({
+      ...current,
+      [week]:
+        typeof update === "function" ? update(current[week] || {}) : update,
+    }));
   const [confirmedRecipes, setConfirmedRecipes] = useState([]);
   const [copyTarget, setCopyTarget] = useState(monday(today()));
   const [archives, setArchives] = useState({});
@@ -93,44 +99,66 @@ function App() {
   const [ingredientDraft, setIngredientDraft] = useState({
     ...ingredient("", 100),
     days: 7,
+    date: today(),
   });
   const [draggedStep, setDraggedStep] = useState(0);
+  const fullState = {
+    recipes,
+    fridge,
+    qty: quantities,
+    confirmed: confirmedQuantities,
+    weeks,
+    archives,
+    confirmedRecipes,
+    recipeDraft,
+  };
+  const restoreState = (state) => {
+    setRecipes(state.recipes || initialRecipes);
+    setFridge(state.fridge || []);
+    setQuantities(state.qty || {});
+    setConfirmedQuantities(state.confirmed || {});
+    setWeeks(state.weeks || {});
+    setArchives(state.archives || (state.plan ? { 旧版存档: state.plan } : {}));
+    setConfirmedRecipes(
+      state.confirmedRecipes ||
+        (state.recipes || []).filter((item) => state.confirmed?.[item.id]),
+    );
+    if (state.recipeDraft) setRecipeDraft(state.recipeDraft);
+  };
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("shiguang-v1");
-      if (saved) {
-        const state = JSON.parse(saved);
-        setRecipes(state.recipes);
-        setFridge(state.fridge);
-        setQuantities(state.qty);
-        setConfirmedQuantities(state.confirmed);
-        setWeeks(state.weeks || {});
-        setArchives(state.archives || (state.plan ? {"旧版存档": state.plan} : {}));
-        setConfirmedRecipes(state.confirmedRecipes || (state.recipes || []).filter(item => state.confirmed?.[item.id]));
-        if (state.recipeDraft) setRecipeDraft(state.recipeDraft);
-      }
-    } catch {}
-    setHydrated(true);
+    let active = true;
+    loadState()
+      .then((state) => {
+        if (active) {
+          if (state) restoreState(state);
+          setHydrated(true);
+        }
+      })
+      .catch((error) => {
+        toast.error("读取数据失败：" + error.message);
+        setSaveStatus("加载失败，请重启后重试");
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   useEffect(() => {
-    if (hydrated)
-      try {
-        localStorage.setItem(
-          "shiguang-v1",
-          JSON.stringify({
-            recipes,
-            fridge,
-            qty: quantities,
-            confirmed: confirmedQuantities,
-            weeks,
-            archives,
-            confirmedRecipes,
-            recipeDraft,
-          }),
-        );
-      } catch {
-        toast.error("浏览器存储已满，修改暂未保存");
-      }
+    if (!hydrated) return;
+    setSaveStatus("正在保存");
+    let active = true;
+    saveState(fullState)
+      .then(() => {
+        if (active) setSaveStatus("已保存");
+      })
+      .catch((error) => {
+        if (active) {
+          setSaveStatus("保存失败");
+          toast.error("保存失败：" + error.message);
+        }
+      });
+    return () => {
+      active = false;
+    };
   }, [
     recipes,
     fridge,
@@ -148,49 +176,32 @@ function App() {
     setSearch("");
     setSelectedIngredients([]);
   };
-  const findRecipe = recipeId => typeof recipeId === "object" ? recipeId : recipes.find(recipe => recipe.id === recipeId) || confirmedRecipes.find(recipe => recipe.id === recipeId);
+  const findRecipe = (recipeId) =>
+    typeof recipeId === "object"
+      ? recipeId
+      : recipes.find((recipe) => recipe.id === recipeId) ||
+        confirmedRecipes.find((recipe) => recipe.id === recipeId);
   const selectedCount = Object.values(quantities).reduce(
     (total, quantity) => total + quantity,
     0,
   );
   // 同名、同单位食材合并；先汇总全部需求，再减去冰箱中已有数量。
-  const shoppingList = (() => {
-    const requirements = {};
-    confirmedRecipes.forEach((recipe) =>
-      recipe.ingredients.forEach((item) => {
-        if (confirmedQuantities[recipe.id]) {
-          const ingredientKey = item.name + "|" + item.unit;
-          requirements[ingredientKey] = {
-            ...item,
-            qty:
-              item.qty == null || item.qty === "" || requirements[ingredientKey]?.qty === null ? null : (requirements[ingredientKey]?.qty || 0) + item.qty * confirmedQuantities[recipe.id],
-          };
-        }
-      }),
-    );
-    return Object.values(requirements)
-      .map((item) => ({
-        ...item,
-        qty: item.qty == null ? null : Math.max(
-          0,
-          item.qty -
-            fridge
-              .filter(
-                (stock) => stock.name === item.name && stock.unit === item.unit && usableStock(stock),
-              )
-              .reduce((total, stock) => total + stock.qty, 0),
-        ),
-      }))
-      .filter((item) => item.qty == null || item.qty > 0);
-  })();
+  const shoppingList = procurement(
+    confirmedRecipes,
+    confirmedQuantities,
+    fridge,
+  );
   const changeQuantity = (recipeId, delta) =>
     setQuantities((currentQuantities) => ({
       ...currentQuantities,
       [recipeId]: Math.max(0, (currentQuantities[recipeId] || 0) + delta),
     }));
   const confirmSelection = () => {
-    if (!selectedCount && !window.confirm("清空采购需求？已排菜单保持不变。")) return;
-    setConfirmedRecipes(structuredClone(recipes.filter(item => quantities[item.id] > 0)));
+    if (!selectedCount && !window.confirm("清空采购需求？已排菜单保持不变。"))
+      return;
+    setConfirmedRecipes(
+      structuredClone(recipes.filter((item) => quantities[item.id] > 0)),
+    );
     setConfirmedQuantities({
       ...quantities,
     });
@@ -199,10 +210,24 @@ function App() {
   };
   const addToMeal = (slot, recipeId) => {
     if (recipeId) {
-      setPlan((currentPlan) => ({
-        ...currentPlan,
-        [slot]: [...(currentPlan[slot] || []), structuredClone(confirmedRecipes.find(item => item.id === recipeId) || findRecipe(recipeId))],
-      }));
+      setPlan((currentPlan) => {
+        const items = [...(currentPlan[slot] || [])];
+        const index = items.findIndex((item) => item.id === recipeId);
+        if (index >= 0)
+          items[index] = {
+            ...items[index],
+            servings: (items[index].servings || 1) + 1,
+          };
+        else
+          items.push({
+            ...structuredClone(
+              confirmedRecipes.find((item) => item.id === recipeId) ||
+                findRecipe(recipeId),
+            ),
+            servings: 1,
+          });
+        return { ...currentPlan, [slot]: items };
+      });
       toast.success("已安排这道菜");
     }
   };
@@ -218,23 +243,66 @@ function App() {
   const saveRecipe = () => {
     if (
       !recipeDraft.name.trim() ||
-      !recipeDraft.ingredients.length || !recipeDraft.steps.length ||
+      !recipeDraft.ingredients.length ||
+      !recipeDraft.steps.length ||
       recipeDraft.ingredients.some(
-        (item) => !item.name.trim() || (item.qty !== "" && item.qty != null && item.qty <= 0),
+        (item) =>
+          !item.name.trim() ||
+          (item.qty !== "" && item.qty != null && item.qty <= 0),
       ) ||
       recipeDraft.steps.some((step) => !step.trim())
     ) {
       toast.error("请填写菜名、有效食材数量和制作步骤");
       return;
     }
-    const savedRecipe = {...recipeDraft, name: recipeDraft.name.trim(), id: recipeDraft.id || Date.now(), ingredients: recipeDraft.ingredients.map(item => ({...item, name: item.name.trim(), unit: item.unit.trim() === "克" ? "g" : item.unit.trim(), qty: item.qty === "" ? null : item.qty}))};
-    setRecipes(current => recipeDraft.id ? current.map(item => item.id === recipeDraft.id ? savedRecipe : item) : [...current, savedRecipe]);
-    toast.success(recipeDraft.id ? "菜谱已更新，已确认采购与菜单快照保留" : "菜谱已保存到点单选菜");
-    setRecipeDraft({id: 0, name: "", category: "素菜", time: 15, weight: 300, ingredients: [ingredient("", 100)], steps: [""]});
+    if (
+      recipes.some(
+        (item) =>
+          item.id !== recipeDraft.id && item.name === recipeDraft.name.trim(),
+      )
+    )
+      toast("已有同名菜谱，本次仍独立保存");
+    const savedRecipe = {
+      ...recipeDraft,
+      name: recipeDraft.name.trim(),
+      id: recipeDraft.id || Date.now(),
+      ingredients: recipeDraft.ingredients.map((item) => ({
+        ...item,
+        name: item.name.trim(),
+        unit: item.unit.trim() === "克" ? "g" : item.unit.trim(),
+        qty: item.qty === "" ? null : item.qty,
+      })),
+    };
+    setRecipes((current) =>
+      recipeDraft.id
+        ? current.map((item) =>
+            item.id === recipeDraft.id ? savedRecipe : item,
+          )
+        : [...current, savedRecipe],
+    );
+    toast.success(
+      recipeDraft.id
+        ? "菜谱已更新，已确认采购与菜单快照保留"
+        : "菜谱已保存到点单选菜",
+    );
+    setRecipeDraft({
+      id: 0,
+      name: "",
+      category: "素菜",
+      time: 15,
+      weight: 300,
+      ingredients: [ingredient("", 100)],
+      steps: [""],
+    });
     navigate(0);
   };
   const saveIngredient = () => {
-    if (!ingredientDraft.name.trim() || !ingredientDraft.unit.trim() || ingredientDraft.qty <= 0) {
+    if (
+      !ingredientDraft.name.trim() ||
+      !ingredientDraft.unit.trim() ||
+      !Number.isFinite(Number(ingredientDraft.qty)) ||
+      ingredientDraft.qty <= 0
+    ) {
       toast.error("请填写食材名称和有效数量");
       return;
     }
@@ -243,8 +311,11 @@ function App() {
       {
         ...ingredientDraft,
         name: ingredientDraft.name.trim(),
-        unit: ingredientDraft.unit.trim() === "克" ? "g" : ingredientDraft.unit.trim(),
-        date: today(),
+        unit:
+          ingredientDraft.unit.trim() === "克"
+            ? "g"
+            : ingredientDraft.unit.trim(),
+        date: ingredientDraft.date || today(),
       },
     ]);
     setModal("");
@@ -371,11 +442,37 @@ function App() {
             <i>/</i> <b>{navigationItems[page][0]}</b>
           </span>
           <span className="today">
+            <button
+              className="outline"
+              onClick={() => setShowSettings((value) => !value)}
+            >
+              设置与备份
+            </button>
+            <small>{saveStatus}</small>
             <Sun size={17} />
             {" 今天也要好好吃饭"}
           </span>
         </header>
         <div className="workspace">
+          {showSettings && (
+            <SettingsPanel
+              state={fullState}
+              onRestore={restoreState}
+              onImportRecipes={(items) =>
+                setRecipes((current) => [
+                  ...current,
+                  ...items.map((item, index) => ({
+                    ...item,
+                    id: Date.now() + index,
+                  })),
+                ])
+              }
+              onImportStock={(items) =>
+                setFridge((current) => [...current, ...items])
+              }
+            />
+          )}
+
           <div className="page-heading">
             <div>
               <div className="eyebrow">EVERYDAY, A LITTLE DELICIOUS</div>
@@ -531,6 +628,35 @@ function App() {
                               .map((item) => item.name)
                               .join(" · ")}
                           </p>
+                          {!!selectedIngredients.length && (
+                            <p>
+                              按 1 份仍缺：
+                              {recipe.ingredients
+                                .map((item) => {
+                                  const available = fridge
+                                    .filter(
+                                      (stock) =>
+                                        usableStock(stock) &&
+                                        stock.name === item.name &&
+                                        stock.unit === item.unit,
+                                    )
+                                    .reduce(
+                                      (sum, stock) => sum + Number(stock.qty),
+                                      0,
+                                    );
+                                  return item.qty == null
+                                    ? item.name + "（待确认）"
+                                    : item.qty > available
+                                      ? item.name +
+                                        " " +
+                                        +(item.qty - available).toFixed(2) +
+                                        item.unit
+                                      : "";
+                                })
+                                .filter(Boolean)
+                                .join("、") || "库存齐全"}
+                            </p>
+                          )}
                           <div className="card-bottom">
                             <span>
                               <Clock size={14} />
@@ -591,7 +717,10 @@ function App() {
                 <button
                   className="primary"
                   onClick={() => setModal("selection")}
-                  disabled={!selectedCount}
+                  disabled={
+                    !selectedCount &&
+                    !Object.values(confirmedQuantities).some(Boolean)
+                  }
                 >
                   {"确认我的菜单 "}
                   <ArrowRight size={18} />
@@ -665,7 +794,9 @@ function App() {
               <div className="panel">
                 <div className="section-tools">
                   <h2>待安排的美味</h2>
-                  <span className="subtle">可重复安排 · 每张卡片为一份</span>
+                  <span className="subtle">
+                    可重复安排 · 首次安排为一份 · 可调整份数
+                  </span>
                 </div>
                 <div className="chip-row">
                   {confirmedRecipes
@@ -702,17 +833,36 @@ function App() {
                 )}
               </div>
               <div className="actions">
-                <button className="outline" onClick={() => setWeek(dayAt(week, -7))}>上一周</button>
-                <label>当前周 <input type="date" value={week} onChange={event => event.target.value && setWeek(monday(event.target.value))} /></label>
-                <button className="outline" onClick={() => setWeek(dayAt(week, 7))}>下一周</button>
+                <button
+                  className="outline"
+                  onClick={() => setWeek(dayAt(week, -7))}
+                >
+                  上一周
+                </button>
+                <label>
+                  当前周{" "}
+                  <input
+                    type="date"
+                    value={week}
+                    onChange={(event) =>
+                      event.target.value && setWeek(monday(event.target.value))
+                    }
+                  />
+                </label>
+                <button
+                  className="outline"
+                  onClick={() => setWeek(dayAt(week, 7))}
+                >
+                  下一周
+                </button>
               </div>
               <div className="week-scroll">
                 <div className="week-grid">
                   <div className="day-head">一周三餐</div>
                   {["一", "二", "三", "四", "五", "六", "日"].map((e, t) => (
                     <div key={e} className="day-head">
-                      周{e}<small>{dayAt(week, t).slice(5)}</small>
-
+                      周{e}
+                      <small>{dayAt(week, t).slice(5)}</small>
                     </div>
                   ))}
                   {["早", "中", "晚"].map((e) => (
@@ -742,14 +892,39 @@ function App() {
                               }}
                             >
                               {(plan[r] || []).map((e, t) => (
-                                <div
-                                  key={t}
-                                  className={
-                                    "planned " +
-                                    "low"
-                                  }
-                                >
+                                <div key={t} className={"planned " + "low"}>
                                   {findRecipe(e)?.name}
+                                  <input
+                                    aria-label={
+                                      findRecipe(e)?.name + "餐次份数"
+                                    }
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    style={{ width: "52px" }}
+                                    value={e.servings || 1}
+                                    onChange={(event) =>
+                                      setPlan((current) => ({
+                                        ...current,
+                                        [r]: current[r].map((item, index) =>
+                                          index === t
+                                            ? {
+                                                ...findRecipe(item),
+                                                servings: Math.max(
+                                                  1,
+                                                  Math.floor(
+                                                    Number(
+                                                      event.target.value,
+                                                    ) || 1,
+                                                  ),
+                                                ),
+                                              }
+                                            : item,
+                                        ),
+                                      }))
+                                    }
+                                  />
+                                  份
                                   <button
                                     aria-label="移除菜品"
                                     onClick={() =>
@@ -776,7 +951,6 @@ function App() {
                               >
                                 <Plus size={17} />
                               </button>
-
                             </div>
                           );
                         },
@@ -790,7 +964,9 @@ function App() {
                   <Trash2 size={16} />
                   清空本周
                 </button>
-                <span className="subtle">菜单修改自动保存 · 安排不会增加采购量</span>
+                <span className="subtle">
+                  菜单修改自动保存 · 安排不会增加采购量
+                </span>
               </div>
             </>
           )}
@@ -881,6 +1057,52 @@ function App() {
                             }
                           />
                         </div>
+                        <div className="form-row">
+                          <label>
+                            入库日期
+                            <input
+                              type="date"
+                              aria-label={stock.name + "入库日期"}
+                              value={stock.date || today()}
+                              onChange={(event) =>
+                                event.target.value &&
+                                setFridge((current) =>
+                                  current.map((item, i) =>
+                                    i === index
+                                      ? { ...item, date: event.target.value }
+                                      : item,
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                          <label>
+                            保存天数
+                            <input
+                              type="number"
+                              min="0"
+                              aria-label={stock.name + "保存天数"}
+                              value={stock.days || 0}
+                              onChange={(event) =>
+                                setFridge((current) =>
+                                  current.map((item, i) =>
+                                    i === index
+                                      ? {
+                                          ...item,
+                                          days: Math.max(
+                                            0,
+                                            Math.floor(
+                                              Number(event.target.value),
+                                            ),
+                                          ),
+                                        }
+                                      : item,
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
                         <p
                           className={
                             "freshness " +
@@ -888,15 +1110,21 @@ function App() {
                           }
                         >
                           {"● "}
-                          {r === Infinity ? "期限未知" : r < 0
-                            ? "已过设定期限"
-                            : r < 1
-                              ? "今天到期"
-                              : r < 3
-                                ? "尽快食用"
-                                : "新鲜"}
+                          {r === Infinity
+                            ? "期限未知"
+                            : r < 0
+                              ? "已过设定期限"
+                              : r < 1
+                                ? "今天到期"
+                                : r < 3
+                                  ? "尽快食用"
+                                  : "新鲜"}
                           {" · "}
-                          {r >= 0 ? "剩余" + r + "天" : "请检查状态"}
+                          {r === Infinity
+                            ? "未设置保存期"
+                            : r >= 0
+                              ? "剩余" + r + "天"
+                              : "请检查状态"}
                         </p>
                       </article>
                     )
@@ -954,6 +1182,32 @@ function App() {
                     上传
                   </button>
                 </div>
+                <label>
+                  菜谱图片
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () =>
+                        setRecipeDraft((draft) => ({
+                          ...draft,
+                          image: reader.result,
+                        }));
+                      reader.onerror = () => toast.error("图片读取失败");
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+                {recipeDraft.image && (
+                  <img
+                    className="detail-image"
+                    src={recipeDraft.image}
+                    alt="菜谱图片预览"
+                  />
+                )}
                 <label>
                   菜品名称
                   <input
@@ -1015,7 +1269,9 @@ function App() {
                     />
                   </label>
                 </div>
-                <p className="data-note">食材数量留空表示适量或未知，采购时需自行确认。编辑草稿自动保留。</p>
+                <p className="data-note">
+                  食材数量留空表示适量或未知，采购时需自行确认。编辑草稿自动保留。
+                </p>
                 <h3>所需食材</h3>
                 {recipeDraft.ingredients.map((item, index) => (
                   <div key={index} className="ingredient-row">
@@ -1040,8 +1296,9 @@ function App() {
                     <input
                       aria-label="数量"
                       type="number"
-                      min="1"
-                      value={item.qty ?? "待确认"}
+                      min="0"
+                      step="any"
+                      value={item.qty ?? ""}
                       onChange={(event) =>
                         setRecipeDraft((draft) => ({
                           ...draft,
@@ -1050,7 +1307,10 @@ function App() {
                               _index2 === index
                                 ? {
                                     ..._item2,
-                                    qty: event.target.value === "" ? "" : +event.target.value,
+                                    qty:
+                                      event.target.value === ""
+                                        ? ""
+                                        : +event.target.value,
                                   }
                                 : _item2,
                           ),
@@ -1134,7 +1394,40 @@ function App() {
                         }))
                       }
                     />
-                    <GripVertical size={20} />
+                    <div>
+                      <button
+                        aria-label={"上移步骤" + (index + 1)}
+                        disabled={index === 0}
+                        onClick={() =>
+                          setRecipeDraft((draft) => {
+                            const steps = [...draft.steps];
+                            [steps[index - 1], steps[index]] = [
+                              steps[index],
+                              steps[index - 1],
+                            ];
+                            return { ...draft, steps };
+                          })
+                        }
+                      >
+                        ↑
+                      </button>
+                      <button
+                        aria-label={"下移步骤" + (index + 1)}
+                        disabled={index === recipeDraft.steps.length - 1}
+                        onClick={() =>
+                          setRecipeDraft((draft) => {
+                            const steps = [...draft.steps];
+                            [steps[index + 1], steps[index]] = [
+                              steps[index],
+                              steps[index + 1],
+                            ];
+                            return { ...draft, steps };
+                          })
+                        }
+                      >
+                        ↓
+                      </button>
+                    </div>
                     <button
                       aria-label="删除步骤"
                       onClick={() =>
@@ -1230,16 +1523,50 @@ function App() {
                 </span>
               </div>
               <div className="actions">
-                <button className="outline" onClick={() => { setRecipeDraft(structuredClone(activeRecipe)); setModal(""); navigate(1); }}>编辑菜谱</button>
-                <button className="outline" onClick={() => { if (!window.confirm("删除这道菜谱？已确认采购和菜单保留快照。")) return; setRecipes(current => current.filter(item => item.id !== activeRecipe.id)); setQuantities(current => { const next = {...current}; delete next[activeRecipe.id]; return next; }); setModal(""); toast.success("菜谱已删除"); }}>删除菜谱</button>
+                <button
+                  className="outline"
+                  onClick={() => {
+                    setRecipeDraft(structuredClone(activeRecipe));
+                    setModal("");
+                    navigate(1);
+                  }}
+                >
+                  编辑菜谱
+                </button>
+                <button
+                  className="outline"
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "删除这道菜谱？已确认采购和菜单保留快照。",
+                      )
+                    )
+                      return;
+                    setRecipes((current) =>
+                      current.filter((item) => item.id !== activeRecipe.id),
+                    );
+                    setQuantities((current) => {
+                      const next = { ...current };
+                      delete next[activeRecipe.id];
+                      return next;
+                    });
+                    setModal("");
+                    toast.success("菜谱已删除");
+                  }}
+                >
+                  删除菜谱
+                </button>
               </div>
               <h3>所需食材</h3>
               {activeRecipe.ingredients.map((item) => {
                 const t =
+                  item.qty != null &&
                   fridge
                     .filter(
                       (stock) =>
-                        stock.name === item.name && stock.unit === item.unit,
+                        stock.name === item.name &&
+                        stock.unit === item.unit &&
+                        usableStock(stock),
                     )
                     .reduce((e, t) => e + t.qty, 0) >= item.qty;
                 return (
@@ -1256,7 +1583,7 @@ function App() {
                       {item.qty ?? "待确认"}
                       {item.unit}
                       {" · "}
-                      {t ? "已有" : "缺少"}
+                      {item.qty == null ? "需自行确认" : t ? "已有" : "缺少"}
                     </span>
                   </div>
                 );
@@ -1366,6 +1693,19 @@ function App() {
                 </datalist>
               </label>
               <label>
+                入库日期
+                <input
+                  type="date"
+                  value={ingredientDraft.date || today()}
+                  onChange={(event) =>
+                    setIngredientDraft((draft) => ({
+                      ...draft,
+                      date: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
                 保存天数（0 表示未知，录入当天算第1天）
                 <input
                   type="number"
@@ -1412,7 +1752,10 @@ function App() {
                 className="outline"
                 onClick={async () => {
                   const e = shoppingList
-                    .map((item) => `${item.name} ${item.qty ?? "待确认"}${item.unit}`)
+                    .map(
+                      (item) =>
+                        `${item.name} ${item.qty ?? "待确认"}${item.unit}`,
+                    )
                     .join("\n");
                   try {
                     navigator.share
@@ -1462,26 +1805,82 @@ function App() {
                 />
               </label>
               <div className="chip-row">
-                {Object.keys({...archives, ...weeks}).sort().map((e) => (
-                  <button key={e} onClick={() => setArchiveDate(e)}>
-                    {e}
-                  </button>
-                ))}
+                {Object.keys({ ...archives, ...weeks })
+                  .sort()
+                  .map((e) => (
+                    <button key={e} onClick={() => setArchiveDate(e)}>
+                      {e}
+                    </button>
+                  ))}
               </div>
-              {({...archives, ...weeks})[archiveDate] ? (
-                Object.entries(({...archives, ...weeks})[archiveDate]).map(([e, t]) => (
-                  <div key={e} className="list-row">
-                    周{"一二三四五六日"[+e.split("-")[0]]} {e.split("-")[1]}餐
-                    <span>
-                      {t.map((e) => findRecipe(e)?.name).join("、")}
-                    </span>
-                  </div>
-                ))
+              {{ ...archives, ...weeks }[archiveDate] ? (
+                Object.entries({ ...archives, ...weeks }[archiveDate]).map(
+                  ([e, t]) => (
+                    <div key={e} className="list-row">
+                      周{"一二三四五六日"[+e.split("-")[0]]} {e.split("-")[1]}餐
+                      <span>
+                        {t
+                          .map(
+                            (e) =>
+                              (findRecipe(e)?.name || "菜谱内容已缺失") +
+                              " × " +
+                              (e.servings || 1),
+                          )
+                          .join("、")}
+                      </span>
+                    </div>
+                  ),
+                )
               ) : (
                 <p>选择有安排的周，可查看并复制到其他周。</p>
               )}
-              <label>复制到目标周 <input type="date" value={copyTarget} onChange={event => event.target.value && setCopyTarget(monday(event.target.value))} /></label>
-              <button className="primary" disabled={!({...archives, ...weeks})[archiveDate]} onClick={() => {if (Object.values(weeks[copyTarget] || {}).some(items => items.length) && !window.confirm("目标周已有安排，确认整体替换？")) return; const source = ({...archives, ...weeks})[archiveDate]; const copied = Object.fromEntries(Object.entries(source).map(([key, items]) => [key, items.map(item => structuredClone(findRecipe(item) || {id: item, name: "菜谱内容已缺失", ingredients: [], steps: []}))])); setWeeks(current => ({...current, [copyTarget]: copied})); setWeek(copyTarget); setModal(""); navigate(3); toast.success("已复制，目标周可独立修改");}}>复制菜单</button>
+              <label>
+                复制到目标周{" "}
+                <input
+                  type="date"
+                  value={copyTarget}
+                  onChange={(event) =>
+                    event.target.value &&
+                    setCopyTarget(monday(event.target.value))
+                  }
+                />
+              </label>
+              <button
+                className="primary"
+                disabled={!{ ...archives, ...weeks }[archiveDate]}
+                onClick={() => {
+                  if (
+                    Object.values(weeks[copyTarget] || {}).some(
+                      (items) => items.length,
+                    ) &&
+                    !window.confirm("目标周已有安排，确认整体替换？")
+                  )
+                    return;
+                  const source = { ...archives, ...weeks }[archiveDate];
+                  const copied = Object.fromEntries(
+                    Object.entries(source).map(([key, items]) => [
+                      key,
+                      items.map((item) =>
+                        structuredClone(
+                          findRecipe(item) || {
+                            id: item,
+                            name: "菜谱内容已缺失",
+                            ingredients: [],
+                            steps: [],
+                          },
+                        ),
+                      ),
+                    ]),
+                  );
+                  setWeeks((current) => ({ ...current, [copyTarget]: copied }));
+                  setWeek(copyTarget);
+                  setModal("");
+                  navigate(3);
+                  toast.success("已复制，目标周可独立修改");
+                }}
+              >
+                复制菜单
+              </button>
             </>
           )}
           {(modal === "import" || modal === "ai-fridge") && (
@@ -1489,22 +1888,28 @@ function App() {
               <div className="import-options">
                 <button
                   className="outline"
-                  onClick={() => toast("识别服务尚未接入，请使用下方手动录入")}
+                  onClick={() => {
+                    setModal("");
+                    setShowSettings(true);
+                  }}
                 >
                   <Camera />
                   {modal === "import" ? "图文识别" : "拍照识别"}
                 </button>
                 <button
                   className="outline"
-                  onClick={() => toast("识别服务尚未接入，请使用下方手动录入")}
+                  onClick={() => {
+                    setModal("");
+                    setShowSettings(true);
+                  }}
                 >
                   <Link />
-                  {modal === "import" ? "链接识别" : "小票识别"}
+                  {modal === "import" ? "粘贴正文识别" : "小票识别"}
                 </button>
               </div>
               <p>
-                AI
-                服务尚未连接，目前可以手动录入和编辑。连接识别服务后，才能自动提取内容。
+                在设置中配置 AI
+                后，可提交正文或截图识别，确认草稿后入库。小红书自动获取暂缓，请手动粘贴正文。
               </p>
               <button
                 className="primary"
