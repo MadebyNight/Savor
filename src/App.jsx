@@ -1,5 +1,5 @@
 import { monday, dayAt, usableStock, procurement } from "./domain.js";
-import { loadState, saveState } from "./storage.js";
+import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import SettingsPanel from "./components/SettingsPanel.jsx";
 // 从原站公开页面恢复的交互界面，保留原有文案、状态流转及计算规则。
 import {
@@ -378,12 +378,8 @@ function App() {
         },
       );
     }
-    const r = URL.createObjectURL(n);
-    const i = document.createElement("a");
-    i.href = r;
-    i.download = "食材采购清单." + (format === "image" ? "png" : "doc");
-    i.click();
-    setTimeout(() => URL.revokeObjectURL(r), 1000);
+    try {await exportBlob(n,"食材采购清单." + (format === "image" ? "png" : "doc"));} catch(error) {toast.error("导出失败："+error.message);}
+
   };
   if (!hydrated)
     return (
@@ -453,7 +449,7 @@ function App() {
           <div className="profile">
             <span>食</span>
             <div>
-              我的小厨房<small>数据保存在当前浏览器</small>
+              我的小厨房<small>数据保存在本机</small>
             </div>
             <Heart size={17} />
           </div>
@@ -468,16 +464,15 @@ function App() {
             {"我的小厨房 "}
             <i>/</i> <b>{navigationItems[page][0]}</b>
           </span>
-          <span className="today">
+          <span className="settings-tools">
             <button
               className="outline"
               onClick={() => setShowSettings((value) => !value)}
             >
               设置与备份
             </button>
-            <small>{saveStatus}</small>
-            <Sun size={17} />
-            {" 今天也要好好吃饭"}
+            <small role="status">{saveStatus}</small>
+            <span className="today"><Sun size={17} /> 今天也要好好吃饭</span>
           </span>
         </header>
         <div className="workspace">
@@ -485,18 +480,9 @@ function App() {
             <SettingsPanel
               state={fullState}
               onRestore={restoreState}
-              onImportRecipes={(items) =>
-                setRecipes((current) => [
-                  ...current,
-                  ...items.map((item, index) => ({
-                    ...item,
-                    id: Date.now() + index,
-                  })),
-                ])
-              }
-              onImportStock={(items) =>
-                setFridge((current) => [...current, ...items])
-              }
+              onImportRecipes={async items => {const next=[...recipes,...items];await saveState({...fullState,recipes:next});setRecipes(next);}}
+              onImportStock={async items => {const next=[...fridge,...items];await saveState({...fullState,fridge:next});setFridge(next);}}
+
             />
           )}
 
@@ -1785,7 +1771,7 @@ function App() {
                     )
                     .join("\n");
                   try {
-                    navigator.share
+                    isNative() ? await exportBlob(new Blob([e], {type:"text/plain"}), "食光采购清单.txt", true) : navigator.share
                       ? await navigator.share({
                           title: "食光采购清单",
                           text: e,

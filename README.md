@@ -1,65 +1,57 @@
-# 食光 · 智能膳食规划
+# 食光 · Android 本地膳食规划
 
-对 [食光原站](https://shiguang-meal-planner.yunchaogood123.chatgpt.site) 的本地完整前端复刻。以 2026-09-13 公开页面为基准，保留原始图片、主题样式、五个页面、弹层、响应式布局及浏览器内的交互逻辑。
+MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作；热量功能已移除。
 
-功能与需求确认请看：[产品需求确认稿](docs/产品需求确认.md)。
+需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
-后续开发方向、功能补齐与分阶段安排请看：[开发规划](docs/开发规划.md)。
+## 本地开发
 
-## 启动
+Node.js 22.12+。在项目根目录执行：
 
-需要 Node.js 22.12+，当前环境使用 Node.js 24.12。
-
-```bash
+```powershell
 npm install
 npm run dev
-```
-
-打开 <http://127.0.0.1:5173>。依赖已经安装，本工作区后续只需运行 `npm run dev`。
-
-```bash
 npm run build
-npm run preview
+node --test src/domain.test.js src/sync.test.js
 ```
 
-构建结果在 `dist/`，可由静态服务器提供；构建预览地址为 <http://127.0.0.1:4173>。
+浏览器预览仅用于开发，业务状态使用 localStorage；API Key 只保留在内存。Android 使用 SQLite、私有图片目录、SharedPreferences 和 Keystore。
 
-## 已还原的内容
+## Android 构建
 
-| 页面     | 原有交互                                                                         |
-| -------- | -------------------------------------------------------------------------------- |
-| 点单选菜 | 分类、关键词筛选、菜品详情、份数增减、点单清单、确认同步                         |
-| 上传菜谱 | 菜名、分类、用时、重量、热量、食材增删、步骤增删及拖放排序、手动保存             |
-| 菜篮子   | 按确认份数汇总食材、抵扣冰箱库存、按类别筛选、预览、PNG / Word 导出及浏览器分享  |
-| 周菜单   | 拖放或先选菜再点击餐次、重复安排、移除菜品、餐次和每日热量、目标提醒、存档与清空 |
-| 我的冰箱 | 添加与删除食材、编辑数量和单位、保存期限提示、用所选食材筛选菜谱、识别入口       |
+需要 JDK21、Android SDK36、Build Tools36，`android/local.properties` 指向 SDK，文件不提交。
 
-卡片上浮、按钮反馈、禁用状态、底部吸附点单栏、模糊遮罩、弹窗进出、移动端抽屉和桌面侧栏快捷键均按原站恢复。
+```powershell
+npm run build
+npx cap sync android
+cd android
+.\gradlew.bat assembleDebug
+```
 
-## 源码与设计资料
+APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工具放 `.android-tools/`，设置 `JAVA_HOME` 与 `GRADLE_USER_HOME` 到工作区相应路径后执行。构建不等于真机验收，详见进度文档。
 
-| 路径                            | 内容                                          |
-| ------------------------------- | --------------------------------------------- |
-| `src/App.jsx`                   | 五个页面、八种弹层内容与业务状态联动          |
-| `src/data.js`                   | 七道原始菜谱、四种初始食材、分类和热量分级    |
-| `src/components/Sidebar.jsx`    | 桌面侧栏、移动端抽屉、Ctrl / ⌘ + B            |
-| `src/components/Dialog.jsx`     | 原站风格的弹层、遮罩、焦点与关闭操作          |
-| `src/components/IconButton.jsx` | 共用的图标按钮尺寸、焦点与按压反馈            |
-| `src/styles.css`                | 原始配色、排版、布局、动效和响应式规则        |
-| `src/styles/framework.css`      | 原站公开 CSS 中的 Tailwind 基础与组件工具样式 |
-| `public/food-*`                 | 原站三张菜品照片，已下载到本地                |
-| [设计逻辑](docs/设计逻辑.md)    | 视觉数值、信息层级、交互状态和计算规则        |
-| `docs/reference/`               | 原站桌面、移动端及弹层参考图                  |
-| `docs/preview/`                 | 本地成品页面预览图                            |
+## 测试
 
-界面从原站公开前端脚本恢复为 JSX，并整理了状态和事件命名；本地运行无需请求原站。React + Vite 负责运行与打包，Base UI、Lucide 和 Sonner 对应原界面的弹层、图标与消息提示。
+- `node --test src/domain.test.js src/sync.test.js`：采购、日期、迁移、备份、并发同步与图片完整性。
+- `python tests/e2e.py`：启动 Vite 后运行，覆盖核心浏览器流程。
+- `python tests/e2e_ai.py`：AI模拟响应、错误、草稿、取消和手机导航。
+- Android：设备连接后 `android/gradlew.bat connectedDebugAndroidTest`（在 android 目录运行）。原生测试覆盖SQLite错误不覆盖、偏好、路径和图片类型等。
 
-## 与原站一致的边界
+浏览器测试输出留 `.android-tools/e2e/`，Python Playwright 和浏览器需可用；测试脚本将浏览器缓存限定到工作区。模拟服务测试不等于真实AI或坚果云账户验收。
 
-数据保存在当前站点来源下的 `localStorage`，键名为 `shiguang-v1`。不同域名、端口或浏览器各自独立，原站浏览器中的个人数据不会自动迁移到本地。
+## 使用与限制
 
-AI 图文、链接、拍照及小票识别均保留原站的未接入提示，实际入口引导手动录入。营养信息沿用示例数值；初始冰箱食材的录入日期保留为 `2026-09-08`，新鲜度会随当前日期变化。
+- 设置与备份：配置 DeepSeek 接口及模型（当前官方文档模型 `deepseek-flash`），每次发送前确认文字与图片。
+- AI提取只生成草稿，逐项编辑勾选后保存；失败保留输入。取消只停止等待，不保证服务端未计费。
+- 公开链接正文复用 Mozilla Readability；小红书需要登录或返回空壳时改用粘贴/截图。暂不支持登录态评论抓取，不部署额外MCP服务。
+- 坚果云：配置 WebDAV 根地址、账号和应用密码，手动检查并选择方向。双方变更不自动合并，恢复前保留本地备份；发布用条件写入，失败副本可恢复。
+- PNG、HTML `.doc` 和 JSON 备份在 Android 通过系统文件保存；分享使用系统分享面板。
+- 备份不含API Key、WebDAV密码和本机草稿。原型旧菜单ID迁移为快照，缺失内容明确标记。
 
-Word 导出沿用原站的 HTML 内容 `.doc` 格式。分享优先使用设备分享面板，否则复制到剪贴板，实际能力取决于浏览器。
+## 开源与文档
 
-原型阶段仅进行了生产构建和页面预览。MVP 阶段新增 Android `LocalDataPluginTest` 仪器测试，覆盖非法 JSON 不覆盖已有状态、缺失偏好明确返回 null、图片路径越界及未知 MIME 拒绝。这组测试尚未在设备上执行；SQLite 重启持久化、Keystore 凭据读写、图片往返、HTTP/WebDAV 状态及中文正文、真机 E2E 仍待 Android 构建流程验证。编译成功不能替代这些运行验证。
+- [Mozilla Readability](https://github.com/mozilla/readability)：Apache-2.0，公开网页正文提取。
+- [DeepSeek 图像理解](https://api-docs.deepseek.com/zh-cn/guides/vision/)：Chat Completions 图文格式。
+- [小红书 MCP](https://github.com/xpzouying/xiaohongshu-mcp)、[小红书 skill](https://github.com/DeliciousBuding/xiaohongshu-skill)：已评估，依赖外部浏览器/登录，不直接嵌入 APK。
+
+不提交SDK、JDK、node_modules、dist、密钥及本地配置。当前为个人安装调试APK流程，正式签名升级与真实服务验证结果以进度文档为准。
