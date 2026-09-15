@@ -38,4 +38,12 @@ public class LocalDataPluginTest {
         Call format = new Call(new JSObject().put("data", "AAAA").put("mime", "image/unknown")); plugin.saveImage(format); format.await(); assertNotNull(format.error);
         plugin.handleOnDestroy();
     }
+    @Test public void exportRejectsPathsBeforeOpeningActivity() throws Exception {
+        for (String name : new String[]{"../outside.doc", "folder/file.png", "folder\\file.png", "", ".."}) {
+            Call call = new Call(new JSObject().put("name", name).put("mime", "image/png").put("data", "AAAA"));
+            plugin.exportFile(call); call.await(); assertNotNull(call.error);
+        }
+        assertEquals("采购清单.png", LocalDataPlugin.exportName("采购清单.png"));
+        plugin.handleOnDestroy();
+    }
 }

@@ -55,3 +55,11 @@ export async function request(options) {
   const response = await fetch(options.url,{method:options.method || 'GET',headers:options.headers,body:options.body});
   return {status:response.status,data:await response.text(),headers:Object.fromEntries(response.headers)};
 }
+export async function exportBlob(blob,name,share=false) {
+  if(isNative()) {
+    const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+    return LocalData.exportFile({data:btoa(binary),name,mime:blob.type || 'application/octet-stream',share});
+  }
+  if(share && navigator.canShare?.({files:[new File([blob],name,{type:blob.type})]})) {await navigator.share({files:[new File([blob],name,{type:blob.type})]});return {status:'share-sheet-closed'};}
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return {status:'saved'};
+}

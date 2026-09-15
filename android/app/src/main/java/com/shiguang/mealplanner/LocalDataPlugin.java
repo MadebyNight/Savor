@@ -2,6 +2,12 @@ package com.shiguang.mealplanner;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ClipData;
+import android.app.Activity;
+import android.net.Uri;
+import androidx.activity.result.ActivityResult;
+import androidx.core.content.FileProvider;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.security.keystore.KeyGenParameterSpec;
@@ -12,6 +18,7 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.ActivityCallback;
 import org.json.JSONObject;
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -32,6 +39,7 @@ public class LocalDataPlugin extends Plugin {
     private final ExecutorService storage = Executors.newSingleThreadExecutor();
     private final ExecutorService network = Executors.newCachedThreadPool();
     private static final String KEY_ALIAS = "shiguang.credentials.v1";
+    private boolean exportActive;
 
     private interface Work { JSObject run() throws Exception; }
     private void run(PluginCall call, ExecutorService executor, Work work) {
@@ -180,6 +188,67 @@ public class LocalDataPlugin extends Plugin {
                 JSObject result = new JSObject(); result.put("status", status); result.put("data", data); result.put("headers", responseHeaders); return result;
             } finally { connection.disconnect(); }
         });
+    }
+    static String exportName(String name) {
+        if (name == null || name.trim().isEmpty() || name.contains("/") || name.contains("\\") || name.equals(".") || name.equals("..")) throw new IllegalArgumentException("Invalid export filename");
+        return name;
+    }
+    @PluginMethod public void exportFile(PluginCall call) {
+        synchronized (this) {
+            if (exportActive) { call.reject("请先完成当前保存或分享操作"); return; }
+            exportActive = true;
+        }
+        storage.execute(() -> {
+            try {
+                String name = exportName(required(call, "name"));
+                String mime = required(call, "mime");
+                byte[] bytes = Base64.decode(required(call, "data"), Base64.DEFAULT);
+                Intent intent;
+                String callback;
+                if (Boolean.TRUE.equals(call.getBoolean("share", false))) {
+                    File directory = new File(getContext().getCacheDir(), "exports");
+                    if (!directory.exists() && !directory.mkdirs()) throw new IOException("Export directory unavailable");
+                    File file = new File(directory, name);
+                    try (FileOutputStream output = new FileOutputStream(file)) { output.write(bytes); }
+                    Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", file);
+                    Intent send = new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    send.setClipData(ClipData.newRawUri(name, uri));
+                    intent = Intent.createChooser(send, "分享文件");
+                    callback = "shareFinished";
+                } else {
+                    intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                        .setType(mime).putExtra(Intent.EXTRA_TITLE, name);
+                    callback = "documentSelected";
+                }
+                getActivity().runOnUiThread(() -> {
+                    try { startActivityForResult(call, intent, callback); }
+                    catch (Exception error) { finishExport(); call.reject("无法打开系统文件面板"); }
+                });
+            } catch (Exception error) { finishExport(); call.reject("文件导出失败：" + error.getClass().getSimpleName()); }
+        });
+    }
+    private synchronized void finishExport() { exportActive = false; }
+    @ActivityCallback private void documentSelected(PluginCall call, ActivityResult result) {
+        if (call == null) { finishExport(); return; }
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) {
+            finishExport(); call.resolve(new JSObject().put("cancelled", true)); return;
+        }
+        Uri uri = result.getData().getData();
+        run(call, storage, () -> {
+            try {
+                try (OutputStream output = getContext().getContentResolver().openOutputStream(uri, "wt")) {
+                    if (output == null) throw new IOException("Document unavailable");
+                    output.write(Base64.decode(required(call, "data"), Base64.DEFAULT));
+                }
+                return new JSObject().put("cancelled", false).put("status", "saved");
+            } finally { finishExport(); }
+        });
+    }
+    @ActivityCallback private void shareFinished(PluginCall call, ActivityResult result) {
+        finishExport();
+        // ACTION_SEND does not reliably distinguish successful sending from cancellation.
+        if (call != null) call.resolve(new JSObject().put("cancelled", JSONObject.NULL).put("status", "share-sheet-closed"));
     }
     @Override protected void handleOnDestroy() {
         storage.shutdown(); network.shutdown();

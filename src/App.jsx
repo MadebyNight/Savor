@@ -112,7 +112,7 @@ function App() {
     confirmedRecipes,
     recipeDraft,
   };
-  const restoreState = (state) => {
+  const applyState = (state) => {
     setRecipes(state.recipes || initialRecipes);
     setFridge(state.fridge || []);
     setQuantities(state.qty || {});
@@ -125,12 +125,25 @@ function App() {
     );
     if (state.recipeDraft) setRecipeDraft(state.recipeDraft);
   };
+  const restoreState = async (state) => {
+    setSaveStatus("正在恢复");
+    try {
+      await saveState(state);
+      applyState(state);
+      setModal("");
+      setSelectedRecipeId(null);
+      setSaveStatus("已保存");
+    } catch (error) {
+      setSaveStatus("恢复失败，原数据保留");
+      throw error;
+    }
+  };
   useEffect(() => {
     let active = true;
     loadState()
       .then((state) => {
         if (active) {
-          if (state) restoreState(state);
+          if (state) applyState(state);
           setHydrated(true);
         }
       })
@@ -372,6 +385,20 @@ function App() {
     i.click();
     setTimeout(() => URL.revokeObjectURL(r), 1000);
   };
+  if (!hydrated)
+    return (
+      <main className="panel" role="status">
+        <h1>食光</h1>
+        <p>{saveStatus}</p>
+        <p>数据读取完成后才能编辑。</p>
+        {saveStatus.includes("失败") && (
+          <button className="primary" onClick={() => window.location.reload()}>
+            重新加载
+          </button>
+        )}
+        <Toaster richColors position="top-center" />
+      </main>
+    );
   return (
     <SidebarProvider
       style={{
