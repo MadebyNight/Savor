@@ -193,10 +193,12 @@ export function SidebarMenuItem(props) {
   );
 }
 
-export function SidebarMenuButton({ isActive, className = "", ...props }) {
+export function SidebarMenuButton({ isActive, className = "", onClick, ...props }) {
+  const {isMobile,setOpenMobile} = useContext(SidebarContext);
   return (
     <button
       type="button"
+      onClick={event=>{onClick?.(event);if(isMobile)setOpenMobile(false);}}
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
       data-size="default"

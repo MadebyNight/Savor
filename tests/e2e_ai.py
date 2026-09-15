@@ -16,6 +16,14 @@ with sync_playwright() as p:
   if mode['value']=='401':route.fulfill(status=401,body='{}');return
   route.fulfill(status=200,content_type='application/json',body='bad' if mode['value']=='bad' else response([recipe,{'name':'待补充菜','ingredients':[],'steps':[]}]))
  page.route('https://mock.invalid/**',handle)
+ page.route('https://article.invalid/ok',lambda route:route.fulfill(status=200,content_type='text/html',body='<html><head><title>公开菜谱</title></head><body><article><h1>公开菜谱</h1><p>'+('番茄洗净切块，鸡蛋打散炒熟，加入番茄翻炒后调味。'*10)+'</p></article></body></html>'))
+ page.get_by_label('公开链接',exact=False).fill('https://article.invalid/ok');page.get_by_role('button',name='获取公开正文',exact=True).click();
+ expect(page.get_by_label('识别原文',exact=True)).to_have_value(__import__('re').compile('公开菜谱'))
+ assert page.get_by_label('草稿名称1',exact=True).count()==0
+ prior=page.get_by_label('识别原文',exact=True).input_value()
+ page.route('https://article.invalid/login',lambda route:route.fulfill(status=200,content_type='text/html',body='<html><body>登录</body></html>'))
+ page.get_by_label('公开链接',exact=False).fill('https://article.invalid/login');page.get_by_role('button',name='获取公开正文',exact=True).click();expect(page.get_by_text('没有取得可用正文，请粘贴原文或上传截图',exact=True)).to_be_visible();expect(page.get_by_label('识别原文',exact=True)).to_have_value(prior)
+ page.get_by_label('公开链接',exact=False).fill('http://article.invalid/no');page.get_by_role('button',name='获取公开正文',exact=True).click();expect(page.get_by_text('请使用 HTTPS 链接',exact=True)).to_be_visible()
  page.get_by_label('识别原文',exact=True).fill('测试文字菜谱');page.get_by_role('button',name='确认发送并识别').click();expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('AI测试菜')
  page.get_by_role('button',name='确认保存选中条目').click();expect(page.get_by_text('待补充菜：至少需要一种食材和一个步骤',exact=True)).to_be_visible()
  page.get_by_role('checkbox',name='保存第 2 项').uncheck();page.get_by_label('草稿名称1',exact=True).fill('AI已核对菜');page.get_by_role('button',name='确认保存选中条目').click()
@@ -29,7 +37,7 @@ with sync_playwright() as p:
  page.wait_for_load_state('networkidle');expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('待补充菜')
  page.screenshot(path=str(OUT/'ai-desktop.png'),full_page=True)
  page.set_viewport_size({'width':390,'height':844});expect(page.get_by_role('button',name='设置与备份')).to_be_visible();page.get_by_role('button',name='设置与备份').click();expect(page.get_by_text('设置与数据',exact=True)).not_to_be_visible();page.get_by_role('button',name='设置与备份').click();expect(page.get_by_text('设置与数据',exact=True)).to_be_visible();page.screenshot(path=str(OUT/'ai-mobile.png'),full_page=True)
- page.get_by_role('button',name='切换侧边栏').click();page.get_by_role('button',name='我的冰箱',exact=True).click();expect(page.get_by_text('打开冰箱，发现好食光',exact=True)).to_be_visible();page.screenshot(path=str(OUT/'mobile-home.png'),full_page=True)
+ page.mouse.move(389,840);page.get_by_role('button',name='切换侧边栏').click();page.get_by_role('button',name='我的冰箱',exact=True).click();expect(page.get_by_text('打开冰箱，发现好食光',exact=True)).to_be_visible();expect(page.get_by_role('button',name='我的冰箱',exact=True)).not_to_be_visible();page.screenshot(path=str(OUT/'mobile-home.png'),full_page=True)
  assert not errors,errors
  print('PASS: AI mock success, field validation, selective save, reload draft, 401, malformed response, cancellation ignores late response; mobile screenshots')
  browser.close()

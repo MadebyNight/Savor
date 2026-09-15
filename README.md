@@ -30,6 +30,8 @@ cd android
 
 APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工具放 `.android-tools/`，设置 `JAVA_HOME` 与 `GRADLE_USER_HOME` 到工作区相应路径后执行。构建不等于真机验收，详见进度文档。
 
+本工作区也可执行 `./scripts/android-build.ps1`，自动使用 `.android-tools/jdk21/` 下的 JDK 21 和 `.android-tools/sdk/`，依次构建前端、同步 Capacitor、构建 APK 并运行单元测试。连接设备或启动模拟器后加 `-ConnectedTests` 运行 Android 仪器测试；Gradle 缓存和 AVD 状态均限定在 `.android-tools/`。
+
 ## 测试
 
 - `node --test src/domain.test.js src/sync.test.js`：采购、日期、迁移、备份、并发同步与图片完整性。
