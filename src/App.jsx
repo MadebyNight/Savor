@@ -184,6 +184,7 @@ function App() {
     hydrated,
   ]);
   const navigate = (nextPage) => {
+    setShowSettings(false);
     setPage(nextPage);
     setCategory("全部");
     setSearch("");
@@ -486,6 +487,7 @@ function App() {
             />
           )}
 
+          {!showSettings && <>
           <div className="page-heading">
             <div>
               <div className="eyebrow">EVERYDAY, A LITTLE DELICIOUS</div>
@@ -1492,6 +1494,7 @@ function App() {
               </aside>
             </div>
           )}
+          </>}
         </div>
         <footer className="site-footer">
           {"食光 SHIGUANG "}
