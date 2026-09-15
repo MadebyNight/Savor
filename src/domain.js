@@ -1,3 +1,5 @@
+export const trimName = value => String(value ?? '').trim();
+export const normalizeUnit = value => ({'克':'g','毫升':'ml','千克':'kg','公斤':'kg','g':'g','ml':'ml','kg':'kg'}[trimName(value)] || trimName(value));
 export const dayAt = (value, offset) => {
   const date = new Date(value + "T12:00:00");
   date.setDate(date.getDate() + offset);
@@ -16,12 +18,12 @@ export function procurement(recipes, quantities, fridge, date) {
   for (const recipe of recipes) {
     if (!quantities[recipe.id]) continue;
     for (const item of recipe.ingredients) {
-      const key = item.name + "|" + item.unit;
+      const name=trimName(item.name), unit=normalizeUnit(item.unit), key = name + "|" + unit;
       const previous = requirements.get(key);
       const unknown =
         item.qty == null || item.qty === "" || previous?.qty === null;
       requirements.set(key, {
-        ...item,
+        ...item,name,unit,
         qty: unknown
           ? null
           : (previous?.qty || 0) + item.qty * quantities[recipe.id],
@@ -41,8 +43,8 @@ export function procurement(recipes, quantities, fridge, date) {
                 fridge
                   .filter(
                     (stock) =>
-                      stock.name === item.name &&
-                      stock.unit === item.unit &&
+                      trimName(stock.name) === item.name &&
+                      normalizeUnit(stock.unit) === item.unit &&
                       usableStock(stock, date),
                   )
                   .reduce((total, stock) => total + Number(stock.qty), 0)

@@ -1,4 +1,4 @@
-import { monday, dayAt, usableStock, procurement } from "./domain.js";
+﻿import { monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import SettingsPanel from "./components/SettingsPanel.jsx";
 // 从原站公开页面恢复的交互界面，保留原有文案、状态流转及计算规则。
@@ -251,7 +251,7 @@ function App() {
       recipe.name.includes(search) &&
       (!selectedIngredients.length ||
         selectedIngredients.every((ingredientName) =>
-          recipe.ingredients.some((item) => item.name === ingredientName),
+          recipe.ingredients.some((item) => trimName(item.name) === trimName(ingredientName)),
         )),
   );
   const saveRecipe = () => {
@@ -652,8 +652,8 @@ function App() {
                                     .filter(
                                       (stock) =>
                                         usableStock(stock) &&
-                                        stock.name === item.name &&
-                                        stock.unit === item.unit,
+                                        trimName(stock.name) === trimName(item.name) &&
+                                        normalizeUnit(stock.unit) === normalizeUnit(item.unit),
                                     )
                                     .reduce(
                                       (sum, stock) => sum + Number(stock.qty),
@@ -1580,8 +1580,8 @@ function App() {
                   fridge
                     .filter(
                       (stock) =>
-                        stock.name === item.name &&
-                        stock.unit === item.unit &&
+                        trimName(stock.name) === trimName(item.name) &&
+                        normalizeUnit(stock.unit) === normalizeUnit(item.unit) &&
                         usableStock(stock),
                     )
                     .reduce((e, t) => e + t.qty, 0) >= item.qty;

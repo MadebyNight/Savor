@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { monday, dayAt, usableStock, procurement } from "./domain.js";
+import { monday, dayAt, usableStock, procurement, normalizeUnit, trimName } from "./domain.js";
 test("真实周跨年与周日归属", () => {
   assert.equal(monday("2027-01-03"), "2026-12-28");
   assert.equal(dayAt("2026-12-28", 7), "2027-01-04");
@@ -44,4 +44,9 @@ test("不同单位不抵扣，空确认清单为空", () => {
     100,
   );
   assert.deepEqual(procurement(recipes, {}, []), []);
+});
+test('单位与名称规范化后可抵扣',()=>{
+ const recipe={id:'r',ingredients:[{name:' 番茄 ',qty:100,unit:'克'}]};
+ assert.equal(normalizeUnit('克'),'g');assert.equal(trimName(' 番茄 '),'番茄');
+ assert.deepEqual(procurement([recipe],{r:1},[{name:'番茄',qty:100,unit:'g'}]),[]);
 });
