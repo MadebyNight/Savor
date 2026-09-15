@@ -5,8 +5,6 @@ import {
   initialFridge,
   recipeCategories,
   stockCategories,
-  calorieClass,
-  calorieLabel,
   today,
 } from "./data.js";
 import { useEffect, useState } from "react";
@@ -58,14 +56,22 @@ const navigationItems = [
   ["周菜单", CalendarDays],
   ["我的冰箱", Refrigerator],
 ];
+const monday = value => { const date = new Date(value + "T12:00:00"); date.setDate(date.getDate() - (date.getDay() + 6) % 7); return date.toLocaleDateString("sv-SE"); };
+const dayAt = (value, offset) => {const date = new Date(value + "T12:00:00"); date.setDate(date.getDate() + offset); return date.toLocaleDateString("sv-SE");};
+const usableStock = stock => !stock.days || dayAt(stock.date || today(), Number(stock.days)) > today();
 function App() {
   const [page, setPage] = useState(0);
   const [recipes, setRecipes] = useState(initialRecipes);
-  const [fridge, setFridge] = useState(initialFridge);
+  const [fridge, setFridge] = useState([]);
   // 修改点单只更新 quantities；确认后才更新采购缺口与周菜单素材。
   const [quantities, setQuantities] = useState({});
   const [confirmedQuantities, setConfirmedQuantities] = useState({});
-  const [plan, setPlan] = useState({});
+  const [weeks, setWeeks] = useState({});
+  const [week, setWeek] = useState(monday(today()));
+  const plan = weeks[week] || {};
+  const setPlan = update => setWeeks(current => ({...current, [week]: typeof update === "function" ? update(current[week] || {}) : update}));
+  const [confirmedRecipes, setConfirmedRecipes] = useState([]);
+  const [copyTarget, setCopyTarget] = useState(monday(today()));
   const [archives, setArchives] = useState({});
   const [hydrated, setHydrated] = useState(false);
   const [category, setCategory] = useState("全部");
@@ -74,13 +80,11 @@ function App() {
   const [activeRecipe, setActiveRecipe] = useState(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [selectedIngredients, setSelectedIngredients] = useState([]);
-  const [dailyTarget, setDailyTarget] = useState(2000);
   const [archiveDate, setArchiveDate] = useState("");
   const [recipeDraft, setRecipeDraft] = useState({
     id: 0,
     name: "",
     category: "素菜",
-    kcal: 0,
     time: 15,
     weight: 300,
     ingredients: [ingredient("", 100)],
@@ -100,8 +104,10 @@ function App() {
         setFridge(state.fridge);
         setQuantities(state.qty);
         setConfirmedQuantities(state.confirmed);
-        setPlan(state.plan);
-        setArchives(state.archives);
+        setWeeks(state.weeks || {});
+        setArchives(state.archives || (state.plan ? {"旧版存档": state.plan} : {}));
+        setConfirmedRecipes(state.confirmedRecipes || (state.recipes || []).filter(item => state.confirmed?.[item.id]));
+        if (state.recipeDraft) setRecipeDraft(state.recipeDraft);
       }
     } catch {}
     setHydrated(true);
@@ -116,8 +122,10 @@ function App() {
             fridge,
             qty: quantities,
             confirmed: confirmedQuantities,
-            plan,
+            weeks,
             archives,
+            confirmedRecipes,
+            recipeDraft,
           }),
         );
       } catch {
@@ -128,8 +136,10 @@ function App() {
     fridge,
     quantities,
     confirmedQuantities,
-    plan,
+    weeks,
     archives,
+    confirmedRecipes,
+    recipeDraft,
     hydrated,
   ]);
   const navigate = (nextPage) => {
@@ -138,8 +148,7 @@ function App() {
     setSearch("");
     setSelectedIngredients([]);
   };
-  const findRecipe = (recipeId) =>
-    recipes.find((recipe) => recipe.id === recipeId);
+  const findRecipe = recipeId => typeof recipeId === "object" ? recipeId : recipes.find(recipe => recipe.id === recipeId) || confirmedRecipes.find(recipe => recipe.id === recipeId);
   const selectedCount = Object.values(quantities).reduce(
     (total, quantity) => total + quantity,
     0,
@@ -147,15 +156,14 @@ function App() {
   // 同名、同单位食材合并；先汇总全部需求，再减去冰箱中已有数量。
   const shoppingList = (() => {
     const requirements = {};
-    recipes.forEach((recipe) =>
+    confirmedRecipes.forEach((recipe) =>
       recipe.ingredients.forEach((item) => {
         if (confirmedQuantities[recipe.id]) {
           const ingredientKey = item.name + "|" + item.unit;
           requirements[ingredientKey] = {
             ...item,
             qty:
-              (requirements[ingredientKey]?.qty || 0) +
-              item.qty * confirmedQuantities[recipe.id],
+              item.qty == null || item.qty === "" || requirements[ingredientKey]?.qty === null ? null : (requirements[ingredientKey]?.qty || 0) + item.qty * confirmedQuantities[recipe.id],
           };
         }
       }),
@@ -163,17 +171,17 @@ function App() {
     return Object.values(requirements)
       .map((item) => ({
         ...item,
-        qty: Math.max(
+        qty: item.qty == null ? null : Math.max(
           0,
           item.qty -
             fridge
               .filter(
-                (stock) => stock.name === item.name && stock.unit === item.unit,
+                (stock) => stock.name === item.name && stock.unit === item.unit && usableStock(stock),
               )
               .reduce((total, stock) => total + stock.qty, 0),
         ),
       }))
-      .filter((item) => item.qty > 0);
+      .filter((item) => item.qty == null || item.qty > 0);
   })();
   const changeQuantity = (recipeId, delta) =>
     setQuantities((currentQuantities) => ({
@@ -181,6 +189,8 @@ function App() {
       [recipeId]: Math.max(0, (currentQuantities[recipeId] || 0) + delta),
     }));
   const confirmSelection = () => {
+    if (!selectedCount && !window.confirm("清空采购需求？已排菜单保持不变。")) return;
+    setConfirmedRecipes(structuredClone(recipes.filter(item => quantities[item.id] > 0)));
     setConfirmedQuantities({
       ...quantities,
     });
@@ -191,18 +201,11 @@ function App() {
     if (recipeId) {
       setPlan((currentPlan) => ({
         ...currentPlan,
-        [slot]: [...(currentPlan[slot] || []), recipeId],
+        [slot]: [...(currentPlan[slot] || []), structuredClone(confirmedRecipes.find(item => item.id === recipeId) || findRecipe(recipeId))],
       }));
       toast.success("已安排这道菜");
     }
   };
-  const calculateCalories = (recipeIds) =>
-    Math.round(
-      recipeIds.reduce((total, recipeId) => {
-        const recipe = findRecipe(recipeId);
-        return total + (recipe ? (recipe.kcal * recipe.weight) / 100 : 0);
-      }, 0),
-    );
   const filteredRecipes = recipes.filter(
     (recipe) =>
       (category === "全部" || recipe.category === category) &&
@@ -215,26 +218,23 @@ function App() {
   const saveRecipe = () => {
     if (
       !recipeDraft.name.trim() ||
+      !recipeDraft.ingredients.length || !recipeDraft.steps.length ||
       recipeDraft.ingredients.some(
-        (item) => !item.name.trim() || item.qty <= 0,
+        (item) => !item.name.trim() || (item.qty !== "" && item.qty != null && item.qty <= 0),
       ) ||
       recipeDraft.steps.some((step) => !step.trim())
     ) {
       toast.error("请填写菜名、有效食材数量和制作步骤");
       return;
     }
-    setRecipes((currentRecipes) => [
-      ...currentRecipes,
-      {
-        ...recipeDraft,
-        id: Date.now(),
-      },
-    ]);
-    toast.success("菜谱已保存到点单选菜");
+    const savedRecipe = {...recipeDraft, name: recipeDraft.name.trim(), id: recipeDraft.id || Date.now(), ingredients: recipeDraft.ingredients.map(item => ({...item, name: item.name.trim(), unit: item.unit.trim() === "克" ? "g" : item.unit.trim(), qty: item.qty === "" ? null : item.qty}))};
+    setRecipes(current => recipeDraft.id ? current.map(item => item.id === recipeDraft.id ? savedRecipe : item) : [...current, savedRecipe]);
+    toast.success(recipeDraft.id ? "菜谱已更新，已确认采购与菜单快照保留" : "菜谱已保存到点单选菜");
+    setRecipeDraft({id: 0, name: "", category: "素菜", time: 15, weight: 300, ingredients: [ingredient("", 100)], steps: [""]});
     navigate(0);
   };
   const saveIngredient = () => {
-    if (!ingredientDraft.name.trim() || ingredientDraft.qty <= 0) {
+    if (!ingredientDraft.name.trim() || !ingredientDraft.unit.trim() || ingredientDraft.qty <= 0) {
       toast.error("请填写食材名称和有效数量");
       return;
     }
@@ -242,6 +242,8 @@ function App() {
       ...currentFridge,
       {
         ...ingredientDraft,
+        name: ingredientDraft.name.trim(),
+        unit: ingredientDraft.unit.trim() === "克" ? "g" : ingredientDraft.unit.trim(),
         date: today(),
       },
     ]);
@@ -254,7 +256,7 @@ function App() {
   };
   const exportShoppingList = async (format) => {
     const t = shoppingList.map(
-      (item) => `${item.name}    ${item.qty} ${item.unit}`,
+      (item) => `${item.name}    ${item.qty ?? "待确认"} ${item.unit}`,
     );
     let n;
     if (format === "image") {
@@ -512,14 +514,6 @@ function App() {
                               <span>{recipe.name}</span>
                             </div>
                           )}
-                          <span
-                            className={
-                              "calorie-tag " + calorieClass(recipe.kcal)
-                            }
-                          >
-                            <Leaf size={12} />
-                            {calorieLabel(recipe.kcal)}
-                          </span>
                         </button>
                         <div className="recipe-info">
                           <button
@@ -542,8 +536,6 @@ function App() {
                               <Clock size={14} />
                               {recipe.time}
                               {" 分钟 "}
-                              <i>·</i> {recipe.kcal}
-                              {" kcal/100g"}
                             </span>
                             <div className="counter">
                               {!!quantities[recipe.id] && (
@@ -578,7 +570,7 @@ function App() {
                     </div>
                   )}
                   <p className="data-note">
-                    菜品与营养为示例数据 · 热量按每 100g 分级
+                    示例菜谱可编辑和删除 · 每份为一道完整菜
                   </p>
                 </section>
               </div>
@@ -647,7 +639,7 @@ function App() {
                       <ShoppingBasket />
                       <h3>{item.name}</h3>
                       <strong>
-                        {item.qty} <small>{item.unit}</small>
+                        {item.qty ?? "待确认"} <small>{item.unit}</small>
                       </strong>
                       <p className="missing">
                         {"需要采购 · "}
@@ -676,7 +668,7 @@ function App() {
                   <span className="subtle">可重复安排 · 每张卡片为一份</span>
                 </div>
                 <div className="chip-row">
-                  {recipes
+                  {confirmedRecipes
                     .filter((recipe) => confirmedQuantities[recipe.id] > 0)
                     .map((recipe) => (
                       <button
@@ -690,7 +682,7 @@ function App() {
                         }
                         className={
                           "meal-chip " +
-                          calorieClass(recipe.kcal) +
+                          "low" +
                           (selectedRecipeId === recipe.id ? " selected" : "")
                         }
                         onClick={() => setSelectedRecipeId(recipe.id)}
@@ -709,20 +701,18 @@ function App() {
                   </p>
                 )}
               </div>
+              <div className="actions">
+                <button className="outline" onClick={() => setWeek(dayAt(week, -7))}>上一周</button>
+                <label>当前周 <input type="date" value={week} onChange={event => event.target.value && setWeek(monday(event.target.value))} /></label>
+                <button className="outline" onClick={() => setWeek(dayAt(week, 7))}>下一周</button>
+              </div>
               <div className="week-scroll">
                 <div className="week-grid">
                   <div className="day-head">一周三餐</div>
                   {["一", "二", "三", "四", "五", "六", "日"].map((e, t) => (
                     <div key={e} className="day-head">
-                      周{e}
-                      <small>
-                        {calculateCalories(
-                          ["早", "中", "晚"].flatMap(
-                            (e) => plan[t + "-" + e] || [],
-                          ),
-                        )}
-                        {" kcal"}
-                      </small>
+                      周{e}<small>{dayAt(week, t).slice(5)}</small>
+
                     </div>
                   ))}
                   {["早", "中", "晚"].map((e) => (
@@ -756,7 +746,7 @@ function App() {
                                   key={t}
                                   className={
                                     "planned " +
-                                    calorieClass(findRecipe(e)?.kcal || 0)
+                                    "low"
                                   }
                                 >
                                   {findRecipe(e)?.name}
@@ -786,10 +776,7 @@ function App() {
                               >
                                 <Plus size={17} />
                               </button>
-                              <small>
-                                {calculateCalories(plan[r] || [])}
-                                {" kcal"}
-                              </small>
+
                             </div>
                           );
                         },
@@ -798,58 +785,12 @@ function App() {
                   ))}
                 </div>
               </div>
-              <div className="notice">
-                <Leaf size={20} />
-                <div>
-                  热量提醒：
-                  {Array.from(
-                    {
-                      length: 7,
-                    },
-                    (e, t) =>
-                      calculateCalories(
-                        ["早", "中", "晚"].flatMap(
-                          (e) => plan[t + "-" + e] || [],
-                        ),
-                      ),
-                  ).some((e) => e > dailyTarget)
-                    ? "本周有日期超过设定目标，请检查餐次搭配。"
-                    : "已安排餐次的每日热量均未超过设定目标。"}
-                  <small>
-                    按每份重量估算；目标由你设置，不代表个体营养建议。
-                  </small>
-                </div>
-                <label>
-                  {"每日目标 "}
-                  <input
-                    type="number"
-                    min="1"
-                    value={dailyTarget}
-                    onChange={(event) =>
-                      setDailyTarget(Math.max(1, Number(event.target.value)))
-                    }
-                  />
-                  {" kcal"}
-                </label>
-              </div>
               <div className="actions">
                 <button className="outline" onClick={() => setModal("clear")}>
                   <Trash2 size={16} />
                   清空本周
                 </button>
-                <button
-                  className="primary"
-                  onClick={() => {
-                    setArchives((currentArchives) => ({
-                      ...currentArchives,
-                      [today()]: JSON.parse(JSON.stringify(plan)),
-                    }));
-                    toast.success("已按今天日期存档，可在膳食日历查看");
-                  }}
-                >
-                  <CalendarDays size={17} />
-                  保存至膳食日历
-                </button>
+                <span className="subtle">菜单修改自动保存 · 安排不会增加采购量</span>
               </div>
             </>
           )}
@@ -886,7 +827,7 @@ function App() {
                         86400000,
                     ) + 1,
                   );
-                  const r = (stock.days || 7) - n;
+                  const r = stock.days ? Number(stock.days) - n : Infinity;
                   return (
                     (category === "全部" || stock.category === category) && (
                       <article key={index} className="stock-card">
@@ -947,7 +888,7 @@ function App() {
                           }
                         >
                           {"● "}
-                          {r < 0
+                          {r === Infinity ? "期限未知" : r < 0
                             ? "已过设定期限"
                             : r < 1
                               ? "今天到期"
@@ -1004,7 +945,7 @@ function App() {
             <div className="editor-layout">
               <section className="panel editor">
                 <div className="section-tools">
-                  <h2>新建菜谱</h2>
+                  <h2>{recipeDraft.id ? "编辑菜谱" : "新建菜谱"}</h2>
                   <button
                     className="outline"
                     onClick={() => setModal("import")}
@@ -1074,23 +1015,7 @@ function App() {
                     />
                   </label>
                 </div>
-                <label>
-                  热量（kcal / 100g，可修改）
-                  <input
-                    type="number"
-                    min="0"
-                    value={recipeDraft.kcal}
-                    onChange={(event) =>
-                      setRecipeDraft((draft) => ({
-                        ...draft,
-                        kcal: Math.max(0, +event.target.value),
-                      }))
-                    }
-                  />
-                </label>
-                <p className="data-note">
-                  当前为手动核对数值；自动营养核算需要接入食材营养数据库。
-                </p>
+                <p className="data-note">食材数量留空表示适量或未知，采购时需自行确认。编辑草稿自动保留。</p>
                 <h3>所需食材</h3>
                 {recipeDraft.ingredients.map((item, index) => (
                   <div key={index} className="ingredient-row">
@@ -1116,7 +1041,7 @@ function App() {
                       aria-label="数量"
                       type="number"
                       min="1"
-                      value={item.qty}
+                      value={item.qty ?? "待确认"}
                       onChange={(event) =>
                         setRecipeDraft((draft) => ({
                           ...draft,
@@ -1125,7 +1050,7 @@ function App() {
                               _index2 === index
                                 ? {
                                     ..._item2,
-                                    qty: +event.target.value,
+                                    qty: event.target.value === "" ? "" : +event.target.value,
                                   }
                                 : _item2,
                           ),
@@ -1298,17 +1223,15 @@ function App() {
                 />
               )}
               <div className="chip-row">
-                <span className={calorieClass(activeRecipe.kcal)}>
-                  {calorieLabel(activeRecipe.kcal)}
-                  {" · "}
-                  {activeRecipe.kcal}
-                  {" kcal/100g"}
-                </span>
                 <span>
                   {activeRecipe.time}
                   {" 分钟 · 每份约 "}
                   {activeRecipe.weight}g
                 </span>
+              </div>
+              <div className="actions">
+                <button className="outline" onClick={() => { setRecipeDraft(structuredClone(activeRecipe)); setModal(""); navigate(1); }}>编辑菜谱</button>
+                <button className="outline" onClick={() => { if (!window.confirm("删除这道菜谱？已确认采购和菜单保留快照。")) return; setRecipes(current => current.filter(item => item.id !== activeRecipe.id)); setQuantities(current => { const next = {...current}; delete next[activeRecipe.id]; return next; }); setModal(""); toast.success("菜谱已删除"); }}>删除菜谱</button>
               </div>
               <h3>所需食材</h3>
               {activeRecipe.ingredients.map((item) => {
@@ -1330,7 +1253,7 @@ function App() {
                       {t ? "✓" : "＋"} {item.name}
                     </span>
                     <span>
-                      {item.qty}
+                      {item.qty ?? "待确认"}
                       {item.unit}
                       {" · "}
                       {t ? "已有" : "缺少"}
@@ -1443,7 +1366,7 @@ function App() {
                 </datalist>
               </label>
               <label>
-                保存天数（录入当天算第1天）
+                保存天数（0 表示未知，录入当天算第1天）
                 <input
                   type="number"
                   min="1"
@@ -1451,7 +1374,7 @@ function App() {
                   onChange={(event) =>
                     setIngredientDraft((draft) => ({
                       ...draft,
-                      days: Math.max(1, +event.target.value),
+                      days: Math.max(0, +event.target.value),
                     }))
                   }
                 />
@@ -1467,7 +1390,7 @@ function App() {
                 <div key={item.name + item.unit} className="list-row">
                   {item.name}
                   <b>
-                    {item.qty} {item.unit}
+                    {item.qty ?? "待确认"} {item.unit}
                   </b>
                 </div>
               ))}
@@ -1489,7 +1412,7 @@ function App() {
                 className="outline"
                 onClick={async () => {
                   const e = shoppingList
-                    .map((item) => `${item.name} ${item.qty}${item.unit}`)
+                    .map((item) => `${item.name} ${item.qty ?? "待确认"}${item.unit}`)
                     .join("\n");
                   try {
                     navigator.share
@@ -1539,27 +1462,26 @@ function App() {
                 />
               </label>
               <div className="chip-row">
-                {Object.keys(archives).map((e) => (
+                {Object.keys({...archives, ...weeks}).sort().map((e) => (
                   <button key={e} onClick={() => setArchiveDate(e)}>
                     {e}
                   </button>
                 ))}
               </div>
-              {archives[archiveDate] ? (
-                Object.entries(archives[archiveDate]).map(([e, t]) => (
+              {({...archives, ...weeks})[archiveDate] ? (
+                Object.entries(({...archives, ...weeks})[archiveDate]).map(([e, t]) => (
                   <div key={e} className="list-row">
                     周{"一二三四五六日"[+e.split("-")[0]]} {e.split("-")[1]}餐
                     <span>
                       {t.map((e) => findRecipe(e)?.name).join("、")}
-                      {" · "}
-                      {calculateCalories(t)}
-                      {" kcal"}
                     </span>
                   </div>
                 ))
               ) : (
-                <p>此日期没有存档，先在周菜单中保存一份安排。</p>
+                <p>选择有安排的周，可查看并复制到其他周。</p>
               )}
+              <label>复制到目标周 <input type="date" value={copyTarget} onChange={event => event.target.value && setCopyTarget(monday(event.target.value))} /></label>
+              <button className="primary" disabled={!({...archives, ...weeks})[archiveDate]} onClick={() => {if (Object.values(weeks[copyTarget] || {}).some(items => items.length) && !window.confirm("目标周已有安排，确认整体替换？")) return; const source = ({...archives, ...weeks})[archiveDate]; const copied = Object.fromEntries(Object.entries(source).map(([key, items]) => [key, items.map(item => structuredClone(findRecipe(item) || {id: item, name: "菜谱内容已缺失", ingredients: [], steps: []}))])); setWeeks(current => ({...current, [copyTarget]: copied})); setWeek(copyTarget); setModal(""); navigate(3); toast.success("已复制，目标周可独立修改");}}>复制菜单</button>
             </>
           )}
           {(modal === "import" || modal === "ai-fridge") && (

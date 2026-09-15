@@ -1,4 +1,4 @@
-// 原站示例数据及热量分级；图片均使用下载到本地的原始素材。
+// 原站示例数据；图片均使用下载到本地的原始素材。
 export const ingredient = (name, qty, category = "蔬菜", unit = "克") => ({
   name,
   qty,
@@ -11,7 +11,6 @@ export const initialRecipes = [
     image: "/food-1.jpg",
     name: "番茄炒鸡蛋",
     category: "荤菜",
-    kcal: 118,
     time: 15,
     weight: 500,
     ingredients: [
@@ -30,7 +29,6 @@ export const initialRecipes = [
     image: "/food-2.jpg",
     name: "西兰花炒鸡胸肉",
     category: "荤菜",
-    kcal: 106,
     time: 20,
     weight: 450,
     ingredients: [ingredient("西兰花", 200), ingredient("鸡胸肉", 250, "肉类")],
@@ -45,7 +43,6 @@ export const initialRecipes = [
     image: "/food-3.png",
     name: "紫菜蛋花汤",
     category: "汤品",
-    kcal: 42,
     time: 20,
     weight: 600,
     ingredients: [
@@ -62,7 +59,6 @@ export const initialRecipes = [
     id: 4,
     name: "蒜蓉生菜",
     category: "素菜",
-    kcal: 68,
     time: 10,
     weight: 320,
     ingredients: [ingredient("生菜", 300), ingredient("蒜", 20)],
@@ -76,7 +72,6 @@ export const initialRecipes = [
     id: 5,
     name: "牛奶燕麦碗",
     category: "早餐",
-    kcal: 135,
     time: 8,
     weight: 350,
     ingredients: [
@@ -90,7 +85,6 @@ export const initialRecipes = [
     id: 6,
     name: "番茄鸡蛋面",
     category: "面食",
-    kcal: 162,
     time: 18,
     weight: 500,
     ingredients: [
@@ -108,7 +102,6 @@ export const initialRecipes = [
     id: 7,
     name: "银耳雪梨羹",
     category: "小甜水",
-    kcal: 55,
     time: 40,
     weight: 500,
     ingredients: [
@@ -161,8 +154,4 @@ export const stockCategories = [
   "奶制品",
   "其他",
 ];
-export const calorieClass = (kcal) =>
-  kcal < 150 ? "low" : kcal <= 400 ? "mid" : "high";
-export const calorieLabel = (kcal) =>
-  kcal < 150 ? "低热量" : kcal <= 400 ? "中热量" : "高热量";
 export const today = () => new Date().toLocaleDateString("sv-SE");
