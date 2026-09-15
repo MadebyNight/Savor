@@ -9,7 +9,7 @@ files={};revisions={};requests=[]
 def dav(route):
  request=route.request;path=unquote(request.url).split('/食光/')[-1];method=request.method;headers=request.headers
  requests.append((method,path))
- def respond(status,body=''):route.fulfill(status=status,body=body,headers={'content-type':'application/json','etag':'"'+str(revisions.get(path,0))+'"'})
+ def respond(status,body=''):route.fulfill(status=status,body=body,headers={'content-type':'application/json','access-control-allow-origin':'*','access-control-expose-headers':'etag','etag':'"'+str(revisions.get(path,0))+'"'})
  if method=='MKCOL':respond(201);return
  if method=='GET':respond(200,files[path]) if path in files else respond(404);return
  if method=='DELETE':files.pop(path,None);respond(204);return
@@ -33,7 +33,11 @@ with sync_playwright() as p:
   page.get_by_placeholder('给这道菜起个名字').fill(name);page.get_by_label('食材名称',exact=True).fill('米');page.get_by_label('数量',exact=True).fill('100');page.get_by_label('步骤1',exact=True).fill('煮熟');page.get_by_role('button',name='确认保存到菜品库',exact=True).click()
   page.wait_for_function('name=>JSON.parse(localStorage.getItem("shiguang-v1")).recipes.some(r=>r.name===name)',arg=name);page.get_by_role('button',name='设置与备份',exact=True).click()
  def upload(page):
-  inspect(page);page.get_by_role('button',name='保留本地并上传',exact=True).click();expect(page.get_by_text('同步完成',exact=True)).to_be_visible();page.wait_for_function('localStorage.getItem("pref:sync-base")!==null')
+  old=page.evaluate('JSON.parse(localStorage.getItem("pref:sync-base"))?.id || null')
+  inspect(page);page.get_by_role('button',name='保留本地并上传',exact=True).click()
+  try:page.wait_for_function('old=>{const base=JSON.parse(localStorage.getItem("pref:sync-base"));return base && base.id!==old}',arg=old,timeout=10000)
+  except Exception:
+   print(page.locator('body').inner_text());print('BASE',page.evaluate('localStorage.getItem("pref:sync-base")'));print('REMOTE',files.get('current.json'));print('REQUESTS',requests);raise
  a=device();add(a,'设备A初始菜');upload(a)
  b=device();inspect(b);expect(b.get_by_text('本地与云端需要选择版本',exact=True)).to_be_visible();b.get_by_role('button',name='采用云端版本',exact=True).click();b.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).recipes.some(r=>r.name==="设备A初始菜")')
  assert b.evaluate('JSON.parse(localStorage.getItem("pref:before-restore")).state.recipes.every(r=>r.name!=="设备A初始菜")')
