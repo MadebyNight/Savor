@@ -14,7 +14,7 @@ mkdirSync('.android-tools/device-e2e',{recursive:true});await connect();await sl
 const original=await read();writeFileSync('.android-tools/device-e2e/before.json',original);
 const report={device:serial,checks:[]};
 try{
- await click('上传我的菜谱');await fill('input[placeholder="给这道菜起个名字"]','真机验收临时菜谱');await fill('input[aria-label="食材名称"]','测试番茄');await fill('input[aria-label="数量"]','100');await fill('textarea[aria-label="步骤1"]','洗净炒熟');await click('确认保存到菜品库');await sleep(1000);
+ await click('菜谱');await js(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>['新建菜谱','继续草稿'].includes(b.innerText.trim()));if(!b)throw Error('recipe editor entry missing');b.click();})()`);await sleep(400);await fill('input[placeholder="给这道菜起个名字"]','真机验收临时菜谱');await fill('input[aria-label="食材名称"]','测试番茄');await fill('input[aria-label="数量"]','100');await fill('textarea[aria-label="步骤1"]','洗净炒熟');await click('确认保存到菜品库');await sleep(1000);
  let state=JSON.parse(await read());if(!state.recipes.some(r=>r.name==='真机验收临时菜谱'))throw Error('UI recipe not persisted');report.checks.push('UI recipe saved to native SQLite');
  await js(`document.querySelector('button[aria-label="添加真机验收临时菜谱"]').click()`);await click('确认我的菜单');await js(`[...document.querySelectorAll('button')].find(b=>b.innerText.includes('确认并同步')).click()`);await sleep(700);
  state=JSON.parse(await read());if(!state.confirmedRecipes.some(r=>r.name==='真机验收临时菜谱'))throw Error('snapshot not saved');report.checks.push('UI confirmed procurement snapshot');

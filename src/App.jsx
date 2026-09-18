@@ -1,6 +1,7 @@
 ﻿import { monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import SettingsPanel from "./components/SettingsPanel.jsx";
+import MobileWeek from "./components/MobileWeek.jsx";
 // 从原站公开页面恢复的交互界面，保留原有文案、状态流转及计算规则。
 import {
   ingredient,
@@ -9,7 +10,7 @@ import {
   stockCategories,
   today,
 } from "./data.js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -32,6 +33,9 @@ import {
   Trash2,
   Upload,
   Utensils,
+  BookOpen,
+  Settings2,
+  ArrowLeft,
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import {
@@ -60,6 +64,15 @@ const navigationItems = [
 ];
 function App() {
   const [page, setPage] = useState(0);
+  const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)").matches);
+  const [editingRecipe, setEditingRecipe] = useState(false);
+  const [selectedDay, setSelectedDay] = useState((new Date().getDay() + 6) % 7);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)");
+    const update = () => setCompact(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const [showSettings, setShowSettings] = useState(false);
   const [saveStatus, setSaveStatus] = useState("正在加载");
   const [recipes, setRecipes] = useState(initialRecipes);
@@ -82,6 +95,7 @@ function App() {
   const [hydrated, setHydrated] = useState(false);
   const [category, setCategory] = useState("全部");
   const [search, setSearch] = useState("");
+  const pageFilters = useRef({});
   const [modal, setModal] = useState("");
   const [activeRecipe, setActiveRecipe] = useState(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
@@ -184,10 +198,12 @@ function App() {
     hydrated,
   ]);
   const navigate = (nextPage) => {
+    pageFilters.current[page] = { category, search };
     setShowSettings(false);
     setPage(nextPage);
-    setCategory("全部");
-    setSearch("");
+    setEditingRecipe(false);
+    setCategory(pageFilters.current[nextPage]?.category || "全部");
+    setSearch(pageFilters.current[nextPage]?.search || "");
     setSelectedIngredients([]);
   };
   const findRecipe = (recipeId) =>
@@ -248,7 +264,7 @@ function App() {
   const filteredRecipes = recipes.filter(
     (recipe) =>
       (category === "全部" || recipe.category === category) &&
-      recipe.name.includes(search) &&
+      (recipe.name.includes(search.trim()) || recipe.ingredients.some(item => item.name.includes(search.trim()))) &&
       (!selectedIngredients.length ||
         selectedIngredients.every((ingredientName) =>
           recipe.ingredients.some((item) => trimName(item.name) === trimName(ingredientName)),
@@ -308,6 +324,7 @@ function App() {
       ingredients: [ingredient("", 100)],
       steps: [""],
     });
+    pageFilters.current[0] = { category: "全部", search: "" };
     navigate(0);
   };
   const saveIngredient = () => {
@@ -456,8 +473,23 @@ function App() {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <main className="main">
+      <main className={`main ${compact ? "compact-app" : ""}`}>
         <header className="topbar">
+          {compact && <>
+            <div className="mobile-title">
+              {showSettings || editingRecipe ? <button className="mobile-icon" aria-label="返回" onClick={() => { setShowSettings(false); setEditingRecipe(false); }}><ArrowLeft size={22} /></button> : <span className="brand-stamp">食</span>}
+              <h1>{showSettings ? "设置与数据" : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
+              <span role="status" className={saveStatus.includes("失败") ? "mobile-save-error" : "sr-only"}>{saveStatus}</span>
+            </div>
+            <div className="mobile-header-actions">
+              {!showSettings && !editingRecipe && page === 0 && <button className="mobile-icon" aria-label="设置与备份" onClick={() => setShowSettings(true)}><Settings2 size={22} /></button>}
+              {!showSettings && !editingRecipe && page === 4 && <button onClick={() => setModal("stock")}><Plus size={18} />添加食材</button>}
+              {!showSettings && !editingRecipe && page === 1 && <button onClick={() => setEditingRecipe(true)}><Plus size={18} />{recipeDraft.name ? "继续草稿" : "新建菜谱"}</button>}
+              {!showSettings && page === 3 && <button onClick={() => setModal("history")}><CalendarDays size={18} />历史</button>}
+              {!showSettings && page === 2 && <button disabled={!shoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
+            </div>
+          </>}
+          {!compact && <>
           <div className="mobile-menu">
             <SidebarTrigger />
           </div>
@@ -475,8 +507,9 @@ function App() {
             <small role="status">{saveStatus}</small>
             <span className="today"><Sun size={17} /> 今天也要好好吃饭</span>
           </span>
+          </>}
         </header>
-        <div className="workspace">
+        <div className={`workspace page-${page} ${showSettings ? "show-settings" : ""} ${editingRecipe ? "is-editing" : ""}`}>
           {showSettings && (
             <SettingsPanel
               state={fullState}
@@ -542,6 +575,7 @@ function App() {
           </div>
           {page === 0 && (
             <>
+              {compact && <label className="search mobile-search"><Search size={18}/><input aria-label="搜索菜品" placeholder="搜索菜名或食材" value={search} onChange={event => setSearch(event.target.value)} /></label>}
               <div className="welcome-banner">
                 <div className="banner-icon">
                   <ChefHat size={38} />
@@ -571,10 +605,11 @@ function App() {
                     <button
                       key={categoryName}
                       className={category === categoryName ? "active" : ""}
+                      aria-pressed={category === categoryName}
                       onClick={() => setCategory(categoryName)}
                     >
-                      <span>{["✦", "☀", "❀", "♨", "◡", "≈", "♡"][index]}</span>
-                      {categoryName}
+                      {!compact && <span>{["✦", "☀", "❀", "♨", "◡", "≈", "♡"][index]}</span>}
+                      <span className="category-name">{categoryName}</span>
                       <small>
                         {categoryName === "全部"
                           ? recipes.length
@@ -591,14 +626,14 @@ function App() {
                       {selectedIngredients.length
                         ? "冰箱食材推荐"
                         : category === "全部"
-                          ? "今日菜品灵感"
+                          ? "全部菜品"
                           : category}{" "}
                       <span>
                         {filteredRecipes.length}
                         {" 道菜"}
                       </span>
                     </h2>
-                    <label className="search">
+                    {!compact && <label className="search">
                       <Search size={17} />
                       <input
                         aria-label="搜索菜品"
@@ -606,13 +641,15 @@ function App() {
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                       />
-                    </label>
+                    </label>}
                   </div>
+                  {!!selectedIngredients.length && <button className="text-link" onClick={() => setSelectedIngredients([])}>清除食材筛选</button>}
                   <div className="recipe-grid">
                     {filteredRecipes.map((recipe) => (
                       <article key={recipe.id} className="recipe-card">
                         <button
                           className="photo-button"
+                          aria-label={"查看" + recipe.name}
                           onClick={() => {
                             setActiveRecipe(recipe);
                             setModal("detail");
@@ -715,7 +752,7 @@ function App() {
                   </p>
                 </section>
               </div>
-              <div className="selection-bar">
+              {(!compact || selectedCount > 0 || Object.values(confirmedQuantities).some(Boolean)) && <div className="selection-bar">
                 <button onClick={() => setModal("selection")}>
                   <span className="basket-circle">
                     <ShoppingBasket size={23} />
@@ -740,7 +777,7 @@ function App() {
                   {"确认我的菜单 "}
                   <ArrowRight size={18} />
                 </button>
-              </div>
+              </div>}
             </>
           )}
           {page === 2 && (
@@ -762,17 +799,20 @@ function App() {
                   {" 预览与导出"}
                 </button>
               </div>
-              <div className="chip-row">
+              <div className="stock-layout">
+              <aside className="chip-row stock-categories" aria-label="食材分类">
                 {stockCategories.map((categoryName) => (
                   <button
                     key={categoryName}
                     className={category === categoryName ? "active" : ""}
+                    aria-pressed={category === categoryName}
                     onClick={() => setCategory(categoryName)}
                   >
                     {categoryName}
                   </button>
                 ))}
-              </div>
+              </aside>
+              <section className="stock-results">
               <div className="stock-grid">
                 {shoppingList
                   .filter(
@@ -795,17 +835,21 @@ function App() {
               {!shoppingList.length && (
                 <div className="empty">
                   <Check size={40} />
-                  <h2>菜篮子空空的</h2>
-                  <p>先去选菜并确认，缺少的食材会出现在这里。</p>
+                  <h2>{Object.values(confirmedQuantities).some(Boolean) ? "所需食材已备齐" : "菜篮子空空的"}</h2>
+                  <p>{Object.values(confirmedQuantities).some(Boolean) ? "当前已确认菜品无需补充采购。" : "先去选菜并确认，缺少的食材会出现在这里。"}</p>
                   <button className="primary" onClick={() => navigate(0)}>
                     去选菜
                   </button>
                 </div>
               )}
+              {!!shoppingList.length && !shoppingList.some(item => category === "全部" || item.category === category) && <div className="empty">这个分类没有需要采购的食材。</div>}
+              </section>
+              </div>
             </>
           )}
           {page === 3 && (
             <>
+              {compact ? <MobileWeek week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={confirmedRecipes.filter(recipe => confirmedQuantities[recipe.id] > 0)} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} /> : <>
               <div className="panel">
                 <div className="section-tools">
                   <h2>待安排的美味</h2>
@@ -974,6 +1018,7 @@ function App() {
                   ))}
                 </div>
               </div>
+              </>}
               <div className="actions">
                 <button className="outline" onClick={() => setModal("clear")}>
                   <Trash2 size={16} />
@@ -998,17 +1043,21 @@ function App() {
                   <ArrowUpRight size={17} />
                 </button>
               </div>
-              <div className="chip-row dashed">
+              {compact && <div className="stock-toolbar"><span>{fridge.length} 批食材</span><button className="text-link" onClick={() => setModal("ai-fridge")}><Camera size={18}/>拍照 / 小票识别</button></div>}
+              <div className="stock-layout">
+              <aside className="chip-row dashed stock-categories" aria-label="食材分类">
                 {stockCategories.map((categoryName) => (
                   <button
                     key={categoryName}
                     className={category === categoryName ? "active" : ""}
+                    aria-pressed={category === categoryName}
                     onClick={() => setCategory(categoryName)}
                   >
                     {categoryName}
                   </button>
                 ))}
-              </div>
+              </aside>
+              <section className="stock-results">
               <div className="stock-grid">
                 {fridge.map((stock, index) => {
                   const n = Math.max(
@@ -1036,6 +1085,7 @@ function App() {
                           </button>
                         </div>
                         <h3>{stock.name}</h3>
+                        <details className="stock-edit" open={!compact || undefined}><summary>{stock.qty} {stock.unit}<span>编辑</span></summary>
                         <div className="stock-inputs">
                           <input
                             aria-label={stock.name + "数量"}
@@ -1072,7 +1122,7 @@ function App() {
                             }
                           />
                         </div>
-                        <div className="form-row">
+                        <details className="stock-dates"><summary>日期与保存期</summary><div className="form-row">
                           <label>
                             入库日期
                             <input
@@ -1117,7 +1167,8 @@ function App() {
                               }
                             />
                           </label>
-                        </div>
+                        </div></details>
+                        </details>
                         <p
                           className={
                             "freshness " +
@@ -1146,6 +1197,7 @@ function App() {
                   );
                 })}
               </div>
+              {!fridge.some(item => category === "全部" || item.category === category) && <div className="empty"><p>这个分类还没有食材。</p><button className="text-link" onClick={() => setModal("stock")}>添加食材</button></div>}
               <p className="data-note">
                 新鲜度按录入日期与自设保存天数估算，请结合实际状态判断。
               </p>
@@ -1176,17 +1228,34 @@ function App() {
                   onClick={() => {
                     setPage(0);
                     setCategory("全部");
+                    setSearch("");
                   }}
                 >
                   {"看看能做什么 "}
                   <ArrowRight size={17} />
                 </button>
               </section>
+              </section>
+              </div>
             </>
           )}
-          {page === 1 && (
+          {page === 1 && !editingRecipe && <section className="recipe-library">
+            <div className="library-tools">
+              <label className="search"><Search size={18}/><input aria-label="搜索我的菜谱" placeholder="搜索菜名或食材" value={search} onChange={event => setSearch(event.target.value)}/></label>
+              {!compact && <button className="primary" onClick={() => setEditingRecipe(true)}><Plus size={18}/>{recipeDraft.name ? "继续草稿" : "新建菜谱"}</button>}
+              <button className="outline" onClick={() => setModal("import")}><Upload size={18}/>导入菜谱</button>
+            </div>
+            <h2>我的菜谱 <small>{filteredRecipes.length} 道</small></h2>
+            {filteredRecipes.map(recipe => <button key={recipe.id} className="library-recipe" onClick={() => {setActiveRecipe(recipe);setModal("detail");}}>
+              {recipe.image ? <img src={recipe.image} alt=""/> : <span className="library-placeholder"><Utensils size={22}/></span>}
+              <span><strong>{recipe.name}</strong><small>{recipe.category}{recipe.time ? ` · ${recipe.time} 分钟` : ""}</small></span><ArrowRight size={18}/>
+            </button>)}
+            {!filteredRecipes.length && <div className="empty">没有找到菜谱，可以新建或导入。</div>}
+          </section>}
+          {page === 1 && editingRecipe && (
             <div className="editor-layout">
               <section className="panel editor">
+                {!compact && <button className="text-link" onClick={() => setEditingRecipe(false)}><ArrowLeft size={18}/>返回我的菜谱（保留草稿）</button>}
                 <div className="section-tools">
                   <h2>{recipeDraft.id ? "编辑菜谱" : "新建菜谱"}</h2>
                   <button
@@ -1501,6 +1570,9 @@ function App() {
           <span>一餐一饭，皆是生活。</span>
         </footer>
       </main>
+      {compact && <nav className="mobile-bottom-nav" aria-label="主导航">
+        {[[0,"点单",Utensils],[4,"冰箱",Refrigerator],[2,"菜篮子",ShoppingBasket],[3,"周菜单",CalendarDays],[1,"菜谱",BookOpen]].map(([index,label,Icon]) => <button key={index} aria-current={page === index && !showSettings ? "page" : undefined} onClick={() => navigate(index)}><span><Icon size={22}/></span>{label}</button>)}
+      </nav>}
       <Dialog open={!!modal} onOpenChange={(open) => !open && setModal("")}>
         <DialogContent className="app-dialog">
           <DialogTitle>
@@ -1545,6 +1617,7 @@ function App() {
                     setRecipeDraft(structuredClone(activeRecipe));
                     setModal("");
                     navigate(1);
+                    setEditingRecipe(true);
                   }}
                 >
                   编辑菜谱
@@ -1929,7 +2002,7 @@ function App() {
               </p>
               <button
                 className="primary"
-                onClick={() => setModal(modal === "import" ? "" : "stock")}
+                onClick={() => { if (modal === "import") {navigate(1);setEditingRecipe(true);setModal("");} else setModal("stock"); }}
               >
                 先手动{modal === "import" ? "编辑菜谱" : "添加食材"}
               </button>

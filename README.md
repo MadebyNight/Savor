@@ -2,6 +2,8 @@
 
 MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作；热量功能已移除。
 
+当前版本 V1.1（npm 1.1.0，Android versionCode 2）：手机端分类侧栏、紧凑列表和按日周菜单已接入，已在 OPPO PGAM10 完成同签名覆盖升级及核心流程验证。真实 AI、坚果云账户及系统图片/分享流程仍需单独验收。
+
 需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
 ## 本地开发
@@ -37,6 +39,10 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 - `node --test src/domain.test.js src/sync.test.js`：采购、日期、迁移、备份、并发同步与图片完整性。
 - `python tests/e2e.py`：启动 Vite 后运行，覆盖核心浏览器流程。
 - `python tests/e2e_ai.py`：AI模拟响应、错误、草稿、取消和手机导航。
+- `python tests/e2e_mobile.py`：正式手机界面、分类搜索、份数与库存抵扣、按日菜单及总览、草稿恢复、历史快照、小屏与横屏布局。评审截图保留在 `.android-tools/mobile-review/`。
+- 生产样式回归：先 `npm run build`、`npm run preview`，再设置 `$env:E2E_URL='http://127.0.0.1:4173'` 运行 `python tests/e2e_mobile.py`，包含弹窗正常高度/键盘压缩高度的边界检查。
+- `python tests/android_upgrade.py prepare` / `verify`：经用户确认后用于专用真机升级验收，先备份再安装，验证结束恢复业务基线；设备可通过 `ANDROID_SERIAL` 指定。已有基线时拒绝覆盖，`.android-tools/v1.1-acceptance/` 备份可能含私有数据，不提交、不对外分享。
+- `python tests/e2e_sync.py`：模拟 WebDAV 首次上传/下载、冲突备份与损坏数据保护，不代表真实坚果云验收。
 - Android：设备连接后 `android/gradlew.bat connectedDebugAndroidTest`（在 android 目录运行）。原生测试覆盖SQLite错误不覆盖、偏好、路径和图片类型等。
 
 浏览器测试输出留 `.android-tools/e2e/`，Python Playwright 和浏览器需可用；测试脚本将浏览器缓存限定到工作区。模拟服务测试不等于真实AI或坚果云账户验收。

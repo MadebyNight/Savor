@@ -36,8 +36,8 @@ with sync_playwright() as p:
  assert pending;pending[0].fulfill(status=200,content_type='application/json',body=response([{'name':'迟到结果','ingredients':[],'steps':[]}]))
  page.wait_for_load_state('networkidle');expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('待补充菜')
  page.screenshot(path=str(OUT/'ai-desktop.png'),full_page=True)
- page.set_viewport_size({'width':390,'height':844});expect(page.get_by_role('button',name='设置与备份')).to_be_visible();page.get_by_role('button',name='设置与备份').click();expect(page.get_by_text('设置与数据',exact=True)).not_to_be_visible();page.get_by_role('button',name='设置与备份').click(force=True);expect(page.get_by_text('设置与数据',exact=True)).to_be_visible();page.screenshot(path=str(OUT/'ai-mobile.png'),full_page=True)
- page.mouse.move(389,840);page.get_by_role('button',name='切换侧边栏').click();page.get_by_role('button',name='我的冰箱',exact=True).click();expect(page.get_by_text('打开冰箱，发现好食光',exact=True)).to_be_visible();expect(page.get_by_role('button',name='我的冰箱',exact=True)).not_to_be_visible();page.screenshot(path=str(OUT/'mobile-home.png'),full_page=True)
+ page.set_viewport_size({'width':390,'height':844});page.get_by_role('button',name='返回',exact=True).click();expect(page.get_by_role('heading',name='设置与数据',exact=True)).not_to_be_visible();page.get_by_role('button',name='设置与备份').click();expect(page.get_by_role('heading',name='设置与数据',exact=True).first).to_be_visible();page.screenshot(path=str(OUT/'ai-mobile.png'),full_page=True)
+ page.get_by_role('navigation',name='主导航').get_by_role('button',name='冰箱',exact=True).click();expect(page.get_by_role('heading',name='冰箱',exact=True)).to_be_visible();expect(page.locator('.topbar').get_by_role('button',name='添加食材',exact=True)).to_be_visible();page.screenshot(path=str(OUT/'mobile-home.png'),full_page=True)
  assert not errors,errors
  print('PASS: AI mock success, field validation, selective save, reload draft, 401, malformed response, cancellation ignores late response; mobile screenshots')
  browser.close()

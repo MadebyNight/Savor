@@ -17,7 +17,7 @@ export function SidebarProvider({ style, children }) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 767px)");
+    const media = window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)");
     const update = () => setIsMobile(media.matches);
     update();
     media.addEventListener("change", update);
