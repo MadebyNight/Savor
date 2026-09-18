@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#faf9f5" />
+    <title>食光 · 手机端设计原型</title>
+    <link rel="stylesheet" href="./mobile.css" />
+    <script src="./mobile.js" defer></script>
+  </head>
+  <body>
+    <aside class="preview-note">
+      <span class="edition">食光 / MOBILE STUDY 01</span>
+      <h1>打开，就开始选菜。</h1>
+      <p>
+        把分类放在手边，把空间留给菜。<br />一份轻巧、有烟火气的手机端提案。
+      </p>
+      <div class="note-line"><b>01</b><span>常驻分类，不用来回寻找</span></div>
+      <div class="note-line">
+        <b>02</b><span>小图列表，一眼看清菜名与食材</span>
+      </div>
+      <div class="note-line">
+        <b>03</b><span>五个入口，随时切换厨房任务</span>
+      </div>
+      <p class="preview-help">
+        右侧可点击体验。演示数据仅保留在本次页面内，刷新后重置。<br />手机打开此页面会自动铺满屏幕。
+      </p>
+    </aside>
+    <div class="phone" id="app">
+      <header class="app-header">
+        <div>
+          <span class="brand-mark" aria-hidden="true">食</span>
+          <h1 id="page-title">点单</h1>
+        </div>
+        <div id="header-actions"></div>
+      </header>
+      <div id="toolbar"></div>
+      <main id="content"></main>
+      <div id="selection"></div>
+      <nav class="bottom-nav" aria-label="主导航" id="navigation"></nav>
+      <div
+        class="snackbar"
+        id="message"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></div>
+    </div>
+    <dialog id="sheet" aria-labelledby="sheet-title">
+      <div class="sheet-head">
+        <h2 id="sheet-title"></h2>
+        <button class="icon-button" id="close-sheet" aria-label="关闭"></button>
+      </div>
+      <div id="sheet-body"></div>
+    </dialog>
+  </body>
+</html>
