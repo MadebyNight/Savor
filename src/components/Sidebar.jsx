@@ -8,6 +8,7 @@ import {
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { PanelLeft } from "lucide-react";
 import { IconButton } from "./IconButton.jsx";
+import { Dialog } from "./Dialog.jsx";
 
 const SidebarContext = createContext(null);
 
@@ -69,7 +70,7 @@ export function Sidebar({ className = "", children }) {
 
   if (isMobile) {
     return (
-      <DialogPrimitive.Root open={openMobile} onOpenChange={setOpenMobile}>
+      <Dialog open={openMobile} onOpenChange={setOpenMobile}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Backdrop className="bg-black/10 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 z-50 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
           <DialogPrimitive.Popup
@@ -89,7 +90,7 @@ export function Sidebar({ className = "", children }) {
             <div className="flex h-full w-full flex-col">{children}</div>
           </DialogPrimitive.Popup>
         </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
+      </Dialog>
     );
   }
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import useBackHandler from "../useBackHandler.js";
 import {
   ChevronLeft,
   ChevronRight,
@@ -37,6 +38,7 @@ export default function MobileWeek({
   onSelectRecipes,
 }) {
   const [overview, setOverview] = useState(false);
+  useBackHandler(overview, () => setOverview(false));
   const [slot, setSlot] = useState(null);
   const days = overview ? weekdays.map((_, index) => index) : [day];
   return (

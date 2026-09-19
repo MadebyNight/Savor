@@ -1,8 +1,22 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import { IconButton } from "./IconButton.jsx";
+import { createContext, useContext } from "react";
+import useBackHandler from "../useBackHandler.js";
 
-export const Dialog = DialogPrimitive.Root;
+const DialogDepth = createContext(0);
+
+export function Dialog({ open, onOpenChange, children, ...props }) {
+  const depth = useContext(DialogDepth);
+  useBackHandler(open, () => onOpenChange?.(false), 10 + depth);
+  return (
+    <DialogDepth.Provider value={depth + 1}>
+      <DialogPrimitive.Root {...props} open={open} onOpenChange={onOpenChange}>
+        {children}
+      </DialogPrimitive.Root>
+    </DialogDepth.Provider>
+  );
+}
 
 export function DialogContent({ className = "", children, ...props }) {
   return (

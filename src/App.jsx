@@ -2,6 +2,7 @@
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import SettingsPanel from "./components/SettingsPanel.jsx";
 import MobileWeek from "./components/MobileWeek.jsx";
+import useBackHandler from "./useBackHandler.js";
 // 从原站公开页面恢复的交互界面，保留原有文案、状态流转及计算规则。
 import {
   ingredient,
@@ -74,6 +75,11 @@ function App() {
     return () => media.removeEventListener("change", update);
   }, []);
   const [showSettings, setShowSettings] = useState(false);
+  const returnToPage = () => {
+    if (showSettings) setShowSettings(false);
+    else setEditingRecipe(false);
+  };
+  useBackHandler(showSettings || editingRecipe, returnToPage);
   const [saveStatus, setSaveStatus] = useState("正在加载");
   const [recipes, setRecipes] = useState(initialRecipes);
   const [fridge, setFridge] = useState([]);
@@ -477,7 +483,7 @@ function App() {
         <header className="topbar">
           {compact && <>
             <div className="mobile-title">
-              {showSettings || editingRecipe ? <button className="mobile-icon" aria-label="返回" onClick={() => { setShowSettings(false); setEditingRecipe(false); }}><ArrowLeft size={22} /></button> : <span className="brand-stamp">食</span>}
+              {showSettings || editingRecipe ? <button className="mobile-icon" aria-label="返回" onClick={returnToPage}><ArrowLeft size={22} /></button> : <span className="brand-stamp">食</span>}
               <h1>{showSettings ? "设置与数据" : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
               <span role="status" className={saveStatus.includes("失败") ? "mobile-save-error" : "sr-only"}>{saveStatus}</span>
             </div>
