@@ -435,9 +435,7 @@ function App() {
       <Sidebar className="app-sidebar">
         <SidebarHeader>
           <div className="brand">
-            <span>
-              <Utensils size={25} />
-            </span>
+            <img className="brand-logo" src="/brand/mark.svg" alt=""/>
             <div>
               食光<small>好好吃饭，好好生活</small>
             </div>
@@ -478,7 +476,7 @@ function App() {
         </SidebarContent>
         <SidebarFooter>
           <div className="profile">
-            <span>食</span>
+            <img className="brand-logo" src="/brand/mark.svg" alt="食光"/>
             <div>
               我的小厨房<small>数据保存在本机</small>
             </div>
@@ -490,7 +488,7 @@ function App() {
         <header className="topbar">
           {compact && <>
             <div className="mobile-title">
-              {showSettings || editingRecipe ? <button className="mobile-icon" aria-label="返回" onClick={returnToPage}><ArrowLeft size={22} /></button> : <span className="brand-stamp">食</span>}
+              {showSettings || editingRecipe ? <button className="mobile-icon" aria-label="返回" onClick={returnToPage}><ArrowLeft size={22} /></button> : <img className="brand-logo" src="/brand/mark.svg" alt=""/>}
               <h1>{showSettings ? "设置与数据" : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
               <span role="status" className={saveStatus.includes("失败") ? "mobile-save-error" : "sr-only"}>{saveStatus}</span>
             </div>

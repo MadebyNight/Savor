@@ -23,6 +23,10 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
   const [image,setImage] = useState('');
   const [kind,setKind] = useState('recipes');
   const [draft,setDraft] = useState('');
+  const [reviewOpen,setReviewOpen]=useState(false);
+  const [reviewError,setReviewError]=useState('');
+  const [savingDraft,setSavingDraft]=useState(false);
+  const draftItems=(()=>{try {const items=JSON.parse(draft||'[]');return Array.isArray(items)?items:[];}catch{return [];}})();
   const [busy,setBusy] = useState(false);
   const generation = useRef(0);
   useEffect(() => () => {generation.current++;}, []);
@@ -43,11 +47,11 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
   }
   async function run() {
     if (!text.trim() && !image) return toast.error('请粘贴文字或选择图片');
-    if (!window.confirm('将把当前文字和图片发送到 ' + (endpoint||config.url) + ' 进行识别，可能产生服务商费用。继续？')) return;
-    if (draft && draft !== '[]' && !window.confirm('新识别将替换当前未保存的识别草稿，继续？')) return;
+    if (!(await ask('将把当前文字和图片发送到 ' + (endpoint||config.url) + ' 进行识别，可能产生服务商费用。', {title:'发送给 AI 识别？',label:'同意发送'}))) return;
+    if (draft && draft !== '[]' && !(await ask('新识别将替换当前未保存的识别草稿。', {title:'替换识别草稿？',label:'替换并识别',danger:true}))) return;
     const current = ++generation.current;
     setBusy(true);
-    try { await persist(); const items = await recognize(config,text,image,kind); if (current !== generation.current) return; const value = JSON.stringify(items,null,2); setDraft(value); await persist(value); toast.success('识别完成，请编辑核对后保存'); } catch(e) {if(current === generation.current) toast.error(e.message);} finally {if(current === generation.current) setBusy(false);}
+    try { await persist(); const items = await recognize(config,text,image,kind); if (current !== generation.current) return; const value = JSON.stringify(items,null,2); setDraft(value); await persist(value); if(current!==generation.current)return;setReviewError('');setReviewOpen(true); } catch(e) {if(current === generation.current){setReviewError(e.message);setReviewOpen(true);}} finally {if(current === generation.current) setBusy(false);}
   }
   async function saveItems(items) {
     if(kind === 'stock') await onImportStock(items.map(i=>({...i,id:crypto.randomUUID(),date:new Date().toLocaleDateString('sv-SE')})));
@@ -58,7 +62,7 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
   }
   async function restore(file) {
     if(!file)return;
-    try {const incoming=validateBackup(JSON.parse(await file.text()));if(!window.confirm('恢复将整体替换当前业务数据，系统会先保留恢复前备份。继续？'))return;await setPreference('before-restore',backup(state));await onRestore(incoming);toast.success('备份已恢复');}catch(e){toast.error(e.message);}
+    try {const incoming=validateBackup(JSON.parse(await file.text()));if(!(await ask('恢复将整体替换当前业务数据，应用会先保留恢复前备份。',{title:'恢复备份？',label:'确认恢复',danger:true})))return;await setPreference('before-restore',backup(state));await onRestore(incoming);toast.success('备份已恢复');}catch(e){toast.error(e.message);}
   }
   return <div className="panel settings-panel">
     <h2>设置与数据</h2><p>核心数据在本机保存。AI 识别需要网络，确认后才发送内容。</p>
@@ -76,17 +80,22 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
       <button className="primary" onClick={()=>setTestResult(null)}>知道了</button>
     </DialogContent></Dialog>}
     <h3>文字、图片与小票识别</h3>
-    <select aria-label="识别类型" disabled={busy} value={kind} onChange={e=>{if(draft && draft!=='[]' && !window.confirm('切换类型会清空当前识别草稿，继续？'))return;setKind(e.target.value);setDraft('');}} ><option value="recipes">菜谱</option><option value="stock">小票 / 冰箱食材</option></select>
+    <select aria-label="识别类型" disabled={busy} value={kind} onChange={async e=>{const nextKind=e.target.value;if(draft && draft!=='[]' && !(await ask('切换类型会清空当前识别草稿。',{title:'切换识别类型？',label:'确认切换',danger:true})))return;setKind(nextKind);setDraft('');}} ><option value="recipes">菜谱</option><option value="stock">小票 / 冰箱食材</option></select>
     <label>公开链接（可粘贴小红书分享文字）<input disabled={busy || fetching} value={link} onChange={e=>setLink(e.target.value)}/></label>
-    <button className="outline" disabled={busy || fetching || !link.trim()} onClick={async()=>{if(text && !window.confirm('取得正文后会替换当前输入文字，继续？'))return;setFetching(true);try{const article=await fetchArticle(link);const content=article.title+'\n'+article.text;setText(content);await setPreference('ai-draft',{text:content,image,kind,draft});toast.success('已提取公开正文，请核对后再发送识别');}catch(e){toast.error(e.message);}finally{setFetching(false);}}}>{fetching?'正在获取正文…':'获取公开正文'}</button>
+    <button className="outline" disabled={busy || fetching || !link.trim()} onClick={async()=>{if(text && !(await ask('取得正文后会替换当前输入文字。',{title:'替换输入正文？',label:'获取并替换'})))return;setFetching(true);try{const article=await fetchArticle(link);const content=article.title+'\n'+article.text;setText(content);await setPreference('ai-draft',{text:content,image,kind,draft});toast.success('已提取公开正文，请核对后再发送识别');}catch(e){toast.error(e.message);}finally{setFetching(false);}}}>{fetching?'正在获取正文…':'获取公开正文'}</button>
     <p className="subtle">需要登录或无法读取的页面，请粘贴正文或上传截图。获取正文不会自动发送给 AI。</p>
     <textarea disabled={busy} aria-label="识别原文" rows={5} value={text} onChange={e=>setText(e.target.value)} onBlur={()=>persist()} placeholder="粘贴菜谱正文，或先通过上方链接获取公开正文"/>
     <label>选择图片或拍照<input disabled={busy} type="file" accept="image/*" capture="environment" onChange={e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>10*1024*1024)return toast.error('请选择10MB以内图片');const reader=new FileReader();reader.onload=()=>setImage(String(reader.result));reader.readAsDataURL(file);}}/></label>
     {image && <><img src={image} alt="待识别图片" style={{maxWidth:240,maxHeight:180}}/><button className="outline" onClick={()=>setImage('')}>移除图片</button></>}
     <div className="actions"><button className="primary" disabled={busy||testing} onClick={run}>确认发送并识别</button>{busy && <button className="outline" onClick={()=>{generation.current++;setBusy(false);toast('已停止等待，服务端可能仍在处理');}}>取消等待</button>}<button className="outline" onClick={()=>persist().then(()=>toast.success('草稿已保存'))}>保存草稿</button></div>
-    <DraftEditor items={(()=>{try {return JSON.parse(draft || '[]');}catch{return [];}})()} kind={kind} onChange={items=>{const value=JSON.stringify(items);setDraft(value);persist(value).catch(e=>toast.error(e.message));}} onSave={saveItems}/>
+    {draftItems.length>0&&<button className="outline" disabled={busy} onClick={()=>{setReviewError('');setReviewOpen(true);}}>查看待保存草稿（{draftItems.length} 项）</button>}
+    {reviewOpen&&<Dialog open onOpenChange={open=>{if(!open&&!savingDraft)setReviewOpen(false);}}><DialogContent className="app-dialog ai-review-dialog" forceBackdrop aria-busy={savingDraft}>
+      <DialogTitle>{reviewError?'识别未完成':draftItems.length?(kind==='stock'?'核对并保存食材':'核对并保存菜谱'):'未识别到可保存内容'}</DialogTitle>
+      <DialogDescription>{reviewError?'原文和已有草稿保留，请检查后重试。':draftItems.length?'以下内容尚未入库，请核对后确认保存。关闭窗口会保留草稿。':'可以补充菜谱正文、换一张清晰图片，或手动录入。'}</DialogDescription>
+      {reviewError?<><p role="alert">{reviewError}</p><button className="primary" onClick={()=>setReviewOpen(false)}>返回检查</button></>:draftItems.length?<DraftEditor items={draftItems} kind={kind} onSavingChange={setSavingDraft} onDefer={()=>setReviewOpen(false)} onChange={async items=>{const value=JSON.stringify(items);setDraft(value);try{await persist(value);if(!items.length)setReviewOpen(false);}catch(e){toast.error(e.message);}}} onSave={saveItems}/>:<button className="primary" onClick={()=>setReviewOpen(false)}>返回补充</button>}
+    </DialogContent></Dialog>}
     <h3>备份与恢复</h3><button className="outline" onClick={downloadBackup}>导出完整备份</button><label>导入备份<input type="file" accept=".json,application/json" onChange={e=>restore(e.target.files?.[0])}/></label>
-    <button className="outline" onClick={async()=>{const previous=await getPreference('before-restore');if(!previous)return toast('没有恢复前备份');if(window.confirm('恢复到上次导入前的数据？'))await onRestore(validateBackup(previous));}}>恢复上次导入前数据</button>
+    <button className="outline" onClick={async()=>{try{const previous=await getPreference('before-restore');if(!previous)return toast('没有恢复前备份');if(await ask('当前业务数据将替换为上次导入前保留的备份。',{title:'恢复导入前数据？',label:'确认恢复',danger:true}))await onRestore(validateBackup(previous));}catch(e){toast.error(e.message);}}}>恢复上次导入前数据</button>
     <div ref={onSyncTarget}/>
     {confirmation}
   </div>;

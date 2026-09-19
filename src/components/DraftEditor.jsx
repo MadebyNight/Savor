@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-export default function DraftEditor({ items = [], kind, onChange, onSave }) {
+export default function DraftEditor({ items = [], kind, onChange, onSave, onDefer, onSavingChange }) {
   const [excluded, setExcluded] = useState([]);
   const [saving, setSaving] = useState(false);
   const update = (index, patch) =>
@@ -49,6 +49,7 @@ export default function DraftEditor({ items = [], kind, onChange, onSave }) {
       }
     }
     setSaving(true);
+    onSavingChange?.(true);
     try {
       const normalized = selected.map((item) => ({
         ...item,
@@ -70,13 +71,14 @@ export default function DraftEditor({ items = [], kind, onChange, onSave }) {
             }),
       }));
       await onSave(normalized);
-      onChange(items.filter((_, index) => excluded.includes(index)));
+      await onChange(items.filter((_, index) => excluded.includes(index)));
       setExcluded([]);
       toast.success("已保存选中条目，未选条目继续保留为草稿");
     } catch (error) {
       toast.error(error.message || "保存失败，草稿已保留");
     } finally {
       setSaving(false);
+      onSavingChange?.(false);
     }
   }
   if (!items.length)
@@ -311,9 +313,10 @@ export default function DraftEditor({ items = [], kind, onChange, onSave }) {
           )}
         </article>
       ))}
-      <button className="primary" disabled={saving} onClick={save}>
+      <div className="draft-actions"><button className="primary" disabled={saving} onClick={save}>
         {saving ? "正在保存" : "确认保存选中条目"}
       </button>
+      {onDefer&&<button className="outline" disabled={saving} onClick={onDefer}>稍后处理</button>}</div>
     </section>
   );
 }
