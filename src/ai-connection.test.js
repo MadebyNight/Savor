@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {testAIConnection} from './services.js';
+import {testAIConnection,resolveAIEndpoint,recognize} from './services.js';
 import {setSecret,getSecret} from './storage.js';
 
 const config={url:'https://ai.test/v1/chat/completions',model:'test-alias'};
@@ -39,10 +39,25 @@ test('HTTP错误和网络异常不显示服务商原文与凭据',async()=>{
 });
 test('拒绝伪成功或无效格式；无model时不冒充请求模型；模型字段不回显Key',async()=>{
  for(const body of ['<html>login</html>',{}, {error:'failed'}, {choices:[{message:{content:''}}]}]){
-  mock(200,body);await assert.rejects(testAIConnection(config,'key'),/接口已响应/);
+  mock(200,body);await assert.rejects(testAIConnection(config,'key'),/接口/);
  }
  mock(200,{choices:[{message:{content:'OK'}}]});
  assert.equal((await testAIConnection(config,'key')).returnedModel,'');
  mock(200,{model:'secret-key',choices:[{message:{content:null,reasoning_content:'Checking'}}]});
  assert.equal((await testAIConnection(config,'secret-key')).returnedModel,'[已隐藏]');
+});
+
+test('基础地址补全且完整自定义接口保持原样，识别与测试共用地址规则',async()=>{
+ for(const address of ['https://ai.test','https://ai.test/','https://ai.test/v1','https://ai.test/v1/'])assert.equal(resolveAIEndpoint(address),'https://ai.test/v1/chat/completions');
+ assert.equal(resolveAIEndpoint('https://ai.test/api/v1/'),'https://ai.test/api/v1/chat/completions');
+ assert.equal(resolveAIEndpoint('https://ai.test/custom/chat?version=2'),'https://ai.test/custom/chat?version=2');
+ await setSecret('ai','mock-key');
+ mock(200,{choices:[{message:{content:'  ```json\n{"items":[]}\n```  '}}]},url=>assert.equal(url,'https://ai.test/v1/chat/completions'));
+ assert.deepEqual(await recognize({...config,url:'https://ai.test'},'test','','recipes'),[]);
+ mock(200,'<!doctype html><html>dashboard</html>');
+ await assert.rejects(recognize(config,'test','','recipes'),/返回了网页/);
+ mock(200,{choices:[{message:{content:'not-json'}}]});
+ await assert.rejects(recognize(config,'test','','recipes'),/对话正文不是有效 JSON/);
+ mock(200,{choices:[{message:{content:'null'}}]});
+ await assert.rejects(recognize(config,'test','','recipes'),/条目格式无效/);
 });

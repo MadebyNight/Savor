@@ -5,11 +5,12 @@ import {Dialog,DialogContent,DialogTitle,DialogDescription} from './Dialog.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
-import { defaultAI,testAIConnection,recognize,backup,validateBackup } from '../services.js';
+import { defaultAI,resolveAIEndpoint,testAIConnection,recognize,backup,validateBackup } from '../services.js';
 export default function SettingsPanel({state,onRestore,onImportRecipes,onImportStock,onSyncTarget}) {
   const [ask, confirmation] = useConfirm();
   const [config,setConfig] = useState(defaultAI);
   const [key,setKey] = useState('');
+  const endpoint=(()=>{try{return resolveAIEndpoint(config.url);}catch{return '';}})();
   const [testing,setTesting]=useState(false);
   const [testResult,setTestResult]=useState(null);
   const testGeneration=useRef(0);
@@ -32,7 +33,7 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     testRunning.current=true;
     const current=++testGeneration.current;
     try{
-      if(!(await ask('将向 '+config.url+' 发送一条固定测试文本，不包含菜谱或图片，可能产生少量费用。测试不会保存配置。',{title:'测试 AI 连接？',label:'开始测试'})))return;
+      if(!(await ask('将向 '+(endpoint||config.url)+' 发送一条固定测试文本，不包含菜谱或图片，可能产生少量费用。测试不会保存配置。',{title:'测试 AI 连接？',label:'开始测试'})))return;
       if(current!==testGeneration.current)return;
       setTesting(true);setTestResult(null);
       const result=await testAIConnection(config,key);
@@ -42,7 +43,7 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
   }
   async function run() {
     if (!text.trim() && !image) return toast.error('请粘贴文字或选择图片');
-    if (!window.confirm('将把当前文字和图片发送到 ' + config.url + ' 进行识别，可能产生服务商费用。继续？')) return;
+    if (!window.confirm('将把当前文字和图片发送到 ' + (endpoint||config.url) + ' 进行识别，可能产生服务商费用。继续？')) return;
     if (draft && draft !== '[]' && !window.confirm('新识别将替换当前未保存的识别草稿，继续？')) return;
     const current = ++generation.current;
     setBusy(true);
@@ -63,6 +64,7 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     <h2>设置与数据</h2><p>核心数据在本机保存。AI 识别需要网络，确认后才发送内容。</p>
     <h3>AI 服务</h3>
     <label>接口地址<input disabled={testing} value={config.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
+    <p className="subtle" style={{overflowWrap:'anywhere'}}>支持基础地址或完整对话接口。{endpoint&&<>实际请求地址：{endpoint}</>}</p>
     <label>模型<input disabled={testing} value={config.model} onChange={e=>setConfig({...config,model:e.target.value})}/></label>
     <label>API Key<input disabled={testing} type="password" autoComplete="new-password" value={key} onChange={e=>setKey(e.target.value)} placeholder="留空保留已保存的 Key"/></label>
     <div className="actions"><button className="primary" disabled={testing} onClick={async()=>{try{await setPreference('ai-config',config);if(key)await setSecret('ai',key);setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||busy} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>

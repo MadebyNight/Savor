@@ -364,9 +364,12 @@ small {
 .search input {
   border: 0;
   width: 160px;
+  min-width: 0;
   padding: 10px 0;
   font-size: 12px;
 }
+.search:focus-within { outline: 3px solid #e4ae23; outline-offset: -3px; }
+.search input:focus-visible { outline: none; }
 .recipe-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 21px;
