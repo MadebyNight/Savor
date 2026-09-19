@@ -26,6 +26,7 @@ with sync_playwright() as p:
     click('测试连接'); page.get_by_role('dialog').get_by_role('button',name='取消',exact=True).click()
     assert not calls and storage() == before
     def test():
+        if page.locator('.ai-test-result').count(): click('知道了')
         click('测试连接'); click('开始测试')
         expect(page.locator('.ai-test-result')).to_be_visible()
     test()
@@ -36,6 +37,12 @@ with sync_playwright() as p:
     assert calls[-1]['headers']['authorization'] == 'Bearer mock-key'
     assert calls[-1]['body']['messages'] == [{'role':'user','content':'Reply with OK only.'}]
     assert storage() == before
+    expect(page.get_by_role('dialog',name='连接成功',exact=True)).to_be_visible()
+    box = result.bounding_box()
+    assert abs(box['y'] + box['height']/2 - 422) < 3
+    page.evaluate("window.dispatchEvent(new Event('shiguang:back',{cancelable:true}))")
+    expect(result).to_have_count(0)
+    expect(page.locator('.settings-panel')).to_be_visible()
     page.get_by_label('模型', exact=True).fill('new-alias')
     expect(result).to_have_count(0)
     click('保存 AI 配置')
@@ -49,6 +56,7 @@ with sync_playwright() as p:
     response.update(status=200,body={'choices':[{'message':{'content':'OK'}}]})
     test(); expect(result).to_contain_text('未提供模型名称')
     pending = []
+    click('知道了')
     page.unroute('https://ai.test/**')
     page.route('https://ai.test/**', lambda route: pending.append(route))
     click('测试连接'); click('开始测试')

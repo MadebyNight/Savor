@@ -1,6 +1,7 @@
 import {fetchArticle} from '../links.js';
 import DraftEditor from './DraftEditor.jsx';
 import useConfirm from './useConfirm.jsx';
+import {Dialog,DialogContent,DialogTitle,DialogDescription} from './Dialog.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
@@ -66,10 +67,12 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     <label>API Key<input disabled={testing} type="password" autoComplete="new-password" value={key} onChange={e=>setKey(e.target.value)} placeholder="留空保留已保存的 Key"/></label>
     <div className="actions"><button className="primary" disabled={testing} onClick={async()=>{try{await setPreference('ai-config',config);if(key)await setSecret('ai',key);setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||busy} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>
     <p className="subtle">测试当前填写的配置；Key 留空时使用已保存的 Key。测试成功后仍需点击保存。</p>
-    {testResult&&<div className={`ai-test-result ${testResult.ok?'is-success':'is-error'}`} role="status" aria-live="polite">
-      <strong>{testResult.ok?'连接成功':'连接测试未完成'}</strong>
+    {testResult&&<Dialog open onOpenChange={open=>{if(!open)setTestResult(null);}}><DialogContent className={`app-dialog ai-result-dialog ai-test-result ${testResult.ok?'is-success':'is-error'}`} forceBackdrop>
+      <DialogTitle>{testResult.ok?'连接成功':'连接测试未完成'}</DialogTitle>
+      <DialogDescription>当前 AI 接口的连接测试结果</DialogDescription>
       {testResult.ok?<><p>请求模型：{testResult.requestedModel}</p><p>接口返回模型：{testResult.returnedModel||'未提供模型名称'}</p><p>耗时：{(testResult.elapsedMs/1000).toFixed(2)} 秒</p><small>模型名称以接口返回为准；本次仅验证文本调用，图片识别需另行验证。</small></>:<p>{testResult.message}</p>}
-    </div>}
+      <button className="primary" onClick={()=>setTestResult(null)}>知道了</button>
+    </DialogContent></Dialog>}
     <h3>文字、图片与小票识别</h3>
     <select aria-label="识别类型" disabled={busy} value={kind} onChange={e=>{if(draft && draft!=='[]' && !window.confirm('切换类型会清空当前识别草稿，继续？'))return;setKind(e.target.value);setDraft('');}} ><option value="recipes">菜谱</option><option value="stock">小票 / 冰箱食材</option></select>
     <label>公开链接（可粘贴小红书分享文字）<input disabled={busy || fetching} value={link} onChange={e=>setLink(e.target.value)}/></label>
