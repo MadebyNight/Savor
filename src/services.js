@@ -1,5 +1,31 @@
 import { getSecret, request } from './storage.js';
 export const defaultAI = {url:'https://api.deepseek.com/chat/completions',model:'deepseek-flash'};
+export async function testAIConnection(config, enteredKey='') {
+  let url;
+  try { url=new URL(config.url.trim()); } catch { throw new Error('请填写完整的 HTTPS 接口地址'); }
+  if(url.protocol!=='https:' || url.username || url.password)throw new Error('请使用不含账号密码的 HTTPS 接口地址');
+  const model=config.model.trim();
+  if(!model)throw new Error('请填写要测试的模型名称');
+  const key=enteredKey.trim() || await getSecret('ai');
+  if(!key)throw new Error('请填写 API Key，或先保存有效的 Key');
+  const started=Date.now();let timer;
+  let response;
+  try {
+    response=await Promise.race([
+      request({url:url.href,method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({model,messages:[{role:'user',content:'Reply with OK only.'}],stream:false,max_tokens:32})}).catch(()=>{throw new Error('连接失败，请检查网络和接口地址');}),
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('测试超时，请检查网络或稍后重试；服务端可能仍在处理')),30000);}),
+    ]);
+  } finally { clearTimeout(timer); }
+  const errors={400:'请求参数或模型不受支持，请核对 Chat Completions 接口与模型名称',401:'鉴权失败，请检查 API Key',402:'账户余额不足，请检查服务商账户',403:'没有访问权限，请检查 Key 的模型权限',404:'接口或模型不存在，请核对完整接口地址与模型名称',429:'请求受限，请检查额度或稍后重试'};
+  if(response.status<200 || response.status>=300)throw new Error(`测试失败（HTTP ${response.status}）：${errors[response.status] || (response.status>=500?'服务商暂时异常，请稍后重试':'接口拒绝请求，请核对配置')}`);
+  let body;
+  try { body=JSON.parse(response.data); } catch { throw new Error('接口已响应，但返回的不是有效 JSON，请检查是否填写了网页地址'); }
+  const message=body?.choices?.[0]?.message;
+  if(body?.error || !message || ![message.content,message.reasoning_content].some(v=>typeof v==='string'&&v.trim()))throw new Error('接口已响应，但未返回有效的对话结果，请核对 Chat Completions 接口与模型');
+  // 只展示协议中的模型字段，不展示响应正文或服务商原始错误，避免回显凭据。
+  const returnedModel=typeof body.model==='string'?body.model.split(key).join('[已隐藏]').trim().slice(0,160):'';
+  return {requestedModel:model,returnedModel,elapsedMs:Date.now()-started};
+}
 export async function recognize(config, text, image, kind) {
   const key = await getSecret('ai');
   if (!key) throw new Error('请先保存 AI Key');
