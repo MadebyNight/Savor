@@ -1,11 +1,10 @@
 import {fetchArticle} from '../links.js';
 import DraftEditor from './DraftEditor.jsx';
-import SyncPanel from './SyncPanel.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
 import { defaultAI,recognize,backup,validateBackup } from '../services.js';
-export default function SettingsPanel({state,onRestore,onImportRecipes,onImportStock}) {
+export default function SettingsPanel({state,onRestore,onImportRecipes,onImportStock,onSyncTarget}) {
   const [config,setConfig] = useState(defaultAI);
   const [key,setKey] = useState('');
   const [text,setText] = useState('');
@@ -57,6 +56,6 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     <DraftEditor items={(()=>{try {return JSON.parse(draft || '[]');}catch{return [];}})()} kind={kind} onChange={items=>{const value=JSON.stringify(items);setDraft(value);persist(value).catch(e=>toast.error(e.message));}} onSave={saveItems}/>
     <h3>备份与恢复</h3><button className="outline" onClick={downloadBackup}>导出完整备份</button><label>导入备份<input type="file" accept=".json,application/json" onChange={e=>restore(e.target.files?.[0])}/></label>
     <button className="outline" onClick={async()=>{const previous=await getPreference('before-restore');if(!previous)return toast('没有恢复前备份');if(window.confirm('恢复到上次导入前的数据？'))await onRestore(validateBackup(previous));}}>恢复上次导入前数据</button>
-    <SyncPanel state={state} onRestore={onRestore}/>
+    <div ref={onSyncTarget}/>
   </div>;
 }

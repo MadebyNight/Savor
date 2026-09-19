@@ -25,12 +25,14 @@ export async function inspectSync(config,state) {
   const response=await call('current.json');
   if(response.status!==404)assertResponse(response);
   const remote=response.status===404?null:JSON.parse(response.data);
-  const base=await getPreference('sync-base');
+  const scope=JSON.stringify([config.url.replace(/\/+$/,''),config.username.trim()]);
+  const savedBase=await getPreference('sync-base');
+  const base=savedBase?.scope && savedBase.scope!==scope?null:savedBase;
   const hash=await fingerprint(businessState(state));
   const localChanged=!base || base.hash!==hash;
   const remoteChanged=remote && remote.id!==base?.id;
   let action= !remote?'upload':(!base?'choose':(localChanged && remoteChanged?'choose':remoteChanged?'download':localChanged?'upload':'equal'));
-  return {action,remote,etag:response.headers.etag,hash,call};
+  return {action,remote,etag:response.headers.etag,hash,call,scope,trustedBase:base?.scope===scope};
 }
 export async function downloadVersion(context,version=context.remote) {
   if(!version?.id)throw new Error('没有可恢复的云端版本');
@@ -59,7 +61,7 @@ export async function uploadVersion(context,state) {
   const manifest={...version,versions};
   const result=await context.call('current.json','PUT',JSON.stringify(manifest),{'Content-Type':'application/json',...(context.remote?{'If-Match':context.etag}:{'If-None-Match':'*'})});
   if(result.status===412)throw new Error('另一设备刚刚修改了云端；新版本副本已保留，请重新同步');assertResponse(result);
-  await setPreference('sync-base',{id:version.id,hash:await fingerprint(businessState(state)),time:version.time});
+  await setPreference('sync-base',{id:version.id,hash:await fingerprint(businessState(state)),time:version.time,scope:context.scope});
   await setPreference('sync-pending',(await getPreference('sync-pending',[])).filter(item=>item.id!==version.id));
   const retained=new Set(versions.map(item=>item.id));
   const protectedIds=new Set((await getPreference('sync-pending',[])).map(item=>item.id));
@@ -69,4 +71,4 @@ export async function uploadVersion(context,state) {
   await setPreference('sync-cleanup',failed);
   return manifest;
 }
-export async function recordDownload(version,state){await setPreference('sync-base',{id:version.id,hash:await fingerprint(businessState(state)),time:new Date().toISOString()});}
+export async function recordDownload(version,state,scope){await setPreference('sync-base',{id:version.id,hash:await fingerprint(businessState(state)),time:new Date().toISOString(),scope});}

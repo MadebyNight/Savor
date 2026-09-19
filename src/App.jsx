@@ -1,5 +1,7 @@
 ﻿import { monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
+import {businessState} from "./services.js";
+import SyncPanel from "./components/SyncPanel.jsx";
 import SettingsPanel from "./components/SettingsPanel.jsx";
 import MobileWeek from "./components/MobileWeek.jsx";
 import useBackHandler from "./useBackHandler.js";
@@ -74,6 +76,7 @@ function App() {
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
+  const [syncTarget,setSyncTarget]=useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const returnToPage = () => {
     if (showSettings) setShowSettings(false);
@@ -132,6 +135,7 @@ function App() {
     confirmedRecipes,
     recipeDraft,
   };
+  const latestState=useRef(fullState);latestState.current=fullState;
   const applyState = (state) => {
     setRecipes(state.recipes || initialRecipes);
     setFridge(state.fridge || []);
@@ -145,11 +149,14 @@ function App() {
     );
     if (state.recipeDraft) setRecipeDraft(state.recipeDraft);
   };
-  const restoreState = async (state) => {
+  const restoreState = async (state, expected) => {
+    const unchanged=()=>!expected||JSON.stringify(businessState(latestState.current))===JSON.stringify(businessState(expected));
+    if(!unchanged())throw new Error("同步期间本地数据已改变，请重新检查");
     setSaveStatus("正在恢复");
     try {
       await saveState(state);
-      applyState(state);
+      if(!unchanged()){await saveState(latestState.current);throw new Error("同步期间本地数据已改变，已保留本地修改");}
+      applyState(expected?{...state,qty:latestState.current.qty,recipeDraft:latestState.current.recipeDraft}:state);
       setModal("");
       setSelectedRecipeId(null);
       setSaveStatus("已保存");
@@ -518,6 +525,7 @@ function App() {
         <div className={`workspace page-${page} ${showSettings ? "show-settings" : ""} ${editingRecipe ? "is-editing" : ""}`}>
           {showSettings && (
             <SettingsPanel
+              onSyncTarget={setSyncTarget}
               state={fullState}
               onRestore={restoreState}
               onImportRecipes={async items => {const next=[...recipes,...items];await saveState({...fullState,recipes:next});setRecipes(next);}}
@@ -2016,6 +2024,7 @@ function App() {
           )}
         </DialogContent>
       </Dialog>
+      {hydrated&&<SyncPanel state={fullState} onRestore={restoreState} target={syncTarget}/>}
       <Toaster richColors position="top-center" />
     </SidebarProvider>
   );
