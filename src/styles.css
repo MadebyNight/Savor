@@ -1459,3 +1459,15 @@ small {
 .settings-tools { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 .settings-tools > small { font-size: 11px; color: #6d7565; }
 @media(max-width:767px) { .settings-tools { gap: 5px; } .settings-tools .outline { padding: 6px 8px; font-size: 12px; } .settings-tools > small { max-width: 36px; line-height: 1.2; } .topbar { gap: 8px; } }
+
+.nutstore-guide { border: 1px solid #dce3d6; border-radius: 12px; background: #f7f9f3; overflow-wrap: anywhere; }
+.nutstore-guide summary { padding: 14px; cursor: pointer; color: #405832; font-weight: 600; min-height: 48px; }
+.nutstore-guide summary:focus-visible { outline: 2px solid #668047; outline-offset: -3px; }
+.nutstore-guide-body { padding: 0 14px 16px; font-size: 14px; line-height: 1.7; }
+.nutstore-guide-body p { margin: 8px 0 12px; }
+.nutstore-guide-body ol { padding-left: 22px; margin: 16px 0; list-style: decimal; }
+.nutstore-guide-body li { padding-left: 4px; margin-bottom: 20px; }
+.nutstore-guide-body h4 { font-size: 15px; font-weight: 600; margin: 0; }
+.nutstore-guide-body img { display: block; width: 100%; max-width: 420px; height: auto; border: 1px solid #dce3d6; border-radius: 8px; }
+.nutstore-guide-body a { color: #405832; text-decoration: underline; display: inline-block; padding: 10px 0; }
+.nutstore-guide-caption { color: #646d5e; font-size: 12px; }
