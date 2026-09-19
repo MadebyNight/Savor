@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import {validateRecipe,validateStock} from '../validation.js';
 
 export default function DraftEditor({ items = [], kind, onChange, onSave, onDefer, onSavingChange }) {
   const [excluded, setExcluded] = useState([]);
@@ -12,6 +13,9 @@ export default function DraftEditor({ items = [], kind, onChange, onSave, onDefe
   async function save() {
     const selected = items.filter((_, index) => !excluded.includes(index));
     if (!selected.length) return toast.error("请至少勾选一个条目");
+    try {
+      selected.forEach(item => stock ? validateStock(item,'食材草稿',true) : validateRecipe(item,'菜谱草稿',true));
+    } catch(error) {return toast.error(error.message);}
     for (const item of selected) {
       if (!item.name?.trim()) return toast.error("请补充每个选中条目的名称");
       if (

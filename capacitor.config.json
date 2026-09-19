@@ -1,5 +1,10 @@
 {
   "appId": "com.shiguang.mealplanner",
   "appName": "食光",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native"
+    }
+  }
 }

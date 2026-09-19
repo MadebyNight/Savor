@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
 import { defaultAI,resolveAIEndpoint,testAIConnection,recognize,backup,validateBackup } from '../services.js';
+import {normalizeAIDrafts} from '../validation.js';
 export default function SettingsPanel({state,onRestore,onImportRecipes,onImportStock,onSyncTarget}) {
   const [ask, confirmation] = useConfirm();
   const [config,setConfig] = useState(defaultAI);
@@ -26,7 +27,8 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
   const [reviewOpen,setReviewOpen]=useState(false);
   const [reviewError,setReviewError]=useState('');
   const [savingDraft,setSavingDraft]=useState(false);
-  const draftItems=(()=>{try {const items=JSON.parse(draft||'[]');return Array.isArray(items)?items:[];}catch{return [];}})();
+  const draftResult=(()=>{try {return {items:normalizeAIDrafts(JSON.parse(draft||'[]'),kind)};}catch(error){return {items:[],error:error.message};}})();
+  const draftItems=draftResult.items;
   const [busy,setBusy] = useState(false);
   const generation = useRef(0);
   useEffect(() => () => {generation.current++;}, []);
@@ -85,10 +87,12 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     <button className="outline" disabled={busy || fetching || !link.trim()} onClick={async()=>{if(text && !(await ask('取得正文后会替换当前输入文字。',{title:'替换输入正文？',label:'获取并替换'})))return;setFetching(true);try{const article=await fetchArticle(link);const content=article.title+'\n'+article.text;setText(content);await setPreference('ai-draft',{text:content,image,kind,draft});toast.success('已提取公开正文，请核对后再发送识别');}catch(e){toast.error(e.message);}finally{setFetching(false);}}}>{fetching?'正在获取正文…':'获取公开正文'}</button>
     <p className="subtle">需要登录或无法读取的页面，请粘贴正文或上传截图。获取正文不会自动发送给 AI。</p>
     <textarea disabled={busy} aria-label="识别原文" rows={5} value={text} onChange={e=>setText(e.target.value)} onBlur={()=>persist()} placeholder="粘贴菜谱正文，或先通过上方链接获取公开正文"/>
+    <p className="subtle">图片识别需要当前模型支持图片输入。模型列表中存在或文本连接测试通过，都不代表图片识别可用。</p>
     <label>选择图片或拍照<input disabled={busy} type="file" accept="image/*" capture="environment" onChange={e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>10*1024*1024)return toast.error('请选择10MB以内图片');const reader=new FileReader();reader.onload=()=>setImage(String(reader.result));reader.readAsDataURL(file);}}/></label>
     {image && <><img src={image} alt="待识别图片" style={{maxWidth:240,maxHeight:180}}/><button className="outline" onClick={()=>setImage('')}>移除图片</button></>}
     <div className="actions"><button className="primary" disabled={busy||testing} onClick={run}>确认发送并识别</button>{busy && <button className="outline" onClick={()=>{generation.current++;setBusy(false);toast('已停止等待，服务端可能仍在处理');}}>取消等待</button>}<button className="outline" onClick={()=>persist().then(()=>toast.success('草稿已保存'))}>保存草稿</button></div>
     {draftItems.length>0&&<button className="outline" disabled={busy} onClick={()=>{setReviewError('');setReviewOpen(true);}}>查看待保存草稿（{draftItems.length} 项）</button>}
+    {draftResult.error&&<button className="outline" disabled={busy} onClick={()=>{setReviewError('已有草稿格式异常：'+draftResult.error+'。原文和草稿仍保留，可以重新识别。');setReviewOpen(true);}}>查看异常草稿说明</button>}
     {reviewOpen&&<Dialog open onOpenChange={open=>{if(!open&&!savingDraft)setReviewOpen(false);}}><DialogContent className="app-dialog ai-review-dialog" forceBackdrop aria-busy={savingDraft}>
       <DialogTitle>{reviewError?'识别未完成':draftItems.length?(kind==='stock'?'核对并保存食材':'核对并保存菜谱'):'未识别到可保存内容'}</DialogTitle>
       <DialogDescription>{reviewError?'原文和已有草稿保留，请检查后重试。':draftItems.length?'以下内容尚未入库，请核对后确认保存。关闭窗口会保留草稿。':'可以补充菜谱正文、换一张清晰图片，或手动录入。'}</DialogDescription>

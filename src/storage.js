@@ -52,7 +52,7 @@ export async function getSecret(key) { return isNative() ? (await LocalData.getS
 export async function setSecret(key,value) { if (isNative()) await LocalData.setSecret({key,value}); else webSecrets.set(key,value); }
 export async function request(options) {
   if (isNative()) return LocalData.request(options);
-  const response = await fetch(options.url,{method:options.method || 'GET',headers:options.headers,body:options.body});
+  const response = await fetch(options.url,{method:options.method || 'GET',headers:options.headers,body:options.body,...(options.redirect?{redirect:options.redirect}:{})});
   return {status:response.status,data:await response.text(),headers:Object.fromEntries(response.headers)};
 }
 export async function exportBlob(blob,name,share=false) {

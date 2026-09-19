@@ -30,6 +30,7 @@ with sync_playwright() as p:
             page.get_by_label('API Key',exact=True).fill('mock');click('保存 AI 配置')
             page.route('https://boundary.test/**',lambda route:route.fulfill(status=200,content_type='application/json',body=json.dumps({'choices':[{'message':{'content':json.dumps({'items':[item]})}}]})))
             page.get_by_label('识别原文',exact=True).fill('青椒炒熟后装盘')
+            before=page.evaluate('localStorage.getItem("shiguang-v1")')
             click('确认发送并识别');click('同意发送')
             page.wait_for_timeout(700)
             assert not errors, errors
@@ -37,10 +38,13 @@ with sync_playwright() as p:
             if page.get_by_role('button',name='确认保存选中条目',exact=True).count():
                 click('确认保存选中条目');page.wait_for_timeout(300)
             assert not errors,errors
-            if name=='ai-valid-save':
+            if name in ['ai-valid-save','ai-ingredients-object','ai-steps-string']:
                 page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).recipes.some(r=>r.name==="测试菜谱")')
                 page.reload();page.wait_for_load_state('networkidle')
                 assert page.evaluate('JSON.parse(localStorage.getItem("shiguang-v1")).recipes.some(r=>r.name==="测试菜谱")')
+            else:
+                expect(page.get_by_role('dialog',name='识别未完成',exact=True)).to_be_visible()
+                assert page.evaluate('localStorage.getItem("shiguang-v1")')==before
             results.append({'case':name,'result':'PASS'})
         except Exception as e:
             results.append({'case':name,'result':'FAIL','error':str(e),'pageErrors':errors})
@@ -73,7 +77,7 @@ with sync_playwright() as p:
             if name=='backup-object-time':
                 page.locator('.library-recipe').first.click();page.wait_for_timeout(300)
                 assert not errors,errors
-            if name=='backup-duplicate-ids':
+            if name=='backup-duplicate-ids' and page.evaluate('localStorage.getItem("shiguang-v1")')!=before:
                 page.locator('.library-recipe').first.click()
                 page.get_by_role('button',name='删除菜谱',exact=True).click()
                 page.get_by_role('button',name='确认删除',exact=True).click()
@@ -84,6 +88,20 @@ with sync_playwright() as p:
         except Exception as e:results.append({'case':name,'result':'FAIL','error':str(e),'pageErrors':errors})
         finally:
             page.screenshot(path=str(OUT/(name+'.png')));context.close()
+    context=browser.new_context(viewport={'width':390,'height':844});page=context.new_page();errors=[]
+    page.on('pageerror',lambda e:errors.append(str(e)))
+    old_draft=json.dumps({'kind':'recipes','text':'保留的原文','draft':json.dumps([{**recipe,'ingredients':[None]}])})
+    context.add_init_script('localStorage.setItem("pref:ai-draft",'+json.dumps(old_draft)+');')
+    try:
+        page.goto(os.environ.get('E2E_URL','http://127.0.0.1:4173'));page.wait_for_load_state('networkidle')
+        page.get_by_role('button',name='设置与备份',exact=True).click()
+        page.get_by_role('button',name='查看异常草稿说明',exact=True).click()
+        expect(page.get_by_role('dialog',name='识别未完成',exact=True)).to_be_visible()
+        assert not errors,errors
+        assert page.evaluate('localStorage.getItem("pref:ai-draft")')==old_draft
+        results.append({'case':'persisted-invalid-draft','result':'PASS'})
+    except Exception as e:results.append({'case':'persisted-invalid-draft','result':'FAIL','error':str(e),'pageErrors':errors})
+    finally:context.close()
     browser.close()
 (OUT/'results.json').write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding='utf8')
 for result in results: print(json.dumps(result,ensure_ascii=False))

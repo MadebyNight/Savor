@@ -61,3 +61,14 @@ test('基础地址补全且完整自定义接口保持原样，识别与测试�
  mock(200,{choices:[{message:{content:'null'}}]});
  await assert.rejects(recognize(config,'test','','recipes'),/条目格式无效/);
 });
+
+test('模型停服、图片无正文和网络异常给出可恢复提示，不回显服务商原文',async()=>{
+ await setSecret('ai','private-key');
+ mock(410,{error:{message:'private-key'}});
+ await assert.rejects(testAIConnection(config,'private-key'),e=>e.message.includes('停止服务')&&!e.message.includes('private-key'));
+ await assert.rejects(recognize(config,'text','','recipes'),/HTTP 410.*停止服务/);
+ mock(200,{choices:[{message:{content:null}}]});
+ await assert.rejects(recognize(config,'','data:image/png;base64,AAAA','recipes'),/文本连接测试不能验证视觉能力/);
+ globalThis.fetch=async()=>{throw new Error('private-key');};
+ await assert.rejects(recognize(config,'text','','recipes'),e=>e.message.includes('超时')&&!e.message.includes('private-key'));
+});

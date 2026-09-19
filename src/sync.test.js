@@ -71,8 +71,8 @@ test('已存在的同名损坏图片不会被412误认为上传成功',async()=>
   assert.equal(env.files.has('current.json'),false);assert.equal(await getPreference('sync-base'),null);
 });
 test('损坏业务备份在返回可应用状态前被拒绝',()=>{
-  assert.throws(()=>validateBackup({...state(),recipes:[{name:'缺失食材步骤'}]}),/菜谱格式/);
-  assert.throws(()=>validateBackup({...state(),fridge:[{name:'菜',qty:-1}]}),/库存格式/);
+  assert.throws(()=>validateBackup({...state(),recipes:[{name:'缺失食材步骤'}]}),/菜谱.*格式/);
+  assert.throws(()=>validateBackup({...state(),fridge:[{name:'菜',qty:-1}]}),/库存.*格式/);
   assert.throws(()=>validateBackup({...state(),weeks:{'2026-09-14':{lunch:'损坏'}}}),/菜单格式/);
   assert.throws(()=>validateBackup({...state(),confirmed:{a:-1}}),/采购份数/);
   assert.throws(()=>validateBackup({format:'other',version:99,state:state()}),/备份格式/);
