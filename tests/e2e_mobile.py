@@ -12,7 +12,7 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={'width':390,'height':844}, device_scale_factor=2, is_mobile=True, has_touch=True)
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
-    page.on('dialog', lambda d: d.accept())
+    page.on('dialog', lambda d: (errors.append('Unexpected native dialog: '+d.type), d.dismiss()))
     page.goto(os.environ.get('E2E_URL', 'http://127.0.0.1:5173'))
     page.wait_for_load_state('networkidle')
 
@@ -108,11 +108,30 @@ with sync_playwright() as p:
     nav('点单')
     page.get_by_role('button',name='番茄炒鸡蛋',exact=True).click()
     page.get_by_role('button',name='删除菜谱',exact=True).click()
+    confirm = page.get_by_role('dialog',name='删除这道菜谱？',exact=True)
+    expect(confirm.get_by_role('button',name='取消',exact=True)).to_be_focused()
+    before = state()
+    confirm.get_by_role('button',name='取消',exact=True).click()
+    assert state() == before
+    page.get_by_role('button',name='删除菜谱',exact=True).click()
+    page.keyboard.press('Escape')
+    expect(confirm).not_to_be_visible()
+    assert state() == before
+    page.get_by_role('button',name='删除菜谱',exact=True).click()
+    confirm.get_by_role('button',name='关闭弹窗',exact=True).click()
+    assert state() == before
+    page.get_by_role('button',name='删除菜谱',exact=True).click()
+    confirm.get_by_role('button',name='确认删除',exact=True).click()
     nav('周菜单')
     expect(page.get_by_label('番茄炒鸡蛋餐次份数')).to_have_value('3')
     nav('点单')
     page.get_by_role('button',name='确认我的菜单',exact=False).click()
     page.get_by_role('dialog').get_by_role('button',name='确认并同步',exact=False).click()
+    before_clear = state()
+    page.get_by_role('dialog',name='清空采购需求？',exact=True).get_by_role('button',name='取消',exact=True).click()
+    assert state() == before_clear
+    page.get_by_role('dialog').get_by_role('button',name='确认并同步',exact=False).click()
+    page.get_by_role('dialog',name='清空采购需求？',exact=True).get_by_role('button',name='确认清空').click()
     page.wait_for_function('!Object.values(JSON.parse(localStorage.getItem("shiguang-v1")).confirmed).some(Boolean)')
     nav('周菜单')
     expect(page.get_by_label('番茄炒鸡蛋餐次份数')).to_have_value('3')

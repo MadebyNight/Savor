@@ -10,9 +10,68 @@ import org.junit.runner.RunWith;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
+import java.net.HttpURLConnection;
+import java.net.ProtocolException;
+import java.net.URL;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.RecordedRequest;
 
 @RunWith(AndroidJUnit4.class)
 public class LocalDataPluginTest {
+    @Test public void legacyConnectionRejectsMkcolBeforeConnecting() throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL("https://127.0.0.1/").openConnection();
+        try {
+            connection.setRequestMethod("MKCOL");
+            fail("Expected Android HttpURLConnection method restriction");
+        } catch (ProtocolException expected) {
+            assertNotNull(expected);
+        } finally { connection.disconnect(); }
+    }
+
+    @Test public void nativeWebDavMethodsPreserveBodiesHeadersAndStatus() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.start();
+            String url = server.url("/%E9%A3%9F%E5%85%89/test.json").toString();
+            for (String method : new String[]{"MKCOL", "PUT", "GET", "DELETE", "POST", "PROPFIND"}) {
+                int status = method.equals("MKCOL") ? 201 : method.equals("PROPFIND") ? 207 : 200;
+                server.enqueue(new MockResponse().setResponseCode(status).setHeader("ETag", "\"v1\"").setBody("测试响应"));
+                JSObject args = new JSObject().put("url", url).put("method", method)
+                    .put("headers", new JSObject().put("Authorization", "Basic TEST_ONLY").put("If-Match", "\"v0\"").put("Content-Type", "application/json"));
+                if (method.equals("PUT") || method.equals("POST")) args.put("body", "{\"name\":\"测试菜\"}");
+                Call call = new Call(args); plugin.request(call); call.await(); assertNull(call.error);
+                assertEquals(status, (int) call.result.getInteger("status"));
+                assertEquals("测试响应", call.result.getString("data"));
+                assertEquals("\"v1\"", call.result.getJSObject("headers").getString("etag"));
+                RecordedRequest sent = server.takeRequest(2, TimeUnit.SECONDS); assertNotNull(sent);
+                assertEquals(method, sent.getMethod()); assertEquals("Basic TEST_ONLY", sent.getHeader("Authorization"));
+                assertEquals("\"v0\"", sent.getHeader("If-Match"));
+                if (method.equals("PUT") || method.equals("POST")) assertEquals("{\"name\":\"测试菜\"}", sent.getBody().readUtf8());
+            }
+            for (int status : new int[]{401, 403, 405, 412, 500}) {
+                server.enqueue(new MockResponse().setResponseCode(status).setBody("failure"));
+                Call call = new Call(new JSObject().put("url", url).put("method", "MKCOL"));
+                plugin.request(call); call.await(); assertNull(call.error);
+                assertEquals(status, (int) call.result.getInteger("status"));
+                server.takeRequest(2, TimeUnit.SECONDS);
+            }
+            server.enqueue(new MockResponse().setResponseCode(302).setHeader("Location", server.url("/redirect-target")));
+            int before = server.getRequestCount();
+            Call redirect = new Call(new JSObject().put("url", url).put("method", "GET"));
+            plugin.request(redirect); redirect.await(); assertNull(redirect.error);
+            assertEquals(302, (int) redirect.result.getInteger("status"));
+            assertEquals(before + 1, server.getRequestCount());
+        } finally { plugin.handleOnDestroy(); }
+    }
+
+    @Test public void invalidNetworkRequestIsDiagnosableWithoutLeakingSecrets() throws Exception {
+        Call invalid = new Call(new JSObject().put("url", "file:///private/SECRET_URL")
+            .put("method", "GET").put("headers", new JSObject().put("Authorization", "SECRET_HEADER")).put("body", "SECRET_BODY"));
+        plugin.request(invalid); invalid.await();
+        assertNotNull(invalid.error); assertTrue(invalid.error.contains("GET / prepare / IllegalArgumentException"));
+        assertFalse(invalid.error.contains("SECRET"));
+        plugin.handleOnDestroy();
+    }
     private final LocalDataPlugin plugin = new LocalDataPlugin() {
         @Override public Context getContext() { return InstrumentationRegistry.getInstrumentation().getTargetContext(); }
     };

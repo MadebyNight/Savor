@@ -4,6 +4,7 @@ import {businessState} from "./services.js";
 import SyncPanel from "./components/SyncPanel.jsx";
 import SettingsPanel from "./components/SettingsPanel.jsx";
 import MobileWeek from "./components/MobileWeek.jsx";
+import useConfirm from "./components/useConfirm.jsx";
 import useBackHandler from "./useBackHandler.js";
 // 从原站公开页面恢复的交互界面，保留原有文案、状态流转及计算规则。
 import {
@@ -66,6 +67,7 @@ const navigationItems = [
   ["我的冰箱", Refrigerator],
 ];
 function App() {
+  const [ask, confirmation] = useConfirm();
   const [page, setPage] = useState(0);
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)").matches);
   const [editingRecipe, setEditingRecipe] = useState(false);
@@ -239,8 +241,8 @@ function App() {
       ...currentQuantities,
       [recipeId]: Math.max(0, (currentQuantities[recipeId] || 0) + delta),
     }));
-  const confirmSelection = () => {
-    if (!selectedCount && !window.confirm("清空采购需求？已排菜单保持不变。"))
+  const confirmSelection = async () => {
+    if (!selectedCount && !(await ask("清空后不再计算采购缺口，已排菜单保持不变。", { title: "清空采购需求？", label: "确认清空", danger: true })))
       return;
     setConfirmedRecipes(
       structuredClone(recipes.filter((item) => quantities[item.id] > 0)),
@@ -1636,11 +1638,9 @@ function App() {
                 </button>
                 <button
                   className="outline"
-                  onClick={() => {
+                  onClick={async () => {
                     if (
-                      !window.confirm(
-                        "删除这道菜谱？已确认采购和菜单保留快照。",
-                      )
+                      !(await ask(`将从菜谱库移除「${activeRecipe.name}」。已确认采购和历史菜单保留快照。`, { title: "删除这道菜谱？", label: "确认删除", danger: true }))
                     )
                       return;
                     setRecipes((current) =>
@@ -1949,12 +1949,12 @@ function App() {
               <button
                 className="primary"
                 disabled={!{ ...archives, ...weeks }[archiveDate]}
-                onClick={() => {
+                onClick={async () => {
                   if (
                     Object.values(weeks[copyTarget] || {}).some(
                       (items) => items.length,
                     ) &&
-                    !window.confirm("目标周已有安排，确认整体替换？")
+                    !(await ask("目标周已有安排，替换后将使用所选周的菜单。", { title: "替换目标周安排？", label: "确认替换", danger: true }))
                   )
                     return;
                   const source = { ...archives, ...weeks }[archiveDate];
@@ -2020,6 +2020,7 @@ function App() {
               </button>
             </>
           )}
+          {confirmation}
         </DialogContent>
       </Dialog>
       {hydrated&&<SyncPanel state={fullState} onRestore={restoreState} target={syncTarget}/>}

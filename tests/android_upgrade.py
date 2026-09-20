@@ -13,7 +13,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / '.android-tools/v1.1-acceptance'
+OUT = ROOT / '.android-tools' / os.environ.get('ANDROID_ACCEPTANCE_DIR', 'v1.1-acceptance')
 ADB = ROOT / '.android-tools/sdk/platform-tools/adb.exe'
 SERIAL = os.environ.get('ANDROID_SERIAL', 'ea767f86')
 PACKAGE = 'com.shiguang.mealplanner'
@@ -85,9 +85,10 @@ with sync_playwright() as p:
     if digest(read(page)) != digest(original):
         browser.close()
         raise RuntimeError('Upgrade state differs; no test mutation performed')
-    report['checks'].append('升级后业务数据与 V1.0 基线一致')
+    report['checks'].append('升级后业务数据与本轮安装前基线一致')
     errors=[]
     page.on('pageerror',lambda e:errors.append(str(e)))
+    page.on('dialog',lambda d:(errors.append('Unexpected native dialog: '+d.type),d.dismiss()))
     def nav(name):
         page.get_by_role('navigation',name='主导航').get_by_role('button',name=name,exact=True).click()
     def click(name):
@@ -145,6 +146,8 @@ with sync_playwright() as p:
         report['checks'].append('按日排餐、三份餐次、一周总览')
         browser.close();adb('shell','am','force-stop',PACKAGE)
         browser,page=attach(p)
+        page.on('pageerror',lambda e:errors.append(str(e)))
+        page.on('dialog',lambda d:(errors.append('Unexpected native dialog: '+d.type),d.dismiss()))
         wait_state('s.fridge.some(i=>i.name==="V1.1验收食材") && Object.values(s.weeks).some(w=>w["0-早"]?.some(r=>r.name==="V1.1验收临时菜" && r.servings===3))')
         report['checks'].append('force-stop 后重启，库存与周菜单仍在')
         nav('菜谱');page.get_by_label('搜索我的菜谱',exact=True).fill('V1.1验收临时菜')
@@ -153,10 +156,17 @@ with sync_playwright() as p:
         page.get_by_placeholder('给这道菜起个名字').fill('V1.1验收修改菜')
         click('确认保存到菜品库')
         wait_state('s.recipes.some(r=>r.name==="V1.1验收修改菜")')
-        # 使用原生确认对话框自动接受前，限制为此临时菜谱的删除。
+        # 只删除临时菜谱，使用应用内确认，取消不得修改业务数据。
         page.get_by_role('button',name='V1.1验收修改菜',exact=True).click()
-        page.once('dialog',lambda dialog:dialog.accept())
         click('删除菜谱')
+        confirmation=page.get_by_role('dialog',name='删除这道菜谱？',exact=True)
+        confirmation.get_by_role('button',name='取消',exact=True).click()
+        wait_state('s.recipes.some(r=>r.name==="V1.1验收修改菜")')
+        click('删除菜谱')
+        expect(confirmation).to_be_visible()
+        expect(confirmation.get_by_role('button',name='取消',exact=True)).to_be_focused()
+        page.screenshot(path=str(OUT/'05-delete-confirm.png'))
+        confirmation.get_by_role('button',name='确认删除',exact=True).click()
         wait_state('!s.recipes.some(r=>r.name==="V1.1验收修改菜")')
         nav('周菜单');page.locator('.week-dates button').first.click()
         expect(page.get_by_label('V1.1验收临时菜餐次份数',exact=True)).to_have_value('3')

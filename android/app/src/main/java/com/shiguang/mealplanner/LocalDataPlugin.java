@@ -13,6 +13,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
+import android.util.Log;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -21,14 +22,19 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.ActivityCallback;
 import org.json.JSONObject;
 import java.io.*;
-import java.net.HttpURLConnection;
 import java.net.URL;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.MediaType;
+import okhttp3.Response;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -40,6 +46,10 @@ public class LocalDataPlugin extends Plugin {
     private final ExecutorService network = Executors.newCachedThreadPool();
     private static final String KEY_ALIAS = "shiguang.credentials.v1";
     private boolean exportActive;
+    private final OkHttpClient http = new OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(120, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
+        .retryOnConnectionFailure(false).build();
 
     private interface Work { JSObject run() throws Exception; }
     private void run(PluginCall call, ExecutorService executor, Work work) {
@@ -161,32 +171,40 @@ public class LocalDataPlugin extends Plugin {
         });
     }
     @PluginMethod public void request(PluginCall call) {
-        run(call, network, () -> {
-            URL url = new URL(required(call, "url"));
-            if (!url.getProtocol().equals("https") && !url.getProtocol().equals("http")) throw new IllegalArgumentException("Invalid protocol");
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        network.execute(() -> {
+            String method = call.getString("method", "GET").toUpperCase(java.util.Locale.ROOT);
+            String safeMethod = method.matches("GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|MKCOL|PROPFIND|MOVE|COPY") ? method : "OTHER";
+            String stage = "prepare";
             try {
-                connection.setConnectTimeout(30000); connection.setReadTimeout(120000);
-                connection.setInstanceFollowRedirects(false);
-                String method = call.getString("method", "GET").toUpperCase(java.util.Locale.ROOT);
-                connection.setRequestMethod(method);
+                URL url = new URL(required(call, "url"));
+                if (!url.getProtocol().equals("https") && !url.getProtocol().equals("http")) throw new IllegalArgumentException("Invalid protocol");
+                Request.Builder request = new Request.Builder().url(url);
                 JSObject headers = call.getObject("headers", new JSObject());
                 Iterator<String> keys = headers.keys();
-                while (keys.hasNext()) { String key = keys.next(); connection.setRequestProperty(key, headers.getString(key)); }
+                while (keys.hasNext()) { String key = keys.next(); request.header(key, headers.getString(key)); }
                 String body = call.getString("body");
-                if (body != null) {
-                    if (method.equals("GET") || method.equals("HEAD")) throw new IllegalArgumentException("Request method does not accept a body");
-                    connection.setDoOutput(true);
-                    try (OutputStream output = connection.getOutputStream()) { output.write(body.getBytes(StandardCharsets.UTF_8)); }
+                RequestBody payload = body == null ? null : RequestBody.create(body.getBytes(StandardCharsets.UTF_8), (MediaType) null);
+                // OkHttp 要求这些方法提供请求体；没有正文时使用空体，不更改请求方法。
+                if (payload == null && (method.equals("POST") || method.equals("PUT") || method.equals("PATCH"))) {
+                    payload = RequestBody.create(new byte[0], (MediaType) null);
                 }
-                int status = connection.getResponseCode();
-                InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
-                String data = "";
-                if (stream != null) try (InputStream input = stream) { data = new String(readAll(input), StandardCharsets.UTF_8); }
-                JSObject responseHeaders = new JSObject();
-                connection.getHeaderFields().forEach((key, values) -> { if (key != null) responseHeaders.put(key.toLowerCase(java.util.Locale.ROOT), android.text.TextUtils.join(", ", values)); });
-                JSObject result = new JSObject(); result.put("status", status); result.put("data", data); result.put("headers", responseHeaders); return result;
-            } finally { connection.disconnect(); }
+                request.method(method, payload);
+                stage = "execute";
+                try (Response response = http.newCall(request.build()).execute()) {
+                    stage = "read";
+                    String data = response.body() == null ? "" : response.body().string();
+                    JSObject responseHeaders = new JSObject();
+                    for (String key : response.headers().names()) responseHeaders.put(key.toLowerCase(java.util.Locale.ROOT), android.text.TextUtils.join(", ", response.headers(key)));
+                    Log.i("ShiguangNetwork", "method=" + safeMethod + " stage=response status=" + response.code());
+                    JSObject result = new JSObject(); result.put("status", response.code()); result.put("data", data); result.put("headers", responseHeaders);
+                    call.resolve(result);
+                }
+            } catch (Exception error) {
+                // 异常 message/stack 可能包含 URL、请求头或正文，均不写入日志。
+                String type = error.getClass().getSimpleName();
+                Log.w("ShiguangNetwork", "method=" + safeMethod + " stage=" + stage + " error=" + type);
+                call.reject("网络请求失败（" + safeMethod + " / " + stage + " / " + type + "），本地数据保留");
+            }
         });
     }
     static String exportName(String name) {

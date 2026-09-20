@@ -27,6 +27,9 @@ with sync_playwright() as p:
     def no_dialog():
         expect(page.get_by_role('dialog')).to_have_count(0)
 
+    def state():
+        return page.evaluate('JSON.parse(localStorage.getItem("shiguang-v1"))')
+
     # 五个一级页面均不截留返回；设置关闭后回到来源页面。
     for name in ['点单', '冰箱', '菜篮子', '周菜单', '菜谱']:
         nav(name)
@@ -59,9 +62,15 @@ with sync_playwright() as p:
     click('返回')
     back(False)
 
-    # 菜谱详情关闭后返回根页面。
+    # 菜谱详情上叠加危险确认：返回只取消确认，不删除菜谱。
     nav('点单')
     click('番茄炒鸡蛋')
+    click('删除菜谱')
+    before = state()
+    back()
+    expect(page.get_by_role('dialog', name='删除这道菜谱？', exact=True)).not_to_be_visible()
+    expect(page.get_by_role('button', name='删除菜谱', exact=True)).to_be_visible()
+    assert state() == before
     back()
     no_dialog()
     back(False)
@@ -99,6 +108,16 @@ with sync_playwright() as p:
     nav('冰箱')
     back(False)
 
+    # 设置内确认应取消请求并保留设置，第二次返回才关闭设置。
+    nav('点单')
+    click('设置与备份')
+    page.get_by_label('识别原文', exact=True).fill('番茄炒鸡蛋')
+    click('确认发送并识别')
+    back()
+    no_dialog()
+    expect(page.get_by_label('识别原文', exact=True)).to_have_value('番茄炒鸡蛋')
+    back()
+    back(False)
     assert not errors, errors
     browser.close()
-    print('PASS: root fallback, settings, draft, detail, stock, week overview/picker, repeated close')
+    print('PASS: root fallback, settings, draft, nested cancel, stock, week overview/picker, repeated close')

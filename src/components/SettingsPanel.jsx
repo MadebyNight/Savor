@@ -1,4 +1,4 @@
-import {getDeveloperConfig,enableDeveloperConfig,disableDeveloperConfig} from '../developer-ai.js';
+import {developerAvailable,getDeveloperConfig,enableDeveloperConfig,disableDeveloperConfig} from '../developer-ai.js';
 import {fetchArticle} from '../links.js';
 import DraftEditor from './DraftEditor.jsx';
 import useConfirm from './useConfirm.jsx';
@@ -108,14 +108,14 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     <label>API Key<input disabled={testing||!!developer||loadingConfig||unlocking} type="password" autoComplete="new-password" value={developer?'':key} onChange={e=>setKey(e.target.value)} placeholder={developer?'开发者 Key 已加密保管':'留空保留已保存的 Key'}/></label>
     <div className="actions"><button className="primary" disabled={testing||!!developer||loadingConfig||unlocking} onClick={async()=>{try{await setPreference('ai-config',config);if(key)await setSecret('ai',key);setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||busy||loadingConfig||unlocking} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>
     <p className="subtle">{developer?'当前使用开发者配置，关闭后恢复个人配置。':'测试当前填写的配置；Key 留空时使用已保存的 Key。测试成功后仍需点击保存。'}</p>
-    <div className="developer-config">
+    {developerAvailable&&<div className="developer-config">
       <div><strong>开发者配置</strong><p className="subtle">{developer?'已启用；个人配置仍保留。':'输入密码，使用开发者提供的 AI 配置。'}</p></div>
       <button className={developer?'primary':'outline'} aria-pressed={!!developer} disabled={testing||busy||loadingConfig||unlocking} onClick={async()=>{
         if(!developer){setUnlockPassword('');setUnlockError('');setUnlockOpen(true);return;}
         setUnlocking(true);
         try{await disableDeveloperConfig();setDeveloper(null);toast.success('已恢复个人 AI 配置');}catch{toast.error('关闭失败，请重试');}finally{setUnlocking(false);}
       }}>{developer?'关闭开发者配置':'启用开发者配置'}</button>
-    </div>
+    </div>}
     </section>
     {unlockOpen&&<Dialog open onOpenChange={open=>{if(!open&&!unlocking){setUnlockOpen(false);setUnlockPassword('');setUnlockError('');}}}><DialogContent className="app-dialog developer-unlock-dialog" forceBackdrop aria-busy={unlocking}>
       <DialogTitle>启用开发者配置</DialogTitle>

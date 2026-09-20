@@ -1,5 +1,6 @@
 import {getSecret,setSecret} from './storage.js';
 
+export const developerAvailable=import.meta.env?.VITE_APP_EDITION!=='public';
 const SLOT='ai-developer';
 const FORMAT='shiguang-developer-ai-v1';
 const decode=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0));
@@ -28,8 +29,9 @@ async function savedProfile() {
   catch {throw new Error('开发者配置读取失败，请关闭后重新启用');}
 }
 const metadata=profile=>profile ? {url:profile.url,model:profile.model,source:'developer'} : null;
-export async function getDeveloperConfig() {return metadata(await savedProfile());}
+export async function getDeveloperConfig() {return developerAvailable ? metadata(await savedProfile()) : null;}
 export async function enableDeveloperConfig(password) {
+  if(!developerAvailable)throw new Error('公开版请使用个人 AI 配置');
   let bundle;
   try {
     const response=await fetch('/developer-ai-profile.json',{cache:'no-store'});
@@ -43,6 +45,7 @@ export async function enableDeveloperConfig(password) {
 export async function disableDeveloperConfig() {await setSecret(SLOT,'');}
 export async function getAIKey(config,enteredKey='') {
   if(config.source!=='developer')return enteredKey.trim() || await getSecret('ai');
+  if(!developerAvailable)throw new Error('公开版请使用个人 AI 配置');
   const profile=await savedProfile();
   // 不允许将开发者 Key 发往修改后的个人接口。
   if(!profile || config.url!==profile.url || config.model!==profile.model)throw new Error('开发者配置已变化，请重新打开设置后重试');
