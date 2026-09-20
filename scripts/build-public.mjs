@@ -15,7 +15,7 @@ async function assets(directory='public',prefix='') {
   }
   return result;
 }
-await build({
+const built=await build({
   publicDir:false,
   define:{'import.meta.env.VITE_APP_EDITION':JSON.stringify('public')},
   plugins:[{
@@ -25,3 +25,14 @@ await build({
     },
   }],
 });
+
+// 不依赖构建器清空旧目录；有任何非本轮产物就拒绝继续发布。
+const expected=new Set((Array.isArray(built)?built:[built]).flatMap(result=>result.output.map(item=>item.fileName)));
+async function checkOutput(directory='dist',prefix='') {
+  for(const entry of await readdir(directory,{withFileTypes:true})) {
+    const name=prefix+entry.name;
+    if(entry.isDirectory())await checkOutput(path.join(directory,entry.name),name+'/');
+    else if(!entry.isFile()||!expected.has(name))throw new Error('公开构建目录含历史或未知产物，请使用干净源码工作区：'+name);
+  }
+}
+await checkOutput();
