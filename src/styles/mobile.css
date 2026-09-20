@@ -699,6 +699,9 @@
     padding: 0;
     background: transparent;
   }
+  .compact-app .settings-panel > h2 {
+    display: none;
+  }
   .compact-app .settings-panel input,
   .compact-app .settings-panel select,
   .compact-app .settings-panel textarea {

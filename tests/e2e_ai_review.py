@@ -17,8 +17,11 @@ with sync_playwright() as p:
     def reopen():page.get_by_role('button',name='查看待保存草稿',exact=False).click()
     def back():page.evaluate("window.dispatchEvent(new Event('shiguang:back',{cancelable:true}))")
     click('设置与备份')
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='AI 配置',exact=True).click()
     page.get_by_label('接口地址',exact=True).fill('https://review.test')
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='AI 配置',exact=True).click()
     page.get_by_label('API Key',exact=True).fill('mock');click('保存 AI 配置')
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='识别',exact=True).click()
     recipe={'name':'青椒酿肉','category':'荤菜','ingredients':[{'name':'青椒','qty':5,'unit':'个'}],'steps':['备好食材。','煎熟后装盘。']}
     response={'items':[recipe,{**recipe,'name':'第二道菜'}],'status':200};pending=[]
     def handle(route):
@@ -50,7 +53,9 @@ with sync_playwright() as p:
     expect(dialog).to_be_visible();expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('第二道菜')
     click('确认保存选中条目');expect(dialog).not_to_be_visible()
     expect(page.get_by_role('button',name='查看待保存草稿',exact=False)).to_have_count(0)
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='AI 配置',exact=True).click()
     page.get_by_label('API Key',exact=True).fill('mock');click('保存 AI 配置')
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='识别',exact=True).click()
     response['status']=401;send()
     expect(page.get_by_role('dialog',name='识别未完成',exact=True)).to_be_visible();click('返回检查')
     response.update(status=200,items=[]);send()

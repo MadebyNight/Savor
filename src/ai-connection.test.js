@@ -72,3 +72,31 @@ test('模型停服、图片无正文和网络异常给出可恢复提示，不�
  globalThis.fetch=async()=>{throw new Error('private-key');};
  await assert.rejects(recognize(config,'text','','recipes'),e=>e.message.includes('超时')&&!e.message.includes('private-key'));
 });
+
+test('图片按 Chat Completions 内容块发送，小票结果通过库存校验',async()=>{
+ await setSecret('ai','private-key');
+ const image='data:image/png;base64,iVBORw0KGgo=';
+ mock(200,{choices:[{finish_reason:'stop',message:{content:'{"items":[{"name":"牛奶","qty":2,"unit":"盒","days":null}]}'}}]},(_,options)=>{
+  const body=JSON.parse(options.body);
+  assert.equal(body.model,'deepseek-flash');
+  assert.deepEqual(body.messages[1],{role:'user',content:[{type:'text',text:'请识别这张图片中的内容'},{type:'image_url',image_url:{url:image}}]});
+  assert.deepEqual(body.response_format,{type:'json_object'});
+  assert.equal(body.stream,false);
+ });
+ const items=await recognize({...config,model:'deepseek-flash'},'',image,'stock');
+ assert.equal(items[0].qty,2);assert.equal(items[0].unit,'盒');assert.ok(items[0].id);
+});
+
+test('图片错误区分参数、凭据、大小、限流及服务端故障，不回显业务正文',async()=>{
+ await setSecret('ai','private-key');
+ for(const [status,reason] of [[400,'图片被接口拒绝'],[401,'Key 无效'],[402,'余额不足'],[403,'权限'],[404,'不存在'],[413,'请求过大'],[415,'图片或请求格式'],[422,'无法处理'],[429,'请求受限'],[503,'服务商暂时异常']]){
+  mock(status,{error:{message:'private-key 私密业务正文'}});
+  await assert.rejects(recognize(config,'','data:image/png;base64,AAAA','stock'),e=>e.message.includes(reason)&&e.message.includes(`HTTP ${status}`)&&e.message.includes('草稿保留')&&!e.message.includes('private-key')&&!e.message.includes('私密业务正文'));
+ }
+});
+
+test('输出截断即使包含有效 JSON 也不能当作完整结果',async()=>{
+ await setSecret('ai','private-key');
+ mock(200,{choices:[{finish_reason:'length',message:{content:'{"items":[]}'}}]});
+ await assert.rejects(recognize(config,'test','','stock'),/结果不完整.*草稿保留/);
+});

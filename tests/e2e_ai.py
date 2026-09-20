@@ -13,7 +13,9 @@ with sync_playwright() as p:
   page.get_by_role('dialog',name='发送给 AI 识别？').get_by_role('button',name='同意发送').click()
   if replace:page.get_by_role('dialog',name='替换识别草稿？').get_by_role('button',name='替换并识别').click()
  page.goto(os.environ.get('E2E_URL','http://127.0.0.1:4173'));page.wait_for_load_state('networkidle');page.get_by_role('button',name='设置与备份').click()
+ page.get_by_role('navigation',name='设置分页').get_by_role('button',name='AI 配置',exact=True).click()
  page.get_by_label('接口地址',exact=True).fill('https://mock.invalid/chat/completions');page.get_by_label('API Key',exact=True).fill('mock-key');page.get_by_role('button',name='保存 AI 配置').click()
+ page.get_by_role('navigation',name='设置分页').get_by_role('button',name='识别',exact=True).click()
  mode={'value':'success'};pending=[]
  def response(items):return json.dumps({'choices':[{'message':{'content':json.dumps({'items':items})}}]})
  recipe={'name':'AI测试菜','ingredients':[{'name':'测试米','qty':None,'unit':'g'}],'steps':['煮熟']}
@@ -35,8 +37,10 @@ with sync_playwright() as p:
  page.get_by_role('checkbox',name='保存第 2 项').uncheck();page.get_by_label('草稿名称1',exact=True).fill('AI已核对菜');page.get_by_role('button',name='确认保存选中条目').click()
  expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('待补充菜');page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).recipes.some(i=>i.name==="AI已核对菜")')
  page.reload();page.wait_for_load_state('networkidle');page.get_by_role('button',name='设置与备份').click();reopen();expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('待补充菜');defer()
+ page.get_by_role('navigation',name='设置分页').get_by_role('button',name='AI 配置',exact=True).click()
  page.get_by_label('API Key',exact=True).fill('mock-key');page.get_by_role('button',name='保存 AI 配置').click()
- mode['value']='401';send(True);expect(page.get_by_text('识别请求失败（HTTP 401），请检查接口、模型与Key后重试',exact=True)).to_be_visible();page.get_by_role('button',name='返回检查',exact=True).click();reopen();expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('待补充菜');defer()
+ page.get_by_role('navigation',name='设置分页').get_by_role('button',name='识别',exact=True).click()
+ mode['value']='401';send(True);expect(page.get_by_text('识别请求失败（HTTP 401）：API Key 无效或已失效，请在 AI 配置中检查。原文与草稿保留',exact=True)).to_be_visible();page.get_by_role('button',name='返回检查',exact=True).click();reopen();expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('待补充菜');defer()
  mode['value']='bad';send(True);expect(page.get_by_text('接口返回的不是有效 JSON，请核对接口类型或稍后重试',exact=True)).to_be_visible()
  page.get_by_role('button',name='返回检查',exact=True).click();mode['value']='late';send(True);expect(page.get_by_role('button',name='取消等待')).to_be_visible();page.get_by_role('button',name='取消等待').click()
  assert pending;pending[0].fulfill(status=200,content_type='application/json',body=response([{'name':'迟到结果','ingredients':[],'steps':[]}]))

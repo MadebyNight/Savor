@@ -27,6 +27,7 @@ with sync_playwright() as p:
  nav('点单选菜');page.get_by_role('button',name='E2E番茄菜修改',exact=True).last.click();nav('删除菜谱');nav('周菜单');expect(page.get_by_label('E2E番茄菜修改餐次份数')).to_have_value('3')
  page.reload();page.wait_for_load_state('networkidle');nav('周菜单');page.get_by_label('当前周').fill('2026-10-05');expect(page.get_by_label('E2E番茄菜修改餐次份数')).to_have_value('3')
  nav('设置与备份');expect(page.get_by_text('设置与数据',exact=True)).to_be_visible()
+ page.get_by_role('navigation',name='设置分页').get_by_role('button',name='备份恢复',exact=True).click()
  with page.expect_download() as download: nav('导出完整备份')
  file=Path(download.value.path());backup=json.loads(file.read_text('utf-8'));assert backup['state']['weeks']['2026-10-05']['0-早'][0]['servings']==3
  page.get_by_label('导入备份',exact=True).set_input_files(file);expect(page.get_by_text('备份已恢复',exact=True)).to_be_visible()

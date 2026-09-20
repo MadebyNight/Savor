@@ -25,8 +25,11 @@ with sync_playwright() as p:
   context=browser.new_context(viewport={'width':1280,'height':900});context.route('https://dav.test/**',dav)
   page=context.new_page();page.on('pageerror',lambda e:errors.append(str(e)));page.on('dialog',lambda d:d.accept());page.goto(os.environ.get('E2E_URL','http://127.0.0.1:4173'));page.wait_for_load_state('networkidle')
   page.get_by_role('button',name='设置与备份',exact=True).click()
+  page.get_by_role('navigation',name='设置分页').get_by_role('button',name='坚果云同步',exact=True).click()
   page.get_by_label('WebDAV 根地址',exact=True).fill('https://dav.test/dav/');page.get_by_label('账号',exact=True).fill('user');page.get_by_label('应用密码',exact=True).fill('test-password');page.get_by_role('button',name='保存同步配置',exact=True).click();return page
- def inspect(page):page.get_by_role('button',name='检查并同步',exact=True).click()
+ def inspect(page):
+  page.get_by_role('navigation',name='设置分页').get_by_role('button',name='坚果云同步',exact=True).click()
+  page.get_by_role('button',name='检查并同步',exact=True).click()
  def data(page):return page.evaluate('JSON.parse(localStorage.getItem("shiguang-v1"))')
  def add(page,name):
   page.get_by_role('button',name='设置与备份',exact=True).click();page.get_by_role('button',name='上传菜谱',exact=False).first.click()

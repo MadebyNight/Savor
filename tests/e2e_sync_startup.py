@@ -48,6 +48,8 @@ with sync_playwright() as p:
             respond(route,204)
         page.route('https://sync.test/**',dav)
         page.goto(URL,wait_until='domcontentloaded')
+        # 故意挂起响应的场景不能等待网络空闲；其余场景先等开发入口加载完成。
+        if not delay: page.wait_for_load_state('networkidle')
         return page,calls,held,files,context
     def read(page): return page.evaluate('JSON.parse(localStorage.getItem("shiguang-v1"))')
     def baseline(local,id='old',scope=SCOPE): return {'id':id,'hash':digest(local),'scope':scope}
@@ -96,6 +98,7 @@ with sync_playwright() as p:
 
     page,calls,_,_,ctx=scenario(old,cloud,baseline(old),enabled=False)
     page.get_by_role('button',name='设置与备份',exact=True).click()
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='坚果云同步',exact=True).click()
     expect(page.get_by_role('checkbox',name='启动应用时自动同步')).not_to_be_checked()
     assert not calls; ctx.close()
 
@@ -106,9 +109,11 @@ with sync_playwright() as p:
     # 同一会话打开/关闭设置不重复启动检查。
     page,calls,_,_,ctx=scenario(old,old,baseline(old,'cloud'))
     page.get_by_role('button',name='设置与备份',exact=True).click()
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='坚果云同步',exact=True).click()
     expect(page.get_by_role('button',name='检查并同步',exact=True)).to_be_enabled()
     page.evaluate("window.dispatchEvent(new Event('shiguang:back',{cancelable:true}))")
     page.get_by_role('button',name='设置与备份',exact=True).click()
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='坚果云同步',exact=True).click()
     expect(page.get_by_role('button',name='检查并同步',exact=True)).to_be_enabled()
     assert len(calls)==2,calls
     ctx.close()
@@ -116,6 +121,7 @@ with sync_playwright() as p:
     # 手动检查即使建议上传也提供下载，下载进行中返回键不能关闭弹窗。
     page,calls,held,files,ctx=scenario(edited,old,baseline(old,'cloud'),enabled=False,delay=True)
     page.get_by_role('button',name='设置与备份',exact=True).click()
+    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='坚果云同步',exact=True).click()
     page.get_by_role('button',name='检查并同步',exact=True).click()
     dialog=page.get_by_role('dialog',name='请确认同步方向',exact=True)
     expect(dialog.get_by_role('button',name='下载到本机',exact=True)).to_be_visible()

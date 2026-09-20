@@ -1449,6 +1449,16 @@ small {
   }
 }
 .settings-panel { display: grid; gap: 14px; margin-bottom: 24px; }
+.settings-panel .settings-pages { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; padding: 4px; background: #eeeee6; border-radius: 14px; }
+.settings-pages button { min-width: 0; min-height: 48px; padding: 8px 4px; border: 0; border-radius: 10px; background: transparent; color: #626456; font-size: 13px; line-height: 1.4; }
+.settings-pages button[aria-current=page] { background: #ffdb79; color: #3a3322; font-weight: 700; }
+.settings-pages button:focus-visible { outline: 2px solid #87723a; outline-offset: 2px; }
+.settings-panel .settings-page { min-width: 0; }
+.settings-panel .settings-page[hidden],.settings-panel input[hidden] { display: none; }
+.settings-panel .image-source-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.image-source-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; }
+.recognition-image { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px; background: #f2f2e9; border-radius: 12px; }
+.recognition-image img { display: block; max-width: min(100%,240px); max-height: 180px; object-fit: contain; border-radius: 8px; }
 .confirm-dialog [data-slot="dialog-description"] { overflow-wrap: anywhere; white-space: pre-line; }
 .confirm-dialog .actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .confirm-dialog .actions button { min-height: 48px; flex: 1; }
