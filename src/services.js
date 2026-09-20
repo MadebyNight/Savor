@@ -1,4 +1,5 @@
-import { getSecret, request } from './storage.js';
+import {getAIKey} from './developer-ai.js';
+import { request } from './storage.js';
 import {normalizeAIDrafts, validateRecipe, validateStock, uniqueIds} from './validation.js';
 export const defaultAI = {url:'https://api.deepseek.com/chat/completions',model:'deepseek-flash'};
 export function resolveAIEndpoint(address) {
@@ -22,7 +23,7 @@ export async function testAIConnection(config, enteredKey='') {
   const url=resolveAIEndpoint(config.url);
   const model=config.model.trim();
   if(!model)throw new Error('请填写要测试的模型名称');
-  const key=enteredKey.trim() || await getSecret('ai');
+  const key=await getAIKey(config,enteredKey);
   if(!key)throw new Error('请填写 API Key，或先保存有效的 Key');
   const started=Date.now();let timer;
   let response;
@@ -43,7 +44,7 @@ export async function testAIConnection(config, enteredKey='') {
 }
 export async function recognize(config, text, image, kind) {
   const url=resolveAIEndpoint(config.url);
-  const key = await getSecret('ai');
+  const key = await getAIKey(config);
   if (!key) throw new Error('请先保存 AI Key');
   const schema = kind === 'stock' ? '{"items":[{"name":"食材","qty":null,"unit":"g","category":"蔬菜","days":null}]}' : '{"items":[{"name":"菜名","category":"素菜","time":null,"weight":null,"ingredients":[{"name":"食材","qty":null,"unit":"g","category":"蔬菜"}],"steps":[]}]}' ;
   const content = [{type:'text',text:text || '请识别这张图片中的内容'}];

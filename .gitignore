@@ -5,3 +5,6 @@ dist/
 *.log
 .android-tools/
 *.apk
+
+# 本机生成的开发者配置密文，仅随受控 APK 分发
+public/developer-ai-profile.json

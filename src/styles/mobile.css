@@ -702,7 +702,7 @@
   .compact-app .settings-panel > h2 {
     display: none;
   }
-  .compact-app .settings-panel input,
+  .compact-app .settings-panel input:not([type="checkbox"]),
   .compact-app .settings-panel select,
   .compact-app .settings-panel textarea {
     width: 100%;
@@ -728,14 +728,14 @@
     width: 100% !important;
     max-width: none !important;
     transform: none !important;
-    translate: none !important;
+    translate: none;
     border-radius: 20px 20px 0 0 !important;
     max-height: 88dvh !important;
     padding: 22px 18px max(24px, env(safe-area-inset-bottom)) !important;
     overflow-y: auto;
   }
   .app-dialog [data-slot="dialog-title"] {
-    padding-right: 35px;
+    padding-right: 52px;
   }
   .app-dialog button {
     min-height: 48px;
@@ -931,6 +931,12 @@
     gap: 8px;
   }
 }
+@media (max-width: 767px) {
+  .app-dialog:not(.sync-dialog):not(.ai-result-dialog):not(.ai-review-dialog)[data-open] { animation-name: sheet-enter; }
+  .app-dialog:not(.sync-dialog):not(.ai-result-dialog):not(.ai-review-dialog)[data-closed] { animation-name: sheet-leave; }
+}
+@keyframes sheet-enter { from { opacity: 0; translate: 0 20px; } to { opacity: 1; translate: 0 0; } }
+@keyframes sheet-leave { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 20px; } }
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

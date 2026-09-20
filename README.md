@@ -2,7 +2,7 @@
 
 MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作；热量功能已移除。
 
-当前版本 V1.1（npm 1.1.0，Android versionCode 2）：手机端分类侧栏、紧凑列表和按日周菜单已接入，已在 OPPO PGAM10 完成同签名覆盖升级及核心流程验证。真实 AI、坚果云账户及系统图片/分享流程仍需单独验收。
+当前版本 V1.1.2（npm / Android versionName 1.1.2，versionCode 3）：统一按钮、复选框、焦点、提示与弹窗交互，新增密码解锁的开发者 AI 配置。修复范围和验证记录见 [V1.1.2 交互修复](docs/V1.1.2交互修复.md)。
 
 需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
@@ -64,3 +64,11 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 - [小红书 MCP](https://github.com/xpzouying/xiaohongshu-mcp)、[小红书 skill](https://github.com/DeliciousBuding/xiaohongshu-skill)：已评估，依赖外部浏览器/登录，不直接嵌入 APK。
 
 不提交SDK、JDK、node_modules、dist、密钥及本地配置。当前为个人安装调试APK流程，正式签名升级与真实服务验证结果以进度文档为准。
+
+## 开发者 AI 配置（V1.1.2）
+
+入口位于“设置与数据 → AI 配置”下方。受控安装包内置整套配置的密文；输入约定密码启用，关闭后恢复个人配置。Android 将解锁结果写入独立 Keystore 加密槽，重启保持状态；不自动发起 AI 请求。
+
+维护者可在已连接且打开食光的手机上执行 `python scripts/export-developer-profile.py --serial <设备序列号>`，按提示输入密码，只导出密文到被忽略的 `public/developer-ai-profile.json`。更新已有密文需显式加 `--replace`。打包前应保留此文件；缺失时开发者入口会提示不可用，个人配置仍可使用。不要将真实 Key、解锁密码或该密文提交 Git。
+
+此方案不阻止安装包持有人离线猜测密码，也不支持逐设备撤销。轮换共享 Key 后需重新导出和打包。流程、测试和交付摘要见 [V1.1.2 交互修复](docs/V1.1.2交互修复.md)。

@@ -1,3 +1,4 @@
+import {getDeveloperConfig,enableDeveloperConfig,disableDeveloperConfig} from '../developer-ai.js';
 import {fetchArticle} from '../links.js';
 import DraftEditor from './DraftEditor.jsx';
 import useConfirm from './useConfirm.jsx';
@@ -15,13 +16,20 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
   const [ask, confirmation] = useConfirm();
   const [config,setConfig] = useState(defaultAI);
   const [key,setKey] = useState('');
-  const endpoint=(()=>{try{return resolveAIEndpoint(config.url);}catch{return '';}})();
+  const [developer,setDeveloper]=useState(null);
+  const [loadingConfig,setLoadingConfig]=useState(true);
+  const [unlockOpen,setUnlockOpen]=useState(false);
+  const [unlockPassword,setUnlockPassword]=useState('');
+  const [unlockError,setUnlockError]=useState('');
+  const [unlocking,setUnlocking]=useState(false);
+  const effectiveConfig=developer || config;
+  const endpoint=(()=>{try{return resolveAIEndpoint(effectiveConfig.url);}catch{return '';}})();
   const [testing,setTesting]=useState(false);
   const [testResult,setTestResult]=useState(null);
   const testGeneration=useRef(0);
   const testRunning=useRef(false);
   useEffect(()=>()=>{testGeneration.current++;},[]);
-  useEffect(()=>{setTestResult(null);},[config.url,config.model,key]);
+  useEffect(()=>{setTestResult(null);},[config.url,config.model,key,developer]);
   const [text,setText] = useState('');
   const [link,setLink] = useState('');
   const [fetching,setFetching] = useState(false);
@@ -36,7 +44,7 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
   const [busy,setBusy] = useState(false);
   const generation = useRef(0);
   useEffect(() => () => {generation.current++;}, []);
-  useEffect(() => { getPreference('ai-config',defaultAI).then(setConfig); getPreference('ai-draft',{}).then(v => {setText(v.text || '');setImage(v.image || '');setDraft(v.draft || '');setKind(v.kind || 'recipes');}); },[]);
+  useEffect(() => { Promise.all([getPreference('ai-config',defaultAI),getDeveloperConfig()]).then(([saved,active])=>{setConfig(saved);setDeveloper(active);}).catch(()=>toast.error('AI 配置读取失败，请重新打开设置')).finally(()=>setLoadingConfig(false)); getPreference('ai-draft',{}).then(v => {setText(v.text || '');setImage(v.image || '');setDraft(v.draft || '');setKind(v.kind || 'recipes');}); },[]);
   const persist = async (value = draft) => setPreference('ai-draft',{text,image,kind,draft:value});
   async function selectImage(event) {
     const file=event.target.files?.[0];
@@ -60,21 +68,21 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     testRunning.current=true;
     const current=++testGeneration.current;
     try{
-      if(!(await ask('将向 '+(endpoint||config.url)+' 发送一条固定测试文本，不包含菜谱或图片，可能产生少量费用。测试不会保存配置。',{title:'测试 AI 连接？',label:'开始测试'})))return;
+      if(!(await ask('将向 '+(endpoint||effectiveConfig.url)+' 发送一条固定测试文本，不包含菜谱或图片，可能产生少量费用。测试不会保存配置。',{title:'测试 AI 连接？',label:'开始测试'})))return;
       if(current!==testGeneration.current)return;
       setTesting(true);setTestResult(null);
-      const result=await testAIConnection(config,key);
+      const result=await testAIConnection(effectiveConfig,developer?'':key);
       if(current===testGeneration.current)setTestResult({ok:true,...result});
     }catch(e){if(current===testGeneration.current)setTestResult({ok:false,message:e.message});}
     finally{if(current===testGeneration.current){testRunning.current=false;setTesting(false);}}
   }
   async function run() {
     if (!text.trim() && !image) return toast.error('请粘贴文字或选择图片');
-    if (!(await ask('将把当前文字和图片发送到 ' + (endpoint||config.url) + ' 进行识别，可能产生服务商费用。', {title:'发送给 AI 识别？',label:'同意发送'}))) return;
+    if (!(await ask('将把当前文字和图片发送到 ' + (endpoint||effectiveConfig.url) + ' 进行识别，可能产生服务商费用。', {title:'发送给 AI 识别？',label:'同意发送'}))) return;
     if (draft && draft !== '[]' && !(await ask('新识别将替换当前未保存的识别草稿。', {title:'替换识别草稿？',label:'替换并识别',danger:true}))) return;
     const current = ++generation.current;
     setBusy(true);
-    try { await persist(); const items = await recognize(config,text,image,kind); if (current !== generation.current) return; const value = JSON.stringify(items,null,2); setDraft(value); await persist(value); if(current!==generation.current)return;setReviewError('');setReviewOpen(true); } catch(e) {if(current === generation.current){setReviewError(e.message);setReviewOpen(true);}} finally {if(current === generation.current) setBusy(false);}
+    try { await persist(); const items = await recognize(effectiveConfig,text,image,kind); if (current !== generation.current) return; const value = JSON.stringify(items,null,2); setDraft(value); await persist(value); if(current!==generation.current)return;setReviewError('');setReviewOpen(true); } catch(e) {if(current === generation.current){setReviewError(e.message);setReviewOpen(true);}} finally {if(current === generation.current) setBusy(false);}
   }
   async function saveItems(items) {
     if(kind === 'stock') await onImportStock(items.map(i=>({...i,id:crypto.randomUUID(),date:new Date().toLocaleDateString('sv-SE')})));
@@ -94,13 +102,34 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     </nav>
     <section id="settings-ai" className="settings-page" hidden={page!=='ai'} aria-label="AI 配置">
     <h3>AI 服务</h3>
-    <label>接口地址<input disabled={testing} value={config.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
+    <label>接口地址<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
     <p className="subtle" style={{overflowWrap:'anywhere'}}>支持基础地址或完整对话接口。{endpoint&&<>实际请求地址：{endpoint}</>}</p>
-    <label>模型<input disabled={testing} value={config.model} onChange={e=>setConfig({...config,model:e.target.value})}/></label>
-    <label>API Key<input disabled={testing} type="password" autoComplete="new-password" value={key} onChange={e=>setKey(e.target.value)} placeholder="留空保留已保存的 Key"/></label>
-    <div className="actions"><button className="primary" disabled={testing} onClick={async()=>{try{await setPreference('ai-config',config);if(key)await setSecret('ai',key);setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||busy} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>
-    <p className="subtle">测试当前填写的配置；Key 留空时使用已保存的 Key。测试成功后仍需点击保存。</p>
+    <label>模型<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.model} onChange={e=>setConfig({...config,model:e.target.value})}/></label>
+    <label>API Key<input disabled={testing||!!developer||loadingConfig||unlocking} type="password" autoComplete="new-password" value={developer?'':key} onChange={e=>setKey(e.target.value)} placeholder={developer?'开发者 Key 已加密保管':'留空保留已保存的 Key'}/></label>
+    <div className="actions"><button className="primary" disabled={testing||!!developer||loadingConfig||unlocking} onClick={async()=>{try{await setPreference('ai-config',config);if(key)await setSecret('ai',key);setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||busy||loadingConfig||unlocking} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>
+    <p className="subtle">{developer?'当前使用开发者配置，关闭后恢复个人配置。':'测试当前填写的配置；Key 留空时使用已保存的 Key。测试成功后仍需点击保存。'}</p>
+    <div className="developer-config">
+      <div><strong>开发者配置</strong><p className="subtle">{developer?'已启用；个人配置仍保留。':'输入密码，使用开发者提供的 AI 配置。'}</p></div>
+      <button className={developer?'primary':'outline'} aria-pressed={!!developer} disabled={testing||busy||loadingConfig||unlocking} onClick={async()=>{
+        if(!developer){setUnlockPassword('');setUnlockError('');setUnlockOpen(true);return;}
+        setUnlocking(true);
+        try{await disableDeveloperConfig();setDeveloper(null);toast.success('已恢复个人 AI 配置');}catch{toast.error('关闭失败，请重试');}finally{setUnlocking(false);}
+      }}>{developer?'关闭开发者配置':'启用开发者配置'}</button>
+    </div>
     </section>
+    {unlockOpen&&<Dialog open onOpenChange={open=>{if(!open&&!unlocking){setUnlockOpen(false);setUnlockPassword('');setUnlockError('');}}}><DialogContent className="app-dialog developer-unlock-dialog" forceBackdrop aria-busy={unlocking}>
+      <DialogTitle>启用开发者配置</DialogTitle>
+      <DialogDescription>输入密码解锁此安装包内的 AI 配置。启用不会覆盖你的个人配置，也不会自动发送识别请求。</DialogDescription>
+      <form className="developer-unlock-form" onSubmit={async event=>{
+        event.preventDefault();if(unlocking||!unlockPassword)return;
+        setUnlocking(true);setUnlockError('');
+        try{const active=await enableDeveloperConfig(unlockPassword);setDeveloper(active);setUnlockOpen(false);toast.success('开发者配置已启用');}catch(error){setUnlockError(error.message);}finally{setUnlockPassword('');setUnlocking(false);}
+      }}>
+        <label>解锁密码<input type="password" autoComplete="off" disabled={unlocking} value={unlockPassword} onChange={e=>setUnlockPassword(e.target.value)} aria-invalid={!!unlockError} aria-describedby={unlockError?'developer-unlock-error':undefined}/></label>
+        {unlockError&&<p id="developer-unlock-error" role="alert">{unlockError}</p>}
+        <div className="actions"><button type="button" className="outline" disabled={unlocking} onClick={()=>{setUnlockOpen(false);setUnlockPassword('');setUnlockError('');}}>取消</button><button type="submit" className="primary" disabled={unlocking||!unlockPassword}>{unlocking?'正在解锁…':'解锁并启用'}</button></div>
+      </form>
+    </DialogContent></Dialog>}
     {testResult&&<Dialog open onOpenChange={open=>{if(!open)setTestResult(null);}}><DialogContent className={`app-dialog ai-result-dialog ai-test-result ${testResult.ok?'is-success':'is-error'}`} forceBackdrop>
       <DialogTitle>{testResult.ok?'连接成功':'连接测试未完成'}</DialogTitle>
       <DialogDescription>当前 AI 接口的连接测试结果</DialogDescription>
@@ -123,7 +152,7 @@ export default function SettingsPanel({state,onRestore,onImportRecipes,onImportS
     <button className="outline" disabled={busy || fetching || readingImage || !link.trim()} onClick={async()=>{if(text && !(await ask('取得正文后会替换当前输入文字。',{title:'替换输入正文？',label:'获取并替换'})))return;setFetching(true);try{const article=await fetchArticle(link);const content=article.title+'\n'+article.text;setText(content);await setPreference('ai-draft',{text:content,image,kind,draft});toast.success('已提取公开正文，请核对后再发送识别');}catch(e){toast.error(e.message);}finally{setFetching(false);}}}>{fetching?'正在获取正文…':'获取公开正文'}</button>
     <p className="subtle">需要登录或无法读取的页面，请粘贴正文或上传截图。获取正文不会自动发送给 AI。</p>
     <textarea disabled={busy||readingImage} aria-label="识别原文" rows={5} value={text} onChange={e=>setText(e.target.value)} onBlur={()=>persist()} placeholder="粘贴菜谱正文，或先通过上方链接获取公开正文"/>
-    <div className="actions"><button className="primary" disabled={busy||testing||readingImage} onClick={run}>{busy?'正在识别…':'确认发送并识别'}</button>{busy && <button className="outline" onClick={()=>{generation.current++;setBusy(false);toast('已停止等待，服务端可能仍在处理');}}>取消等待</button>}<button className="outline" disabled={readingImage} onClick={()=>persist().then(()=>toast.success('草稿已保存')).catch(e=>toast.error(e.message))}>保存草稿</button></div>
+    <div className="actions"><button className="primary" disabled={busy||testing||readingImage||loadingConfig||unlocking} onClick={run}>{busy?'正在识别…':'确认发送并识别'}</button>{busy && <button className="outline" onClick={()=>{generation.current++;setBusy(false);toast('已停止等待，服务端可能仍在处理');}}>取消等待</button>}<button className="outline" disabled={readingImage} onClick={()=>persist().then(()=>toast.success('草稿已保存')).catch(e=>toast.error(e.message))}>保存草稿</button></div>
     {draftItems.length>0&&<button className="outline" disabled={busy} onClick={()=>{setReviewError('');setReviewOpen(true);}}>查看待保存草稿（{draftItems.length} 项）</button>}
     {draftResult.error&&<button className="outline" disabled={busy} onClick={()=>{setReviewError('已有草稿格式异常：'+draftResult.error+'。原文和草稿仍保留，可以重新识别。');setReviewOpen(true);}}>查看异常草稿说明</button>}
     </section>
