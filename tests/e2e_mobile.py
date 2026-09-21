@@ -78,10 +78,11 @@ with sync_playwright() as p:
     page.get_by_label('番茄炒鸡蛋餐次份数',exact=True).fill('3')
     page.wait_for_function('Object.values(JSON.parse(localStorage.getItem("shiguang-v1")).weeks).some(w=>w["0-早"]?.[0]?.servings === 3)')
     assert state()['confirmed']['1'] == 2
+    page.get_by_role('button',name='关闭弹窗',exact=True).click()
     page.locator('.week-dates button').nth(1).click()
     expect(page.get_by_label('番茄炒鸡蛋餐次份数')).not_to_be_visible()
     page.get_by_role('button',name='一周总览',exact=True).click()
-    expect(page.get_by_label('番茄炒鸡蛋餐次份数')).to_have_value('3')
+    expect(page.locator('.meal-table-dishes').filter(has_text='番茄炒鸡蛋')).to_contain_text('×3')
     page.get_by_role('button',name='返回单日',exact=True).click()
     page.locator('.week-dates button').first.click()
     shot('05-周菜单.png')
@@ -123,7 +124,7 @@ with sync_playwright() as p:
     page.get_by_role('button',name='删除菜谱',exact=True).click()
     confirm.get_by_role('button',name='确认删除',exact=True).click()
     nav('周菜单')
-    expect(page.get_by_label('番茄炒鸡蛋餐次份数')).to_have_value('3')
+    expect(page.locator('.meal-table-dishes').filter(has_text='番茄炒鸡蛋')).to_contain_text('×3')
     nav('点单')
     page.get_by_role('button',name='确认我的菜单',exact=False).click()
     page.get_by_role('dialog').get_by_role('button',name='确认并同步',exact=False).click()
@@ -134,7 +135,7 @@ with sync_playwright() as p:
     page.get_by_role('dialog',name='清空采购需求？',exact=True).get_by_role('button',name='确认清空').click()
     page.wait_for_function('!Object.values(JSON.parse(localStorage.getItem("shiguang-v1")).confirmed).some(Boolean)')
     nav('周菜单')
-    expect(page.get_by_label('番茄炒鸡蛋餐次份数')).to_have_value('3')
+    expect(page.locator('.meal-table-dishes').filter(has_text='番茄炒鸡蛋')).to_contain_text('×3')
 
     for width,height in [(360,800),(390,844),(430,932),(844,390)]:
         page.set_viewport_size({'width':width,'height':height})
@@ -153,7 +154,7 @@ with sync_playwright() as p:
     no_overflow()
     page.reload();page.wait_for_load_state('networkidle')
     nav('周菜单');page.locator('.week-dates button').first.click()
-    expect(page.get_by_label('番茄炒鸡蛋餐次份数')).to_have_value('3')
+    expect(page.locator('.meal-table-dishes').filter(has_text='番茄炒鸡蛋')).to_contain_text('×3')
     assert not errors,errors
     print('PASS: mobile navigation, filtering, purchase deduction, day/overview, draft resume, edit, snapshot after delete/clear, restart, 4 viewport sizes, enlarged text')
     browser.close()

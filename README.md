@@ -1,6 +1,6 @@
 # 食光 · Android 本地膳食规划
 
-MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作；热量功能已移除。
+MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作。V1.2.1 开发中：独立识别入口、紧凑布局、五餐、参考保存期、菜单预计营养及双渠道周回顾提醒；这些目标不代表全部已可用，进度见 [V1.2.1 清单](docs/V1.2.1-TODO.md)。
 
 当前版本 V1.1.2（npm / Android versionName 1.1.2，versionCode 3）：统一按钮、复选框、焦点、提示与弹窗交互，本地开发者版支持密码解锁 AI 配置；GitHub 公开版不含共享配置，需填写个人 AI Key。修复范围和验证记录见 [V1.1.2 交互修复](docs/V1.1.2交互修复.md)。
 
@@ -36,7 +36,7 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 
 ## 测试
 
-- `node --test src/domain.test.js src/sync.test.js`：采购、日期、迁移、备份、并发同步与图片完整性。
+- `node --test src/*.test.js`：采购、日期、迁移、备份、并发同步与图片完整性。
 - `python tests/e2e.py`：启动 Vite 后运行，覆盖核心浏览器流程。
 - `python tests/e2e_ai.py`：AI模拟响应、错误、草稿、取消和手机导航。
 - `python tests/e2e_mobile.py`：正式手机界面、分类搜索、份数与库存抵扣、按日菜单及总览、草稿恢复、历史快照、小屏与横屏布局。评审截图保留在 `.android-tools/mobile-review/`。
@@ -85,3 +85,11 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 公开版必须从新的、干净的源码工作区执行 `npm run build:public` → `npx cap sync android` → Android `:app:assembleRelease`，然后使用维护者密钥签名。公开构建只复制白名单中的图片和字体资源，隐藏开发者入口，并忽略已有设备上的开发者凭据槽。不能用普通 `npm run build` 的输出代替公开版。
 
 发布前核对 APK：不存在 `assets/public/developer-ai-profile.json`，无明文凭据、解锁密码或该密文内容，`debuggable=false`。保留原安装签名可以覆盖升级；公开版同样需要用户确认后才发送 AI 内容。
+
+## V1.2.1 开发中
+
+已接入独立识别入口、任务草稿迁移、紧凑库存编辑与五餐表。日营养仅显示未估算；自动参考保存期、营养算法、AI 周报和双渠道提醒仍未完成，版本号暂保留 1.1.2。
+
+`python tests/e2e_recognition.py` 验证三个入口、授权、部分保存和草稿恢复；`python tests/e2e_five_meals.py` 验证五餐十道菜首屏、总览、重启与库存表单。默认 Vite 5173，可通过 `E2E_URL` 指向生产预览 4173。证据见 `.android-tools/v1.2.1/` 和版本 TODO；所有浏览器回归均使用隔离模拟数据。
+
+Windows 中文路径若出现 Gradle 转换目录重命名失败，本轮使用临时 `S:` 映射、本地 Gradle 8.13 和 `.android-tools/gradle-home-ascii` 缓存构建成功；`android-build.ps1` 尚不自动处理映射。详见开发进度和 V1.2.1 验证记录。

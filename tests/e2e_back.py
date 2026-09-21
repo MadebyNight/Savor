@@ -80,8 +80,7 @@ with sync_playwright() as p:
     page.locator('.topbar').get_by_role('button', name='添加食材', exact=True).click()
     back()
     no_dialog()
-    click('拍照 / 小票识别')
-    click('小票识别')
+    with page.expect_file_chooser(): click('拍照识别')
     back()
     expect(page.get_by_role('heading', name='冰箱', exact=True)).to_be_visible()
     back(False)
@@ -108,9 +107,8 @@ with sync_playwright() as p:
     nav('冰箱')
     back(False)
 
-    # 设置内确认应取消请求并保留设置，第二次返回才关闭设置。
-    nav('点单')
-    click('设置与备份')
+    # 识别内确认应取消请求并保留任务，第二次返回才回到菜谱。
+    nav('菜谱');click('导入菜谱');click('粘贴正文识别')
     page.get_by_label('识别原文', exact=True).fill('番茄炒鸡蛋')
     click('确认发送并识别')
     back()

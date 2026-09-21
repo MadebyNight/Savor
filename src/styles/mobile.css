@@ -140,7 +140,7 @@
     background: #f4c64e;
     color: #34402b;
     border-radius: 10px 10px 10px 3px;
-    font-family: serif;
+    font-family: inherit;
     font-size: 20px;
     font-weight: 700;
     flex-shrink: 0;

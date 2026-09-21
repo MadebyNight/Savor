@@ -29,6 +29,7 @@ with sync_playwright() as p:
             page.get_by_label('接口地址',exact=True).fill('https://boundary.test')
             page.get_by_label('API Key',exact=True).fill('mock');click('保存 AI 配置')
             page.route('https://boundary.test/**',lambda route:route.fulfill(status=200,content_type='application/json',body=json.dumps({'choices':[{'message':{'content':json.dumps({'items':[item]})}}]})))
+            page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱');click('粘贴正文识别')
             page.get_by_label('识别原文',exact=True).fill('青椒炒熟后装盘')
             before=page.evaluate('localStorage.getItem("shiguang-v1")')
             click('确认发送并识别');click('同意发送')
@@ -66,6 +67,7 @@ with sync_playwright() as p:
             state['recipes']=[{**recipe,'id':'boundary',**patch}]
             if name=='backup-duplicate-ids':state['recipes'].append({**recipe,'id':'boundary','name':'第二道重复ID菜谱'})
             page.get_by_role('button',name='设置与备份',exact=True).click()
+            page.get_by_role('button',name='备份恢复',exact=True).click()
             page.get_by_label('导入备份',exact=True).set_input_files({'name':'boundary.json','mimeType':'application/json','buffer':json.dumps({'format':'shiguang','version':2,'state':state}).encode()})
             page.wait_for_timeout(200)
             if page.get_by_role('button',name='确认恢复',exact=True).count():
@@ -94,7 +96,7 @@ with sync_playwright() as p:
     context.add_init_script('localStorage.setItem("pref:ai-draft",'+json.dumps(old_draft)+');')
     try:
         page.goto(os.environ.get('E2E_URL','http://127.0.0.1:4173'));page.wait_for_load_state('networkidle')
-        page.get_by_role('button',name='设置与备份',exact=True).click()
+        page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();page.get_by_role('button',name='导入菜谱',exact=True).click();page.get_by_role('button',name='粘贴正文识别',exact=True).click()
         page.get_by_role('button',name='查看异常草稿说明',exact=True).click()
         expect(page.get_by_role('dialog',name='识别未完成',exact=True)).to_be_visible()
         assert not errors,errors

@@ -1,3 +1,4 @@
+import StockFields from "./StockFields.jsx";
 import { useState } from "react";
 import { toast } from "sonner";
 import {validateRecipe,validateStock} from '../validation.js';
@@ -106,6 +107,7 @@ export default function DraftEditor({ items = [], kind, onChange, onSave, onDefe
             />
             保存第 {index + 1} 项
           </label>
+          {stock?<details className="stock-review-details"><summary>{item.name||"未命名食材"} · {item.qty??"待补充"} {item.unit} · {item.days?`${item.days}天`:"保存期待补充"}</summary><StockFields value={item} onChange={value=>update(index,value)}/></details>:<>
           <label>
             名称
             <input
@@ -123,44 +125,6 @@ export default function DraftEditor({ items = [], kind, onChange, onSave, onDefe
               }
             />
           </label>
-          {stock ? (
-            <div className="form-row">
-              <label>
-                数量
-                <input
-                  aria-label={"草稿数量" + (index + 1)}
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={item.qty ?? ""}
-                  onChange={(event) =>
-                    update(index, { qty: event.target.value })
-                  }
-                />
-              </label>
-              <label>
-                单位
-                <input
-                  value={item.unit || ""}
-                  onChange={(event) =>
-                    update(index, { unit: event.target.value })
-                  }
-                />
-              </label>
-              <label>
-                保存天数（0 为未知）
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={item.days ?? 0}
-                  onChange={(event) =>
-                    update(index, { days: event.target.value })
-                  }
-                />
-              </label>
-            </div>
-          ) : (
             <>
               <div className="form-row">
                 <label>
@@ -314,7 +278,7 @@ export default function DraftEditor({ items = [], kind, onChange, onSave, onDefe
                 添加步骤
               </button>
             </>
-          )}
+          </>}
         </article>
       ))}
       <div className="draft-actions"><button className="primary" disabled={saving} onClick={save}>

@@ -1,9 +1,9 @@
-param([switch]$ConnectedTests)
+﻿param([switch]$ConnectedTests)
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
 Set-Location $workspace
 $jdk = Get-ChildItem "$workspace/.android-tools/jdk21" -Directory | Select-Object -First 1
-if (!$jdk -or !(Test-Path "$jdk/bin/java.exe")) { throw '请先将 JDK 21 解压到 .android-tools/jdk21/ 下。' }
+if (!$jdk -or !(Test-Path "$($jdk.FullName)/bin/java.exe")) { throw '请先将 JDK 21 解压到 .android-tools/jdk21/ 下。' }
 $env:JAVA_HOME = $jdk.FullName
 $env:GRADLE_USER_HOME = "$workspace/.android-tools/gradle-home"
 $env:ANDROID_HOME = "$workspace/.android-tools/sdk"

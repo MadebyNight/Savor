@@ -16,7 +16,7 @@ with sync_playwright() as p:
     def click(name): page.get_by_role("button", name=name, exact=True).click()
     def style(locator, prop): return locator.evaluate("(e,k)=>getComputedStyle(e)[k]", prop)
     def finish(): page.evaluate("document.getAnimations().forEach(a=>{if(a.effect.getTiming().iterations!==Infinity)a.finish()})")
-    click("设置与备份")
+    page.get_by_role("navigation",name="主导航").get_by_role("button",name="菜谱",exact=True).click();click("导入菜谱");click("图文识别")
     album = page.get_by_role("button", name="相册选择", exact=True)
     assert style(album,"outlineStyle") == "none"
     cdp = page.context.new_cdp_session(page)
@@ -31,7 +31,7 @@ with sync_playwright() as p:
     cdp.send("CSS.forcePseudoState", {"nodeId":node,"forcedPseudoClasses":[]})
     page.wait_for_timeout(160)
     assert style(album,"filter") == normal
-    click("坚果云同步")
+    click("AI 配置");click("坚果云同步")
     checkbox = page.locator('.settings-panel input[type="checkbox"]')
     checkbox.check()
     assert checkbox.bounding_box()["width"] == 20
@@ -39,7 +39,7 @@ with sync_playwright() as p:
     assert style(checkbox,"accentColor") == "rgb(117, 130, 102)"
     assert checkbox.locator("xpath=ancestor::label").bounding_box()["height"] >= 48
     page.screenshot(path=str(OUT / "sync-checkbox.png"))
-    click("识别")
+    click("返回")
     click("确认发送并识别")
     toast = page.locator('[data-sonner-toast][data-type="error"]').last
     expect(toast).to_be_visible()
@@ -65,7 +65,7 @@ with sync_playwright() as p:
     close=popup.get_by_role("button",name="关闭弹窗",exact=True)
     box=close.bounding_box();assert box["width"]>=48 and box["height"]>=48
     page.keyboard.press("Tab");close.focus()
-    assert style(close,"outlineColor") == "rgb(117, 130, 102)"
+    assert style(close,"outlineColor") == "rgb(181, 155, 84)"
     assert style(close,"outlineWidth") == "2px"
     assert style(close,"boxShadow") == "none"
     page.screenshot(path=str(OUT / "dialog-focus.png"))

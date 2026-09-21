@@ -51,21 +51,22 @@ with sync_playwright() as p:
     page.get_by_label('接口地址',exact=True).fill('https://confirm.test/chat')
     page.get_by_role('navigation',name='设置分页').get_by_role('button',name='AI 配置',exact=True).click()
     page.get_by_label('API Key',exact=True).fill('test');click('保存 AI 配置')
-    page.get_by_role('navigation',name='设置分页').get_by_role('button',name='识别',exact=True).click()
+    page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱');click('粘贴正文识别')
     click('确认发送并识别');cancel('发送给 AI 识别？')
     click('确认发送并识别');accept('发送给 AI 识别？','同意发送');cancel('替换识别草稿？')
     assert not requests
     page.get_by_label('公开链接',exact=False).fill('https://confirm.test/article')
     click('获取公开正文');cancel('替换输入正文？');assert not requests
     expect(page.get_by_label('识别原文',exact=True)).to_have_value('保留原文')
-    page.get_by_label('识别类型',exact=True).select_option('stock');cancel('切换识别类型？')
-    expect(page.get_by_label('识别类型',exact=True)).to_have_value('recipes')
     page.get_by_role('button',name='查看待保存草稿',exact=False).click()
     expect(page.get_by_label('草稿名称1',exact=True)).to_have_value(snapshot['name'])
     click('稍后处理')
-    page.get_by_label('识别类型',exact=True).select_option('stock');accept('切换识别类型？','确认切换')
-    expect(page.get_by_label('识别类型',exact=True)).to_have_value('stock')
-    expect(page.get_by_label('草稿名称1',exact=True)).to_have_count(0)
+    page.get_by_role('navigation',name='主导航').get_by_role('button',name='冰箱',exact=True).click()
+    with page.expect_file_chooser(): click('拍照识别')
+    expect(page.get_by_role('button',name='查看待保存草稿',exact=False)).to_have_count(0)
+    page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱');click('粘贴正文识别')
+    expect(page.get_by_label('识别原文',exact=True)).to_have_value('保留原文')
+    settings()
 
     file={'name':'test.json','mimeType':'application/json','buffer':json.dumps(backup,ensure_ascii=False).encode()}
     page.get_by_role('navigation',name='设置分页').get_by_role('button',name='备份恢复',exact=True).click()

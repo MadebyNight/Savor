@@ -18,10 +18,7 @@
   --sidebar-border: #e9ebe3;
   color: #292c26;
   background: #fcfcf9;
-  font-family:
-    Microsoft YaHei,
-    PingFang SC,
-    sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   font-size: 14px;
 }
 * {
@@ -32,6 +29,7 @@ body {
 }
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -51,8 +49,8 @@ button:disabled {
   cursor: not-allowed;
 }
 :is(button, input, textarea, select, summary, a):focus-visible {
-  outline-offset: 3px;
-  outline: 2px solid #758266;
+  outline-offset: 2px;
+  outline: 2px solid #b59b54;
 }
 button {
   justify-content: center;
@@ -61,8 +59,10 @@ button {
   display: inline-flex;
 }
 input,
+select,
 textarea {
-  border: 1px solid var(--border);
+  border: 1px solid #ddd3b9;
+  box-shadow: 0 2px 3px #50462e0c, 0 5px 12px #50462e09;
   background: #fff;
   border-radius: 9px;
   min-width: 0;
@@ -1452,7 +1452,7 @@ small {
   }
 }
 .settings-panel { display: grid; gap: 14px; margin-bottom: 24px; }
-.settings-panel .settings-pages { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; padding: 4px; background: #eeeee6; border-radius: 14px; }
+.settings-panel .settings-pages { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; padding: 4px; background: #eeeee6; border-radius: 14px; }
 .settings-pages button { min-width: 0; min-height: 48px; padding: 8px 4px; border: 0; border-radius: 10px; background: transparent; color: #626456; font-size: 13px; line-height: 1.4; }
 .settings-pages button[aria-current=page] { background: #ffdb79; color: #3a3322; font-weight: 700; }
 
@@ -1467,7 +1467,7 @@ small {
 .confirm-dialog .actions button { min-height: 48px; flex: 1; }
 .confirm-dialog .confirm-danger { background: #b42318; color: #fff; }
 .settings-panel label { display: grid; gap: 6px; font-weight: 500; }
-.settings-panel input,.settings-panel textarea,.settings-panel select { width: 100%; padding: 10px 12px; border: 1px solid #e9ebe3; border-radius: 10px; background: #fff; color: #292c26; }
+.settings-panel input,.settings-panel textarea,.settings-panel select { width: 100%; padding: 10px 12px; border: 1px solid #ddd3b9; border-radius: 10px; background: #fff; color: #292c26; }
 .settings-panel textarea { resize: vertical; }
 .settings-panel section { display: grid; gap: 12px; }
 .settings-panel fieldset { padding: 16px; border: 1px solid #e9ebe3; border-radius: 12px; min-width: 0; }
@@ -1558,3 +1558,49 @@ html [data-sonner-toaster][data-sonner-theme] {
 .developer-unlock-form .actions { display: flex; gap: 12px; }
 .developer-unlock-form button { flex: 1; }
 .developer-unlock-dialog[aria-busy="true"] [data-slot="dialog-close"] { display: none; }
+
+/* V1.2.1 共用紧凑字段、主列表和辅助汇总。 */
+.recognition-panel fieldset,.stock-editor fieldset { display:grid; gap:12px; padding:0; border:0; min-width:0; }
+.stock-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; }
+.stock-fields .wide { grid-column:1/-1; }
+.stock-fields label { display:grid; gap:4px; min-width:0; font-size:1rem; }
+.stock-fields input,.stock-fields select { width:100%; min-height:48px; }
+.stock-fields label:first-child input { border-left:2px solid #cbb474; }
+.stock-editor { display:grid; gap:12px; padding:0; margin:0; }
+.stock-editor .primary { min-height:48px; }
+.stock-review-details summary { cursor:pointer; min-height:48px; padding:12px 0; overflow-wrap:anywhere; }
+.stock-review-details[open] summary { border-bottom:1px solid #e9ebe3; margin-bottom:8px; }
+.stock-compact-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto minmax(70px,.9fr); gap:4px 8px; width:100%; min-height:60px; padding:12px; text-align:left; border:1px solid #e9ebe3; border-radius:12px; background:#fff; box-shadow:0 2px 4px #50462e08; }
+.stock-compact-row strong { font-size:1.14rem; overflow-wrap:anywhere; }
+.stock-compact-row>span { font-size:.93rem; color:#666f60; overflow-wrap:anywhere; }
+.stock-compact-row .stock-status { color:#588443; }
+.stock-compact-row.expired { background:#fff0ed; border-left:3px solid #bd493d; }
+.stock-compact-row.expired .stock-status { color:#b9473b; font-weight:650; }
+.stock-compact-row.soon { background:#fff7df; border-left:3px solid #b98021; }
+.stock-compact-row.soon .stock-status { color:#805915; }
+.stock-compact-row.unknown .stock-status { color:#666f60; }
+.meal-table { border:1px solid #e9ebe3; border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 2px 4px #50462e08; }
+.meal-table-row { display:grid; grid-template-columns:4.5em minmax(0,1fr); width:100%; min-height:52px; padding:8px 12px; gap:12px; text-align:left; border-bottom:1px solid #e9ebe3; }
+.meal-table-row:last-child { border-bottom:0; }
+.meal-table-row>strong { color:#536347; font-size:1rem; }
+.meal-table-dishes { display:flex; flex-wrap:wrap; gap:4px 12px; min-width:0; }
+.meal-table-dishes>span { overflow-wrap:anywhere; font-size:1.07rem; }
+.meal-table-dishes small { white-space:nowrap; color:#666f60; }
+.week-slogan { color:#666f60; margin-bottom:8px; font-size:1rem; }
+.nutrition-summary { background:#f7f6f0; border:1px solid #e4e0d2; border-radius:12px; padding:12px; margin-top:12px; }
+.nutrition-summary h3 { font-size:1.07rem; border-left:3px solid #cbb474; padding-left:8px; }
+.nutrition-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:8px 0; }
+.nutrition-values>div { display:grid; gap:4px; }
+.nutrition-values b { font-size:1.14rem; }
+@media(max-width:767px) {
+  .compact-app .page-4 .stock-layout { display:block; }
+  .compact-app .page-4 .stock-categories { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; width:100%; }
+  .compact-app .page-4 .stock-categories button { width:auto; min-height:48px; padding:8px 12px; }
+  .compact-app .page-4 .stock-grid { gap:8px; }
+  .stock-compact-row { gap:4px 6px; }
+  .app-dialog.stock-dialog { padding:20px 16px !important; gap:8px; }
+  .app-dialog.stock-dialog .editor { margin:0; padding:0; }
+  .app-dialog.stock-dialog [data-slot="dialog-description"] { display:none; }
+}
+
+.app-dialog.stock-dialog[aria-busy="true"] [data-slot="dialog-close"] { display:none; }

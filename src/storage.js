@@ -47,6 +47,25 @@ export async function setPreference(key, value) {
   const encoded = JSON.stringify(value);
   if (isNative()) await LocalData.setPreference({key,value:encoded}); else localStorage.setItem('pref:' + key,encoded);
 }
+let draftPending = Promise.resolve();
+export function saveRecognitionDraft(mode, value) {
+  const snapshot = structuredClone(value);
+  const operation = draftPending.catch(() => {}).then(async () => setPreference('ai-draft:' + mode, isNative() ? await encodeImages(snapshot) : snapshot));
+  draftPending = operation;
+  return operation;
+}
+export async function loadRecognitionDraft(mode) {
+  await draftPending.catch(() => {});
+  if (!(await getPreference('ai-draft:migrated', false))) {
+    const old = await getPreference('ai-draft', null);
+    if (old) {
+      const target = old.kind === 'stock' ? 'stock' : old.image ? 'recipe-image' : 'recipe-text';
+      if (await getPreference('ai-draft:' + target, null) === null) await saveRecognitionDraft(target, old);
+    }
+    await setPreference('ai-draft:migrated', true);
+  }
+  return decodeImages(await getPreference('ai-draft:' + mode, {}));
+}
 const webSecrets = new Map();
 export async function getSecret(key) { return isNative() ? (await LocalData.getSecret({key})).value || '' : webSecrets.get(key) || ''; }
 export async function setSecret(key,value) { if (isNative()) await LocalData.setSecret({key,value}); else webSecrets.set(key,value); }
