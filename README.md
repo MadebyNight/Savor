@@ -1,8 +1,8 @@
 # 食光 · Android 本地膳食规划
 
-MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作。V1.2.1 开发中：独立识别入口、紧凑布局、五餐、参考保存期、菜单预计营养及双渠道周回顾提醒；这些目标不代表全部已可用，进度见 [V1.2.1 清单](docs/V1.2.1-TODO.md)。
+MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作。V1.2.1 已实现独立识别入口、紧凑布局、五餐、参考保存期、菜单预计营养及双渠道周回顾提醒；设备通知与升级仍待真机验收，进度见 [V1.2.1 清单](docs/V1.2.1-TODO.md)。
 
-当前版本 V1.1.2（npm / Android versionName 1.1.2，versionCode 3）：统一按钮、复选框、焦点、提示与弹窗交互，本地开发者版支持密码解锁 AI 配置；GitHub 公开版不含共享配置，需填写个人 AI Key。修复范围和验证记录见 [V1.1.2 交互修复](docs/V1.1.2交互修复.md)。
+当前开发版本 V1.2.1（npm / Android versionName 1.2.1，versionCode 4）：统一按钮、复选框、焦点、提示与弹窗交互，本地开发者版支持密码解锁 AI 配置；GitHub 公开版不含共享配置，需填写个人 AI Key。修复范围和验证记录见 [V1.1.2 交互修复](docs/V1.1.2交互修复.md)。
 
 需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
@@ -14,7 +14,7 @@ Node.js 22.12+。在项目根目录执行：
 npm install
 npm run dev
 npm run build
-node --test src/domain.test.js src/sync.test.js
+node --test src/*.test.js
 ```
 
 浏览器预览仅用于开发，业务状态使用 localStorage；API Key 只保留在内存。Android 使用 SQLite、私有图片目录、SharedPreferences 和 Keystore。
@@ -36,7 +36,7 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 
 ## 测试
 
-- `node --test src/*.test.js`：采购、日期、迁移、备份、并发同步与图片完整性。
+- `node --test src/*.test.js`：采购、日期、迁移、备份、同步、保存期、营养快照与提醒日历。
 - `python tests/e2e.py`：启动 Vite 后运行，覆盖核心浏览器流程。
 - `python tests/e2e_ai.py`：AI模拟响应、错误、草稿、取消和手机导航。
 - `python tests/e2e_mobile.py`：正式手机界面、分类搜索、份数与库存抵扣、按日菜单及总览、草稿恢复、历史快照、小屏与横屏布局。评审截图保留在 `.android-tools/mobile-review/`。
@@ -86,10 +86,14 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 
 发布前核对 APK：不存在 `assets/public/developer-ai-profile.json`，无明文凭据、解锁密码或该密文内容，`debuggable=false`。保留原安装签名可以覆盖升级；公开版同样需要用户确认后才发送 AI 内容。
 
-## V1.2.1 开发中
+## V1.2.1 使用
 
-已接入独立识别入口、任务草稿迁移、紧凑库存编辑与五餐表。日营养仅显示未估算；自动参考保存期、营养算法、AI 周报和双渠道提醒仍未完成，版本号暂保留 1.1.2。
+- 菜谱 → 导入菜谱 → 图文或正文识别；冰箱 → 拍照识别。草稿按任务独立保留，设置仅配置服务。
+- 库存新增/编辑选择保存方式；精确匹配的冷藏食材提供 FDA 参考期，包装/手动优先。未知、常温和冷冻保留待补充，冷冻品质建议不当成安全期限。
+- 菜谱编辑中展开“整菜营养估算与可食克重”。单日五餐下默认显示预计营养；周菜单 → 本周菜单营养回顾可看每日分布、来源和缺失项，主动补充 AI 或生成周报。历史菜单重算需确认，报告过时会提示。
+- 设置 → 营养周报提醒：两个开关共用星期/时间（默认周日 20:00，初始关闭）。前台应用内、后台系统通知；查看目标周回顾即停止该周提醒。Android 通知可能受节电影响，强行停止后需重新打开。通知不会自行请求 AI。
+- 周报与营养快照进入业务备份/同步；提醒设置和通知状态只留本机。参考来源、许可、样本覆盖率见 [数据来源](docs/V1.2.1-数据来源.md)。
 
-`python tests/e2e_recognition.py` 验证三个入口、授权、部分保存和草稿恢复；`python tests/e2e_five_meals.py` 验证五餐十道菜首屏、总览、重启与库存表单。默认 Vite 5173，可通过 `E2E_URL` 指向生产预览 4173。证据见 `.android-tools/v1.2.1/` 和版本 TODO；所有浏览器回归均使用隔离模拟数据。
+新增回归：`tests/e2e_recognition.py`、`tests/e2e_five_meals.py`、`tests/e2e_food_storage.py`、`tests/e2e_nutrition.py`、`tests/e2e_reminders.py`。后两者用开发入口注入隔离模拟数据，默认 Vite 5173；生产样式用 mobile/five_meals/interactions/food_storage 脚本，`E2E_URL` 指向 4173。测试先用 `Tee-Object` 保存输出至 `.android-tools/v1.2.1/`，真实设备操作先运行日志脚本。
 
-Windows 中文路径若出现 Gradle 转换目录重命名失败，本轮使用临时 `S:` 映射、本地 Gradle 8.13 和 `.android-tools/gradle-home-ascii` 缓存构建成功；`android-build.ps1` 尚不自动处理映射。详见开发进度和 V1.2.1 验证记录。
+Windows 中文路径若出现 Gradle 转换目录重命名失败，可使用临时 `S:` 映射、本地 Gradle 8.13 和 `.android-tools/gradle-home-ascii` 缓存；`android-build.ps1` 尚不自动处理映射。APK 构建与设备验收状态见 [开发进度](docs/开发进度.md)，既有公开版仍为 V1.1.2，本轮没有推送或发布。
