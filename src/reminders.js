@@ -11,20 +11,23 @@ export function reminderTimes(s,now=new Date()){
 }
 export function reminderState(stored={},now=new Date()){
  const settings={...DEFAULT_REMINDERS,...stored.settings},times=reminderTimes(settings,now),enabled=settings.inApp||settings.system;
- return {settings,pendingWeek:enabled&&times.dueAt>=(stored.enabledSince??Infinity)&&!(stored.reviewed||[]).includes(times.week)?times.week:null,nextAt:enabled?times.nextAt:0,permission:false};
+ const targetWeek=enabled&&times.dueAt>=(stored.enabledSince??Infinity)&&times.week>(stored.pendingWeek||'')?times.week:stored.pendingWeek||null;
+ return {settings,targetWeek,pendingWeek:enabled&&targetWeek&&!(stored.reviewed||[]).includes(targetWeek)?targetWeek:null,nextAt:enabled?times.nextAt:0,permission:false};
 }
-export async function getReminderStatus(){return isNative()?LocalData.reminderStatus():reminderState(await getPreference('weekly-reminders',{}));}
-export async function saveReminders(settings){
+let pending=Promise.resolve();
+const serial=work=>{const next=pending.catch(()=>{}).then(work);pending=next;return next;};
+export const getReminderStatus=()=>serial(async()=>{if(isNative())return LocalData.reminderStatus();const stored=await getPreference('weekly-reminders',{}),result=reminderState(stored);if(result.targetWeek&&result.targetWeek!==stored.pendingWeek)await setPreference('weekly-reminders',{...stored,pendingWeek:result.targetWeek});return result;});
+export const saveReminders=settings=>serial(async()=>{
  validateReminders(settings);let result;
  if(isNative())result=await LocalData.saveReminders({settings});
  else {const stored=await getPreference('weekly-reminders',{}),old={...DEFAULT_REMINDERS,...stored.settings};
-  if((!old.inApp&&!old.system)||old.weekday!==settings.weekday||old.time!==settings.time)stored.enabledSince=Date.now();
+  if((!old.inApp&&!old.system)||old.weekday!==settings.weekday||old.time!==settings.time){stored.enabledSince=Date.now();delete stored.pendingWeek;}
   stored.settings={...settings,system:false};await setPreference('weekly-reminders',stored);result=reminderState(stored);}
  window.dispatchEvent(new Event('shiguang:reminders'));return result;
-}
-export async function markWeekReviewed(week){
+});
+export const markWeekReviewed=week=>serial(async()=>{
  let result;if(isNative())result=await LocalData.markWeekReviewed({week});else{const s=await getPreference('weekly-reminders',{});s.reviewed=[...new Set([...(s.reviewed||[]),week])];await setPreference('weekly-reminders',s);result=reminderState(s);}
  window.dispatchEvent(new Event('shiguang:reminders'));return result;
-}
+});
 export async function consumeReminderLaunch(){return isNative()?(await LocalData.consumeReminderLaunch()).value:null;}
 export async function openNotificationSettings(){if(isNative())await LocalData.openNotificationSettings();}

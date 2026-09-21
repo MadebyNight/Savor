@@ -28,6 +28,30 @@ with sync_playwright() as p:
  click('关闭弹窗');page.reload(wait_until='domcontentloaded');page.get_by_role('navigation',name='主导航').get_by_role('button',name='周菜单',exact=True).click();click('本周菜单营养回顾')
  expect(page.get_by_text('测试周报：部分估算，下周可补齐食材。',exact=True)).to_be_visible()
  page.get_by_text('逐道补充营养与可食克重',exact=True).click();page.get_by_text('番茄测试 · 6-夜宵 · 2份',exact=True).click();page.get_by_label('番茄可食克重',exact=True).fill('200');expect(page.get_by_role('heading',name='已保存周报 · 已过时')).to_be_visible()
+ click('生成 AI 周报');click('同意生成');expect(page.get_by_role('alert')).to_contain_text('请先在设置保存 AI Key')
+ expect(page.get_by_text('测试周报：部分估算，下周可补齐食材。',exact=True)).to_be_visible()
+ # Supplement has a separate consent boundary, preserves local values and ignores late replies.
+ page.evaluate("async()=>{const {setSecret}=await import('/src/storage.js');await setSecret('ai','test-only');}")
+ page.unroute('**/chat/completions');pending=[]
+ page.route('**/chat/completions',lambda route:pending.append(route))
+ click('AI 补充缺失项');click('取消');assert not pending
+ before=page.evaluate("JSON.parse(localStorage.getItem('shiguang-v1')).weeks")
+ click('AI 补充缺失项');click('同意估算');page.get_by_role('button',name='取消估算',exact=True).wait_for();click('取消估算')
+ pending.pop().fulfill(json={'choices':[{'message':{'content':'{"items":[{"index":1,"values":{"energyKcal":100}}]}'},'finish_reason':'stop'}]})
+ page.wait_for_timeout(150);assert page.evaluate("JSON.parse(localStorage.getItem('shiguang-v1')).weeks")==before
+ click('AI 补充缺失项');click('同意估算');page.get_by_role('button',name='取消估算',exact=True).wait_for()
+ pending.pop().fulfill(json={'choices':[{'message':{'content':'{"items":[{"index":1,"values":{"energyKcal":-1}}]}'},'finish_reason':'stop'}]})
+ expect(page.locator('.recipe-nutrition').get_by_role('alert')).to_contain_text('非法营养数值');assert page.evaluate("JSON.parse(localStorage.getItem('shiguang-v1')).weeks")==before
+ click('AI 补充缺失项');click('同意估算');page.get_by_role('button',name='取消估算',exact=True).wait_for()
+ route=pending.pop();payload=route.request.post_data_json;assert len(__import__('json').loads(payload['messages'][1]['content'])['items'])==1
+ route.fulfill(json={'choices':[{'message':{'content':'{"items":[{"index":1,"values":{"energyKcal":100,"proteinG":0}}]}'},'finish_reason':'stop'}]})
+ expect(page.get_by_role('region',name='本周预计营养')).to_contain_text('AI 补充估算')
+ # A cancelled or failed replacement never removes the saved report.
+ click('生成 AI 周报');click('同意生成');page.get_by_role('button',name='取消生成',exact=True).wait_for();click('取消生成')
+ pending.pop().fulfill(json={'choices':[{'message':{'content':'{"reportText":"不应写入的迟到报告"}'},'finish_reason':'stop'}]})
+ expect(page.get_by_text('不应写入的迟到报告',exact=True)).to_have_count(0)
+ click('生成 AI 周报');click('同意生成');page.get_by_role('button',name='取消生成',exact=True).wait_for();pending.pop().fulfill(status=503,body='unavailable')
+ expect(page.get_by_text('测试周报：部分估算，下周可补齐食材。',exact=True)).to_be_visible()
  assert not errors,errors
  page.screenshot(path=str(ROOT/'.android-tools/v1.2.1/nutrition-review.png'));b.close()
-print('PASS nutrition: partial, consent, Sunday night, report, restart, stale snapshot')
+print('PASS nutrition: partial, consent, Sunday night, report, restart, stale snapshot, no key, cancelled late response, invalid numbers, mixed source, failure preserves report')

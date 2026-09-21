@@ -42,9 +42,11 @@ export function mergeNutritionAI(recipe,items,model){
  return finishNutrition({...snapshot,model,generatedAt:new Date().toISOString()});
 }
 export function validateNutrition(value){
- if(!value||value.version!==1||typeof value.inputFingerprint!=='string'||typeof value.generatedAt!=='string'||!Array.isArray(value.entries)||value.entries.length>1000)throw new Error('营养快照格式无效');
+ if(!value||value.version!==1||typeof value.inputFingerprint!=='string'||typeof value.generatedAt!=='string'||!Number.isFinite(Date.parse(value.generatedAt))||(value.model!=null&&typeof value.model!=='string')||!Array.isArray(value.entries)||value.entries.length>1000)throw new Error('营养快照格式无效');
  for(const [index,entry] of value.entries.entries()){
   if(!Number.isInteger(entry.index)||entry.index!==index||typeof entry.name!=='string'||!entry.values||!entry.sources)throw new Error('营养条目格式无效');
+  for(const key of ['foodId','basis','sourceVersion'])if(entry[key]!=null&&typeof entry[key]!=='string')throw new Error('营养参考信息无效');
+  if(entry.grams!=null&&(typeof entry.grams!=='number'||!Number.isFinite(entry.grams)||entry.grams<=0))throw new Error('可食克重无效');
   for(const key of keys){const n=entry.values[key];if(n!==null&&(typeof n!=='number'||!Number.isFinite(n)||n<0||n>(key==='energyKcal'?1e7:1e6)))throw new Error('营养数值无效');if(![null,'local','ai'].includes(entry.sources[key]))throw new Error('营养来源无效');if((n===null)!==(entry.sources[key]===null))throw new Error('营养来源与数值不一致');}
  }
  const rebuilt=finishNutrition(value);

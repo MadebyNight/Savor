@@ -1448,7 +1448,7 @@ function App() {
                 >
                   ＋ 添加步骤
                 </button>
-                <RecipeNutrition recipe={recipeDraft} onChange={setRecipeDraft}/>
+                <details className="recipe-nutrition-tools"><summary>整菜营养估算与可食克重</summary><RecipeNutrition recipe={recipeDraft} onChange={setRecipeDraft}/></details>
                 <button className="primary save-recipe" onClick={saveRecipe}>
                   <Check size={17} />
                   确认保存到菜品库
@@ -1488,8 +1488,8 @@ function App() {
       <Dialog open={!!reviewWeek} onOpenChange={open=>!open&&setReviewWeek(null)}>
         <DialogContent className="app-dialog nutrition-dialog"><DialogTitle>菜单营养回顾</DialogTitle><DialogDescription>按菜谱快照估算，支持离线查看。</DialogDescription>
           {reviewWeek&&<NutritionPanel key={reviewWeek} week={reviewWeek} plan={weeks[reviewWeek]||{}} report={nutritionReports[reviewWeek]}
-            onSavePlan={async(next,expected)=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==expected)throw new Error('菜单已改变，请重试');const updated={...latestState.current.weeks,[reviewWeek]:next};await saveState({...latestState.current,weeks:updated});setWeeks(updated);}}
-            onSaveReport={async report=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==report.inputFingerprint)throw new Error('菜单已改变，请重新生成');const updated={...latestState.current.nutritionReports,[reviewWeek]:report};await saveState({...latestState.current,nutritionReports:updated});setNutritionReports(updated);}}/>}
+            onSavePlan={async(next,expected)=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==expected)throw new Error('菜单已改变，请重试');const before=structuredClone(latestState.current),updated={...before.weeks,[reviewWeek]:next};await saveState({...before,weeks:updated});if(JSON.stringify(latestState.current)!==JSON.stringify(before)){await saveState(latestState.current);throw new Error('保存期间数据已改变，请重试；本地修改保留');}setWeeks(updated);}}
+            onSaveReport={async report=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==report.inputFingerprint)throw new Error('菜单已改变，请重新生成');const before=structuredClone(latestState.current),updated={...before.nutritionReports,[reviewWeek]:report};await saveState({...before,nutritionReports:updated});if(JSON.stringify(latestState.current)!==JSON.stringify(before)){await saveState(latestState.current);throw new Error('保存期间数据已改变，请重试；原报告保留');}setNutritionReports(updated);}}/>}
         </DialogContent>
       </Dialog>
       <Dialog open={!!modal} onOpenChange={(open) => !open && !stockSaving && setModal("")}>

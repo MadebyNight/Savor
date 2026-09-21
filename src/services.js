@@ -101,7 +101,7 @@ export function validateBackup(value) {
   if(state.nutritionReports!=null){if(!object(state.nutritionReports))throw new Error('周报格式无效');for(const [week,report] of Object.entries(state.nutritionReports))validateReport(report,week);}
   return {...state,qty:state.qty || {},weeks:state.weeks || {},archives,confirmedRecipes:state.confirmedRecipes || state.recipes.filter(r => state.confirmed[r.id])};
 }
-export const businessState = state => ({recipes:state.recipes,fridge:state.fridge,confirmed:state.confirmed,confirmedRecipes:state.confirmedRecipes,weeks:state.weeks,archives:state.archives,...(state.nutritionReports?{nutritionReports:state.nutritionReports}:{})});
+export const businessState = state => ({recipes:state.recipes,fridge:state.fridge,confirmed:state.confirmed,confirmedRecipes:state.confirmedRecipes,weeks:state.weeks,archives:state.archives,...(state.nutritionReports&&Object.keys(state.nutritionReports).length?{nutritionReports:state.nutritionReports}:{})});
 export function backup(state) { return {format:'shiguang',version:2,createdAt:new Date().toISOString(),state:businessState(state)}; }
 export async function nutritionRequest(config,payload,task){
  const key=await getAIKey(config);if(!key)throw new Error('请先在设置保存 AI Key');

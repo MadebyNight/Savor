@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {calculateNutrition,mergeNutritionAI,summarizeNutrition,validateNutrition,weekNutritionInput} from './nutrition.js';
 import {validateReport} from './nutrition-report.js';
-import {validateBackup,backup} from './services.js';
+import {validateBackup,backup,businessState} from './services.js';
 const recipe={id:1,name:'番茄菜',steps:['煮'],ingredients:[{name:'番茄',qty:100,unit:'g',category:'蔬菜'},{name:'未知食材',qty:1,unit:'个'}]};
 test('本地克重换算、缺失不为零与历史不暗中重算',()=>{
  const a=calculateNutrition(recipe),b=calculateNutrition({...recipe,ingredients:[{name:'番茄',qty:.1,unit:'kg'}]});
@@ -31,3 +31,7 @@ test('周报与营养随备份保留；拒绝非法汇总',()=>{
  assert.deepEqual(validateBackup(backup(state)).nutritionReports,state.nutritionReports);
  const bad=structuredClone(report);bad.summarySnapshot.values.energyKcal=-1;assert.throws(()=>validateReport(bad));assert.throws(()=>validateReport({...report,weekStart:'2026-09-22'}));
 });
+
+test('旧业务数据补空报告容器不改变同步指纹输入',()=>{const state={recipes:[],fridge:[],confirmed:{},confirmedRecipes:[],weeks:{},archives:{}};assert.deepEqual(businessState({...state,nutritionReports:{}}),businessState(state));});
+
+test('备份拒绝可渲染字段的非法类型与不一致条目索引',()=>{for(const change of [{basis:{}},{foodId:[]},{grams:-1},{index:8}]){const n=calculateNutrition(recipe);Object.assign(n.entries[0],change);assert.throws(()=>validateNutrition(n));}});

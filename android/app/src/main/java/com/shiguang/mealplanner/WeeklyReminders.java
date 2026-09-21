@@ -29,7 +29,10 @@ public final class WeeklyReminders {
         var p=prefs(c);long now=System.currentTimeMillis();int day=p.getInt("weekday",7);String time=p.getString("time","20:00");
         long due=WeeklyReminderSchedule.latest(now,day,time,TimeZone.getDefault());String week=WeeklyReminderSchedule.week(due,TimeZone.getDefault());
         boolean enabled=p.getBoolean("inApp",false)||p.getBoolean("system",false);
-        boolean pending=enabled&&due>=p.getLong("enabledSince",Long.MAX_VALUE)&&!p.getStringSet("reviewed",Collections.emptySet()).contains(week);
+        String target=p.getString("pendingWeek","");
+        if(enabled&&due>=p.getLong("enabledSince",Long.MAX_VALUE)&&week.compareTo(target)>0){target=week;commit(p.edit().putString("pendingWeek",target));}
+        week=target;
+        boolean pending=enabled&&!week.isEmpty()&&!p.getStringSet("reviewed",Collections.emptySet()).contains(week);
         if(notify&&!foreground&&pending&&p.getBoolean("system",false)&&allowed(c)&&!week.equals(p.getString("lastNotified",""))){
             Intent launch=new Intent(c,MainActivity.class).putExtra(EXTRA,week).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);
             PendingIntent tap=PendingIntent.getActivity(c,ID,launch,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
@@ -46,10 +49,10 @@ public final class WeeklyReminders {
         int day=s.optInt("weekday",0);String time=s.optString("time","");WeeklyReminderSchedule.candidate(System.currentTimeMillis(),day,time,TimeZone.getDefault());
         if(!(s.opt("inApp") instanceof Boolean)||!(s.opt("system") instanceof Boolean))throw new IllegalArgumentException("switches");
         var p=prefs(c);boolean system=s.optBoolean("system")&&allowed(c);var e=p.edit().putInt("weekday",day).putString("time",time).putBoolean("inApp",s.optBoolean("inApp")).putBoolean("system",system);
-        if((!p.getBoolean("inApp",false)&&!p.getBoolean("system",false))||day!=p.getInt("weekday",7)||!time.equals(p.getString("time","20:00")))e.putLong("enabledSince",System.currentTimeMillis());
-        int oldDay=p.getInt("weekday",7);String oldTime=p.getString("time","20:00");boolean oldApp=p.getBoolean("inApp",false),oldSystem=p.getBoolean("system",false);long oldSince=p.getLong("enabledSince",Long.MAX_VALUE);
+        if((!p.getBoolean("inApp",false)&&!p.getBoolean("system",false))||day!=p.getInt("weekday",7)||!time.equals(p.getString("time","20:00")))e.putLong("enabledSince",System.currentTimeMillis()).remove("pendingWeek");
+        int oldDay=p.getInt("weekday",7);String oldTime=p.getString("time","20:00"),oldPending=p.getString("pendingWeek","");boolean oldApp=p.getBoolean("inApp",false),oldSystem=p.getBoolean("system",false);long oldSince=p.getLong("enabledSince",Long.MAX_VALUE);
         try{commit(e);return tick(c,false);}catch(RuntimeException failure){
-            commit(p.edit().putInt("weekday",oldDay).putString("time",oldTime).putBoolean("inApp",oldApp).putBoolean("system",oldSystem).putLong("enabledSince",oldSince));
+            commit(p.edit().putInt("weekday",oldDay).putString("time",oldTime).putBoolean("inApp",oldApp).putBoolean("system",oldSystem).putLong("enabledSince",oldSince).putString("pendingWeek",oldPending));
             try{schedule(c);}catch(RuntimeException ignored){}throw failure;
         }
     }

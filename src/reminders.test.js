@@ -14,3 +14,5 @@ test('自定义星期、跨年归属、开启前不补发，关闭不替换渠�
  assert.equal(reminderState({settings:{...s,inApp:false,system:true},enabledSince:0},now).settings.inApp,false);
  for(const change of [{weekday:0},{weekday:8},{time:'24:00'},{time:'9:00'},{inApp:'true'}])assert.throws(()=>validateReminders({...s,...change}));
 });
+
+test('已到期目标周持久化，回拨时间不换成旧周，最新到期周替换',()=>{const stored={settings:{...DEFAULT_REMINDERS,inApp:true},enabledSince:0,pendingWeek:'2026-09-21'};assert.equal(reminderState(stored,new Date(2026,8,23)).pendingWeek,'2026-09-21');assert.equal(reminderState(stored,new Date(2026,9,5)).pendingWeek,'2026-09-28');});

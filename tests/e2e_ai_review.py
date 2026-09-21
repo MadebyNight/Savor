@@ -74,6 +74,6 @@ with sync_playwright() as p:
     click('稍后处理');response['hold']=True;send(True);click('取消等待')
     assert pending;pending[0].fulfill(status=200,content_type='application/json',body=json.dumps({'choices':[{'message':{'content':'{"items":[]}'}}]}))
     page.wait_for_load_state('networkidle');expect(stock).not_to_be_visible();reopen()
-    expect(page.locator('.stock-review-details summary')).to_contain_text('牛奶')
+    expect(page.locator('.stock-review-details > summary')).to_contain_text('牛奶')
     assert not errors,errors
     browser.close();print('PASS: AI review modal, explicit/partial save, draft persistence, back, errors, stock, small screen, late response')

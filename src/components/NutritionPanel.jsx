@@ -31,7 +31,7 @@ export function RecipeNutrition({recipe,onChange}){
    const result=await nutritionRequest(config,{items:missing},'supplement');
    if(token!==generation.current)return;
    if(input!==nutritionInput(latest.current))throw new Error('食材已修改，请重新估算；未写入旧结果');
-   const nutrition=mergeNutritionAI(recipe,result.items,config.model);await onChange({...recipe,nutrition});
+   const nutrition=mergeNutritionAI(recipe,result.items,config.model);await onChange({...latest.current,nutrition});
   }catch(e){if(token===generation.current)setError(e.message);}finally{if(token===generation.current){setBusy(false);running.current=false;}}
  }
  return <section className="recipe-nutrition"><NutritionSummary summary={summary} title="整菜预计营养"/>
@@ -39,6 +39,7 @@ export function RecipeNutrition({recipe,onChange}){
   <div className="nutrition-weight-fields">{recipe.ingredients.map((item,index)=><label key={index}>{item.name||`食材${index+1}`}可食克重<input aria-label={`${item.name||`食材${index+1}`}可食克重`} type="number" min="0.001" step="any" disabled={busy} placeholder="g/kg 自动换算" value={item.grams??''} onChange={async e=>{try{await onChange({...recipe,nutrition:undefined,ingredients:recipe.ingredients.map((v,i)=>i===index?{...v,grams:e.target.value===''?null:Number(e.target.value)}:v)});}catch(error){setError(error.message);}}}/></label>)}</div>
   {!!missing.length&&<><p className="subtle">待补充：{missing.map(m=>`${m.ingredient.name}（${m.missing.map(k=>METRICS.find(([key])=>key===k)[1]).join('、')}）`).join('；')}</p><button type="button" className="outline" disabled={busy} onClick={supplement}>{busy?'正在估算…':'AI 补充缺失项'}</button></>}
   {busy&&<button type="button" className="text-link" onClick={()=>{generation.current++;running.current=false;setBusy(false);}}>取消估算</button>}
+  <details><summary>计算明细与来源</summary>{snapshot.entries.map(entry=><div key={entry.index}><strong>{entry.name||'未命名食材'}</strong><p className="subtle">{entry.grams==null?'可食克重未知':`${entry.grams}g 可食部`} · {entry.foodId?`CoFID ${entry.foodId} / ${entry.sourceVersion}`:'未匹配本地数据'}</p>{entry.basis&&<p className="subtle">{entry.basis}</p>}<p>{METRICS.map(([key,label,unit])=>`${label}：${entry.values[key]===null?'未知':`${Math.round(entry.values[key]*10)/10}${unit}（${entry.sources[key]==='ai'?'AI 估算':'本地参考'}）`}`).join('；')}</p></div>)}<p className="subtle">估算时间：{snapshot.generatedAt}{snapshot.model&&` · AI 模型 ${snapshot.model}`}</p></details>
   {error&&<p role="alert">{error}</p>}{confirmation}
  </section>;
 }
@@ -62,6 +63,7 @@ export default function NutritionPanel({week,plan,report,onSavePlan,onSaveReport
  return <div className="nutrition-panel"><h2>本周菜单营养回顾</h2><p>{week} — {dayAt(week,6)}</p><p className="subtle">包含目标周完整计划（含周日晚餐与夜宵）；不是实际食用记录。</p>
   {!summary.recipes&&<p>该周没有安排</p>}<NutritionSummary summary={summary} title="本周预计营养"/>
   <details><summary>每日分布与覆盖情况</summary>{Array.from({length:7},(_,d)=><NutritionSummary key={d} summary={summarizeNutrition(plan,d)} title={dayAt(week,d)}/>)}</details>
+  {!!summary.missing.length&&<details><summary>待补充食材与指标（{summary.missing.length} 项）</summary>{summary.missing.map((item,index)=><p key={index}>{item.recipe} · {item.ingredient}：{item.metrics.map(key=>METRICS.find(([k])=>k===key)[1]).join('、')}</p>)}</details>}
   <p>食材类别汇总（条目数）：{Object.entries(summary.categories).map(([name,count])=>`${name} ${count}`).join('、')||'无'}。不按类别推断实际摄入重量。</p>
   <button className="outline" disabled={busy||!summary.recipes} onClick={async()=>{try{if(!(await ask('将按当前菜单快照重新计算本地营养，不改当前菜谱库或采购。已有 AI 补充仅在食材未改变时保留。',{title:'重新估算该周菜单？',label:'重新计算'})))return;const next=structuredClone(plan);for(const {slot,index,recipe} of plannedItems(next))next[slot][index]={...recipe,nutrition:calculateNutrition(recipe)};await onSavePlan(next,input);}catch(e){setError(e.message);}}}>重新计算本地营养</button>
   <details><summary>逐道补充营养与可食克重</summary>{plannedItems(plan).map(({slot,index,recipe})=><details key={`${slot}:${index}`}><summary>{recipe.name} · {slot} · {recipe.servings||1}份</summary><RecipeNutrition recipe={recipe} onChange={async value=>{const next=structuredClone(plan);next[slot][index]={...value,nutrition:calculateNutrition(value)};await onSavePlan(next,input);}}/></details>)}</details>
