@@ -130,6 +130,7 @@ function App() {
     steps: [""],
   });
   const [editingStock,setEditingStock]=useState(null);
+  const [stockFilter,setStockFilter]=useState("all");
   const [stockSaving,setStockSaving]=useState(false);
   const [stockError,setStockError]=useState('');
   const [ingredientDraft, setIngredientDraft] = useState({
@@ -1077,9 +1078,11 @@ function App() {
                 ))}
               </aside>
               <section className="stock-results">
+              <label className="stock-status-filter">期限筛选<select aria-label="期限筛选" value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期·勿食用</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></select></label>
+              {fridge.some(item=>['expired','soon'].includes(stockStatus(item).kind))&&<p role="status" className="stock-risk-summary">⚠ 过期 {fridge.filter(item=>stockStatus(item).kind==='expired').length} 批，请勿食用并及时清理；临期 {fridge.filter(item=>stockStatus(item).kind==='soon').length} 批。</p>}
               <div className="stock-grid">
                 {fridge.map((stock,index)=>({stock,index,status:stockStatus(stock)})).sort((a,b)=>a.status.rank-b.status.rank).map(({stock,index,status})=>{
-                  return (category==='全部'||stock.category===category)&&<button key={stock.id||index} className={`stock-compact-row ${status.kind}`} onClick={()=>{setEditingStock(index);setIngredientDraft({...stock});setStockError('');setModal('stock');}}>
+                  return (stockFilter==='all'||status.kind===stockFilter)&&(category==='全部'||stock.category===category)&&<button key={stock.id||index} className={`stock-compact-row ${status.kind}`} onClick={()=>{setEditingStock(index);setIngredientDraft({...stock});setStockError('');setModal('stock');}}>
                     <strong>{stock.name}</strong><span>{stock.category||'其他'}</span><span>{stock.qty} {stock.unit}</span>
                     <span className="stock-status">{status.label}</span>
                   </button>;

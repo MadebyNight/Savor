@@ -42,6 +42,8 @@ export function validateStock(stock, where = '库存', draft = false) {
   number(stock.qty, where + '数量', Number.MIN_VALUE);
   if (!draft && (stock.qty == null || stock.qty === '')) fail(where + '数量');
   number(stock.days, where + '保存天数', 0, true);
+  if(stock.storageMethod!=null&&!['unknown','chilled','frozen','ambient'].includes(stock.storageMethod))fail(where+'保存方式');
+  if(stock.shelfLifeSource!=null){if(!object(stock.shelfLifeSource)||!['unknown','reference','manual','package'].includes(stock.shelfLifeSource.kind))fail(where+'期限来源');for(const key of ['rule','condition','url','version'])text(stock.shelfLifeSource[key],where+'期限来源');}
   return stock;
 }
 export function uniqueIds(items, where) {

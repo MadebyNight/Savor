@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  server: { port: 5173, strictPort: true },
+  optimizeDeps: { entries: ['index.html'] },
+  server: { port: 5173, strictPort: true, watch: { ignored: ['**/.android-tools/**', '**/android/**'] } },
   preview: { port: 4173, strictPort: true },
 });
