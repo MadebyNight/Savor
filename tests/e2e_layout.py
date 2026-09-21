@@ -45,7 +45,7 @@ with sync_playwright() as p:
     page.set_viewport_size({'width':390,'height':844})
     search=page.get_by_role('textbox',name='搜索冰箱食材',exact=True)
     search.fill('小青菜');expect(page.locator('.stock-compact-row')).to_have_count(1)
-    page.get_by_label('期限筛选',exact=True).select_option('expired')
+    page.get_by_label('期限筛选',exact=True).click();page.locator('.picker-options').get_by_role('button',name='过期·勿食用',exact=True).click()
     expect(page.locator('.stock-compact-row')).to_have_count(0)
     expect(page.get_by_text('没有符合当前搜索和筛选条件的食材。',exact=True)).to_be_visible()
     click('清除筛选');expect(page.locator('.stock-compact-row')).to_have_count(6)

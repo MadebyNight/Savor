@@ -1,4 +1,5 @@
-import {NutritionSummary} from './NutritionPanel.jsx';
+import { AppSelect, DateTimePicker } from "./Pickers.jsx";
+import {NutritionSummary,NutritionReviewButton} from './NutritionPanel.jsx';
 import {summarizeNutrition} from '../nutrition.js';
 import { useState } from "react";
 import useBackHandler from "../useBackHandler.js";
@@ -53,7 +54,7 @@ export default function MobileWeek({
         </button>
         <label>
           当前周
-          <input
+          <DateTimePicker
             aria-label="当前周"
             type="date"
             value={week}
@@ -129,8 +130,9 @@ export default function MobileWeek({
           </div>
         </section>
       ))}
+      <NutritionReviewButton onClick={onReview}/>
       {!overview && <NutritionSummary summary={summarizeNutrition(plan,day)}/>}
-      <div className="week-view-tools"><button className="text-link" onClick={onHistory}>历史</button><button className="text-link" onClick={onReview}>本周菜单营养回顾</button></div>
+      <div className="week-view-tools"><button className="text-link" onClick={onHistory}>历史</button></div>
       <Dialog
         open={slot !== null}
         onOpenChange={(open) => !open && setSlot(null)}
@@ -142,7 +144,7 @@ export default function MobileWeek({
           <DialogDescription>
             来自已确认选菜。安排不会增加采购量，同道菜再次添加会增加餐次份数。
           </DialogDescription>
-          <label>餐次<select aria-label="安排餐次" value={slot?.split('-').slice(1).join('-') || '早'} onChange={event=>setSlot(`${slot.split('-')[0]}-${event.target.value}`)}>{MEALS.map(([key,name])=><option key={key} value={key}>{name}</option>)}</select></label>
+          <label>餐次<AppSelect aria-label="安排餐次" value={slot?.split('-').slice(1).join('-') || '早'} onChange={event=>setSlot(`${slot.split('-')[0]}-${event.target.value}`)}>{MEALS.map(([key,name])=><option key={key} value={key}>{name}</option>)}</AppSelect></label>
           {(plan[slot] || []).map((item, index) => (
             <div className="mobile-planned" key={index}>
               <div className="planned-info">

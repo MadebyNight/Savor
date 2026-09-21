@@ -11,7 +11,7 @@ with sync_playwright() as p:
  page.get_by_role('button',name='查看营养回顾',exact=True).click();expect(page.get_by_role('dialog')).to_contain_text(target);expect(page.locator('.reminder-banner')).to_have_count(0)
  page.get_by_role('button',name='关闭弹窗',exact=True).click();page.reload(wait_until='domcontentloaded');page.get_by_role('navigation',name='主导航').wait_for();expect(page.locator('.reminder-banner')).to_have_count(0)
  page.get_by_role('button',name='设置与备份',exact=True).click();page.get_by_role('button',name='营养周报提醒',exact=True).click();expect(page.get_by_label('系统通知',exact=True)).to_be_disabled()
- page.get_by_label('应用内提醒',exact=True).uncheck();page.get_by_label('每周几',exact=True).select_option('3');page.get_by_label('提醒时间',exact=True).fill('19:25');page.get_by_role('button',name='保存提醒设置',exact=True).click();expect(page.get_by_text('提醒设置已保存',exact=True)).to_be_visible()
+ page.get_by_label('应用内提醒',exact=True).uncheck();page.get_by_label('每周几',exact=True).click();page.locator('.picker-options').get_by_role('button',name='周三',exact=True).click();page.get_by_label('提醒时间',exact=True).click();page.get_by_role('button',name='19小时',exact=True).click();page.get_by_role('button',name='25分钟',exact=True).click();page.get_by_role('button',name='确认选择',exact=True).click();page.get_by_role('button',name='保存提醒设置',exact=True).click();expect(page.get_by_text('提醒设置已保存',exact=True)).to_be_visible()
  settings=page.evaluate("JSON.parse(localStorage.getItem('pref:weekly-reminders')).settings");assert settings=={'inApp':False,'system':False,'weekday':3,'time':'19:25'},settings
  assert not errors,errors;b.close()
 print('PASS reminders: due banner, original target, review dedup, restart, shared settings, no channel fallback')

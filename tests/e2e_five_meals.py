@@ -26,12 +26,13 @@ with sync_playwright() as p:
     nav('周菜单');page.locator('.week-dates button').first.click()
     expect(page.locator('.week-summary')).to_contain_text('10 道菜')
     assert page.locator('.week-heading').bounding_box()['y'] < page.locator('.week-dates').bounding_box()['y'] < page.locator('.week-summary').bounding_box()['y']
-    click('安排菜品');page.get_by_label('安排餐次',exact=True).select_option('夜宵')
+    click('安排菜品');page.get_by_label('安排餐次',exact=True).click();page.locator('.picker-options').get_by_role('button',name='夜宵',exact=True).click()
+    expect(page.locator('.picker-dialog')).to_have_count(0)
     expect(page.get_by_role('dialog')).to_contain_text('夜宵 · 管理菜品');click('关闭弹窗')
     page.locator('.week-picker > summary').click()
-    previous=page.get_by_label('当前周',exact=True).input_value()
-    click('下一周');assert page.get_by_label('当前周',exact=True).input_value()!=previous
-    click('上一周');expect(page.get_by_label('当前周',exact=True)).to_have_value(previous)
+    previous=page.get_by_label('当前周',exact=True).get_attribute('value')
+    click('下一周');assert page.get_by_label('当前周',exact=True).get_attribute('value')!=previous
+    click('上一周');expect(page.get_by_label('当前周',exact=True)).to_have_attribute('value',previous)
     page.locator('.week-picker > summary').click()
     for width,height in [(360,800),(390,844)]:
         page.set_viewport_size({'width':width,'height':height})

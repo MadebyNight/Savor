@@ -1,5 +1,6 @@
+import { AppSelect, DateTimePicker } from "./components/Pickers.jsx";
 import {getReminderStatus,consumeReminderLaunch,markWeekReviewed} from './reminders.js';
-import NutritionPanel, {RecipeNutrition} from './components/NutritionPanel.jsx';
+import NutritionPanel, {RecipeNutrition,NutritionReviewButton} from './components/NutritionPanel.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
 ﻿import { stockStatus, MEALS, monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
@@ -897,7 +898,7 @@ function App() {
           )}
           {page === 3 && (
             <>
-              {!compact&&<button className="outline" onClick={()=>setReviewWeek(week)}>本周菜单营养回顾</button>}
+              {!compact&&<NutritionReviewButton onClick={()=>setReviewWeek(week)}/>}
               {compact ? <MobileWeek slot={mealSlot} setSlot={setMealSlot} onHistory={()=>setModal("history")} onReview={()=>setReviewWeek(week)} week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={confirmedRecipes.filter(recipe => confirmedQuantities[recipe.id] > 0)} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} /> : <>
               <div className="panel">
                 <div className="section-tools">
@@ -949,7 +950,7 @@ function App() {
                 </button>
                 <label>
                   当前周{" "}
-                  <input
+                  <DateTimePicker aria-label="当前周"
                     type="date"
                     value={week}
                     onChange={(event) =>
@@ -1108,7 +1109,7 @@ function App() {
                 ))}
               </aside>
               <section className="stock-results">
-              <label className="stock-status-filter">期限筛选<select aria-label="期限筛选" value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期·勿食用</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></select></label>
+              <label className="stock-status-filter">期限筛选<AppSelect aria-label="期限筛选" value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期·勿食用</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></AppSelect></label>
               <div className="stock-grid stock-list">
                 {visibleStock.map(({stock,index,status})=>{
                   return <button key={stock.id||index} className={`stock-compact-row ${status.kind}`} onClick={()=>{setEditingStock(index);setIngredientDraft({...stock});setStockError('');setModal('stock');}}>
@@ -1230,7 +1231,7 @@ function App() {
                   <label>
                     分类
                     <input
-                      list="recipe-cats"
+                      aria-label="菜谱分类"
                       value={recipeDraft.category}
                       onChange={(event) =>
                         setRecipeDraft((draft) => ({
@@ -1239,11 +1240,11 @@ function App() {
                         }))
                       }
                     />
-                    <datalist id="recipe-cats">
+                    <span className="category-suggestions">
                       {recipeCategories.slice(1).map((categoryName) => (
-                        <option key={categoryName}>{categoryName}</option>
+                        <button type="button" key={categoryName} aria-pressed={recipeDraft.category === categoryName} onClick={() => setRecipeDraft(draft => ({...draft, category: categoryName}))}>{categoryName}</button>
                       ))}
-                    </datalist>
+                    </span>
                   </label>
                   <label>
                     用时（分钟）
@@ -1717,7 +1718,7 @@ function App() {
             <>
               <label>
                 {"选择存档日期 "}
-                <input
+                <DateTimePicker aria-label="选择存档日期"
                   type="date"
                   value={archiveDate}
                   onChange={(event) => setArchiveDate(event.target.value)}
@@ -1755,7 +1756,7 @@ function App() {
               )}
               <label>
                 复制到目标周{" "}
-                <input
+                <DateTimePicker aria-label="复制到目标周"
                   type="date"
                   value={copyTarget}
                   onChange={(event) =>

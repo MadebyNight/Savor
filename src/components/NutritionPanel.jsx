@@ -1,75 +1,607 @@
-import {useEffect,useRef,useState} from 'react';
-import {calculateNutrition,missingNutrition,mergeNutritionAI,METRICS,NUTRITION_SOURCE,plannedItems,summarizeNutrition,weekNutritionInput,nutritionInput} from '../nutrition.js';
-import {nutritionRequest,defaultAI,resolveAIEndpoint} from '../services.js';
-import {validateReport} from '../nutrition-report.js';
-import {getPreference} from '../storage.js';
-import {getDeveloperConfig} from '../developer-ai.js';
-import {dayAt} from '../domain.js';
-import useConfirm from './useConfirm.jsx';
+import { useEffect, useRef, useState } from "react";
+import {
+  calculateNutrition,
+  missingNutrition,
+  mergeNutritionAI,
+  METRICS,
+  NUTRITION_SOURCE,
+  plannedItems,
+  summarizeNutrition,
+  weekNutritionInput,
+  nutritionInput,
+} from "../nutrition.js";
+import { nutritionRequest, defaultAI, resolveAIEndpoint } from "../services.js";
+import { validateReport } from "../nutrition-report.js";
+import { getPreference } from "../storage.js";
+import { getDeveloperConfig } from "../developer-ai.js";
+import { dayAt } from "../domain.js";
+import useConfirm from "./useConfirm.jsx";
+import {
+  ArrowUpRight,
+  ChartNoAxesCombined,
+  ChevronLeft,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "./Dialog.jsx";
+import { today } from "../data.js";
 
-async function configuration(){return await getDeveloperConfig()||await getPreference('ai-config',defaultAI);}
-export function NutritionSummary({summary,title='当日预计营养'}){
- const partial=summary.missing?.length>0;
- return <section className="nutrition-summary" aria-label={title}><h3>{title}</h3><p className="subtle">菜单预计营养，非实际摄入</p>
-  <div className="nutrition-values">{METRICS.map(([key,label,unit])=><div key={key}><small>{label}</small><b>{summary.values[key]===null?'—':Math.round(summary.values[key]*10)/10} <small>{unit}</small></b><small>{summary.coverage[key].known}/{summary.coverage[key].total} 项</small></div>)}</div>
-  <p className="subtle">{Object.values(summary.values).every(v=>v===null)?'未估算':partial?'部分估算 · 已知部分合计':'已估算'} · 覆盖率按食材条目计，非重量覆盖率</p>
-  <p className="subtle">来源：{summary.sources?.local?'本地 CoFID 2021 ':''}{summary.sources?.ai?'AI 补充估算':''}{!summary.sources?.local&&!summary.sources?.ai?'待补充':''}</p>
- </section>;
+async function configuration() {
+  return (
+    (await getDeveloperConfig()) ||
+    (await getPreference("ai-config", defaultAI))
+  );
 }
-export function RecipeNutrition({recipe,onChange}){
- const [ask,confirmation]=useConfirm(),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const generation=useRef(0),running=useRef(false),latest=useRef(recipe);latest.current=recipe;
- useEffect(()=>()=>{generation.current++;},[]);
- const snapshot=calculateNutrition(recipe),missing=missingNutrition(recipe);
- const summary=summarizeNutrition({'0-早':[{...recipe,nutrition:snapshot,servings:1}]},0);
- async function supplement(){
-  if(running.current)return;running.current=true;const token=++generation.current;const input=nutritionInput(recipe);setError('');
-  try{
-   const config=await configuration();
-   if(!(await ask(`将向 ${resolveAIEndpoint(config.url)} 发送下方 ${missing.length} 项食材名称、数量、单位及缺失指标。AI 对克重和营养的假设仅是估算，可能产生费用。`,{title:'发送营养缺失项？',label:'同意估算'})))return;
-   if(token!==generation.current)return;setBusy(true);
-   const result=await nutritionRequest(config,{items:missing},'supplement');
-   if(token!==generation.current)return;
-   if(input!==nutritionInput(latest.current))throw new Error('食材已修改，请重新估算；未写入旧结果');
-   const nutrition=mergeNutritionAI(recipe,result.items,config.model);await onChange({...latest.current,nutrition});
-  }catch(e){if(token===generation.current)setError(e.message);}finally{if(token===generation.current){setBusy(false);running.current=false;}}
- }
- return <section className="recipe-nutrition"><NutritionSummary summary={summary} title="整菜预计营养"/>
-  <p className="subtle">按可食部计算；未录入的油、调料及弃汤/烹饪损失未计。单位不明确时填写整项食材可食克重。</p>
-  <div className="nutrition-weight-fields">{recipe.ingredients.map((item,index)=><label key={index}>{item.name||`食材${index+1}`}可食克重<input aria-label={`${item.name||`食材${index+1}`}可食克重`} type="number" min="0.001" step="any" disabled={busy} placeholder="g/kg 自动换算" value={item.grams??''} onChange={async e=>{try{await onChange({...recipe,nutrition:undefined,ingredients:recipe.ingredients.map((v,i)=>i===index?{...v,grams:e.target.value===''?null:Number(e.target.value)}:v)});}catch(error){setError(error.message);}}}/></label>)}</div>
-  {!!missing.length&&<><p className="subtle">待补充：{missing.map(m=>`${m.ingredient.name}（${m.missing.map(k=>METRICS.find(([key])=>key===k)[1]).join('、')}）`).join('；')}</p><button type="button" className="outline" disabled={busy} onClick={supplement}>{busy?'正在估算…':'AI 补充缺失项'}</button></>}
-  {busy&&<button type="button" className="text-link" onClick={()=>{generation.current++;running.current=false;setBusy(false);}}>取消估算</button>}
-  <details><summary>计算明细与来源</summary>{snapshot.entries.map(entry=><div key={entry.index}><strong>{entry.name||'未命名食材'}</strong><p className="subtle">{entry.grams==null?'可食克重未知':`${entry.grams}g 可食部`} · {entry.foodId?`CoFID ${entry.foodId} / ${entry.sourceVersion}`:'未匹配本地数据'}</p>{entry.basis&&<p className="subtle">{entry.basis}</p>}<p>{METRICS.map(([key,label,unit])=>`${label}：${entry.values[key]===null?'未知':`${Math.round(entry.values[key]*10)/10}${unit}（${entry.sources[key]==='ai'?'AI 估算':'本地参考'}）`}`).join('；')}</p></div>)}<p className="subtle">估算时间：{snapshot.generatedAt}{snapshot.model&&` · AI 模型 ${snapshot.model}`}</p></details>
-  {error&&<p role="alert">{error}</p>}{confirmation}
- </section>;
+export function NutritionSummary({ summary, title = "当日预计营养" }) {
+  const partial = summary.missing?.length > 0;
+  return (
+    <section className="nutrition-summary" aria-label={title}>
+      <h3>{title}</h3>
+      <p className="subtle">菜单预计营养，非实际摄入</p>
+      <div className="nutrition-values">
+        {METRICS.map(([key, label, unit]) => (
+          <div key={key}>
+            <small>{label}</small>
+            <b>
+              {summary.values[key] === null
+                ? "—"
+                : Math.round(summary.values[key] * 10) / 10}{" "}
+              <small>{unit}</small>
+            </b>
+            <small>
+              {summary.coverage[key].known}/{summary.coverage[key].total} 项
+            </small>
+          </div>
+        ))}
+      </div>
+      <p className="subtle">
+        {Object.values(summary.values).every((v) => v === null)
+          ? "未估算"
+          : partial
+            ? "部分估算 · 已知部分合计"
+            : "已估算"}{" "}
+        · 覆盖率按食材条目计，非重量覆盖率
+      </p>
+      <p className="subtle">
+        来源：{summary.sources?.local ? "本地 CoFID 2021 " : ""}
+        {summary.sources?.ai ? "AI 补充估算" : ""}
+        {!summary.sources?.local && !summary.sources?.ai ? "待补充" : ""}
+      </p>
+    </section>
+  );
 }
-export default function NutritionPanel({week,plan,report,onSavePlan,onSaveReport}){
- const [ask,confirmation]=useConfirm(),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const token=useRef(0),running=useRef(false),latest=useRef(plan);latest.current=plan;
- useEffect(()=>()=>{token.current++;},[]);
- const summary=summarizeNutrition(plan),input=weekNutritionInput(plan),outdated=report&&report.inputFingerprint!==input;
- async function generate(){
-  if(running.current)return;running.current=true;const current=++token.current;setError('');
-  try{
-   const config=await configuration();
-   if(!(await ask(`将向 ${resolveAIEndpoint(config.url)} 发送 ${week} 至 ${dayAt(week,6)} 的预计营养、覆盖率、缺失食材及下方类别汇总。分析仅针对菜单计划，可能产生费用。`,{title:'生成 AI 营养周报？',label:'同意生成'})))return;
-   if(current!==token.current)return;setBusy(true);
-   const result=await nutritionRequest(config,{weekStart:week,weekEnd:dayAt(week,6),summary},'report');
-   if(current!==token.current)return;
-   if(weekNutritionInput(latest.current)!==input)throw new Error('菜单已改变，请重新生成；已有报告保留');
-   await onSaveReport(validateReport({weekStart:week,summarySnapshot:summary,inputFingerprint:input,reportText:result.reportText,generatedAt:new Date().toISOString(),model:config.model}));
-  }catch(e){if(current===token.current)setError(e.message);}finally{if(current===token.current){setBusy(false);running.current=false;}}
- }
- return <div className="nutrition-panel"><h2>本周菜单营养回顾</h2><p>{week} — {dayAt(week,6)}</p><p className="subtle">包含目标周完整计划（含周日晚餐与夜宵）；不是实际食用记录。</p>
-  {!summary.recipes&&<p>该周没有安排</p>}<NutritionSummary summary={summary} title="本周预计营养"/>
-  <details><summary>每日分布与覆盖情况</summary>{Array.from({length:7},(_,d)=><NutritionSummary key={d} summary={summarizeNutrition(plan,d)} title={dayAt(week,d)}/>)}</details>
-  {!!summary.missing.length&&<details><summary>待补充食材与指标（{summary.missing.length} 项）</summary>{summary.missing.map((item,index)=><p key={index}>{item.recipe} · {item.ingredient}：{item.metrics.map(key=>METRICS.find(([k])=>k===key)[1]).join('、')}</p>)}</details>}
-  <p>食材类别汇总（条目数）：{Object.entries(summary.categories).map(([name,count])=>`${name} ${count}`).join('、')||'无'}。不按类别推断实际摄入重量。</p>
-  <button className="outline" disabled={busy||!summary.recipes} onClick={async()=>{try{if(!(await ask('将按当前菜单快照重新计算本地营养，不改当前菜谱库或采购。已有 AI 补充仅在食材未改变时保留。',{title:'重新估算该周菜单？',label:'重新计算'})))return;const next=structuredClone(plan);for(const {slot,index,recipe} of plannedItems(next))next[slot][index]={...recipe,nutrition:calculateNutrition(recipe)};await onSavePlan(next,input);}catch(e){setError(e.message);}}}>重新计算本地营养</button>
-  <details><summary>逐道补充营养与可食克重</summary>{plannedItems(plan).map(({slot,index,recipe})=><details key={`${slot}:${index}`}><summary>{recipe.name} · {slot} · {recipe.servings||1}份</summary><RecipeNutrition recipe={recipe} onChange={async value=>{const next=structuredClone(plan);next[slot][index]={...value,nutrition:calculateNutrition(value)};await onSavePlan(next,input);}}/></details>)}</details>
-  <button className="primary" disabled={busy||!summary.recipes} onClick={generate}>{busy?'正在生成…':'生成 AI 周报'}</button>
-  {busy&&<button className="outline" onClick={()=>{token.current++;running.current=false;setBusy(false);}}>取消生成</button>}
-  {error&&<p role="alert">{error}</p>}{report&&<article><h3>已保存周报 {outdated&&'· 已过时'}</h3><p className="subtle">{report.generatedAt} · {report.model}</p><p style={{whiteSpace:'pre-wrap'}}>{report.reportText}</p>{outdated&&<p>菜单或营养已改变；重新生成需再次确认发送。</p>}</article>}
-  <details><summary>参考数据与估算限制</summary><p>CoFID 2021，共 {NUTRITION_SOURCE.foods.length} 个精确匹配参考条目，品种和烹饪状态可能不同。痕量及缺失均保留未知。</p><p>{NUTRITION_SOURCE.licence}</p><a href={NUTRITION_SOURCE.url} target="_blank" rel="noreferrer">查看官方来源</a></details>{confirmation}
- </div>;
+export function NutritionReviewButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      className="nutrition-review-entry"
+      onClick={onClick}
+      aria-label="本周菜单营养回顾"
+    >
+      <span className="review-entry-icon">
+        <ChartNoAxesCombined size={24} />
+      </span>
+      <span>
+        <strong>这一周的营养回顾</strong>
+        <small>看看每日营养，安排下一周</small>
+      </span>
+      <ArrowUpRight size={22} />
+    </button>
+  );
+}
+
+function ReviewValues({ summary, title }) {
+  const known = Object.values(summary.values).some((value) => value !== null);
+  const format = (value) =>
+    value === null ? "—" : Math.round(value * 10) / 10;
+  return (
+    <section className="review-values" aria-label={title}>
+      <div className="review-section-heading">
+        <h3>{title}</h3>
+        <span className="review-status">
+          {!summary.recipes
+            ? "暂无菜单"
+            : !known
+              ? "尚未计算"
+              : summary.missing.length
+                ? "部分估算"
+                : "已估算"}
+        </span>
+      </div>
+      <div className="review-energy">
+        <span>预计能量</span>
+        <p>
+          <strong>{format(summary.values.energyKcal)}</strong>
+          <span>kcal</span>
+        </p>
+      </div>
+      <div className="review-macros">
+        {METRICS.slice(1).map(([key, label, unit]) => (
+          <div key={key}>
+            <span>{label}</span>
+            <strong>
+              {format(summary.values[key])}
+              <small>{unit}</small>
+            </strong>
+          </div>
+        ))}
+      </div>
+      {!!summary.recipes && !known && (
+        <p className="subtle">还没有营养计算结果，可到高级计算中完善。</p>
+      )}
+      {known && !!summary.missing.length && (
+        <p className="subtle">部分食材尚未计入，数值为已知部分合计。</p>
+      )}
+    </section>
+  );
+}
+
+export function RecipeNutrition({ recipe, onChange }) {
+  const [ask, confirmation] = useConfirm(),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const generation = useRef(0),
+    running = useRef(false),
+    latest = useRef(recipe);
+  latest.current = recipe;
+  useEffect(
+    () => () => {
+      generation.current++;
+    },
+    [],
+  );
+  const snapshot = calculateNutrition(recipe),
+    missing = missingNutrition(recipe);
+  const summary = summarizeNutrition(
+    { "0-早": [{ ...recipe, nutrition: snapshot, servings: 1 }] },
+    0,
+  );
+  async function supplement() {
+    if (running.current) return;
+    running.current = true;
+    const token = ++generation.current;
+    const input = nutritionInput(recipe);
+    setError("");
+    try {
+      const config = await configuration();
+      if (
+        !(await ask(
+          `将向 ${resolveAIEndpoint(config.url)} 发送下方 ${missing.length} 项食材名称、数量、单位及缺失指标。AI 对克重和营养的假设仅是估算，可能产生费用。`,
+          { title: "发送营养缺失项？", label: "同意估算" },
+        ))
+      )
+        return;
+      if (token !== generation.current) return;
+      setBusy(true);
+      const result = await nutritionRequest(
+        config,
+        { items: missing },
+        "supplement",
+      );
+      if (token !== generation.current) return;
+      if (input !== nutritionInput(latest.current))
+        throw new Error("食材已修改，请重新估算；未写入旧结果");
+      const nutrition = mergeNutritionAI(recipe, result.items, config.model);
+      await onChange({ ...latest.current, nutrition });
+    } catch (e) {
+      if (token === generation.current) setError(e.message);
+    } finally {
+      if (token === generation.current) {
+        setBusy(false);
+        running.current = false;
+      }
+    }
+  }
+  return (
+    <section className="recipe-nutrition">
+      <NutritionSummary summary={summary} title="整菜预计营养" />
+      <p className="subtle">
+        按可食部计算；未录入的油、调料及弃汤/烹饪损失未计。单位不明确时填写整项食材可食克重。
+      </p>
+      <div className="nutrition-weight-fields">
+        {recipe.ingredients.map((item, index) => (
+          <label key={index}>
+            {item.name || `食材${index + 1}`}可食克重
+            <input
+              aria-label={`${item.name || `食材${index + 1}`}可食克重`}
+              type="number"
+              min="0.001"
+              step="any"
+              disabled={busy}
+              placeholder="g/kg 自动换算"
+              value={item.grams ?? ""}
+              onChange={async (e) => {
+                try {
+                  await onChange({
+                    ...recipe,
+                    nutrition: undefined,
+                    ingredients: recipe.ingredients.map((v, i) =>
+                      i === index
+                        ? {
+                            ...v,
+                            grams:
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                          }
+                        : v,
+                    ),
+                  });
+                } catch (error) {
+                  setError(error.message);
+                }
+              }}
+            />
+          </label>
+        ))}
+      </div>
+      {!!missing.length && (
+        <>
+          <p className="subtle">
+            待补充：
+            {missing
+              .map(
+                (m) =>
+                  `${m.ingredient.name}（${m.missing.map((k) => METRICS.find(([key]) => key === k)[1]).join("、")}）`,
+              )
+              .join("；")}
+          </p>
+          <button
+            type="button"
+            className="outline"
+            disabled={busy}
+            onClick={supplement}
+          >
+            {busy ? "正在估算…" : "AI 补充缺失项"}
+          </button>
+        </>
+      )}
+      {busy && (
+        <button
+          type="button"
+          className="text-link"
+          onClick={() => {
+            generation.current++;
+            running.current = false;
+            setBusy(false);
+          }}
+        >
+          取消估算
+        </button>
+      )}
+      <details>
+        <summary>计算明细与来源</summary>
+        {snapshot.entries.map((entry) => (
+          <div key={entry.index}>
+            <strong>{entry.name || "未命名食材"}</strong>
+            <p className="subtle">
+              {entry.grams == null ? "可食克重未知" : `${entry.grams}g 可食部`}{" "}
+              ·{" "}
+              {entry.foodId
+                ? `CoFID ${entry.foodId} / ${entry.sourceVersion}`
+                : "未匹配本地数据"}
+            </p>
+            {entry.basis && <p className="subtle">{entry.basis}</p>}
+            <p>
+              {METRICS.map(
+                ([key, label, unit]) =>
+                  `${label}：${entry.values[key] === null ? "未知" : `${Math.round(entry.values[key] * 10) / 10}${unit}（${entry.sources[key] === "ai" ? "AI 估算" : "本地参考"}）`}`,
+              ).join("；")}
+            </p>
+          </div>
+        ))}
+        <p className="subtle">
+          估算时间：{snapshot.generatedAt}
+          {snapshot.model && ` · AI 模型 ${snapshot.model}`}
+        </p>
+      </details>
+      {error && <p role="alert">{error}</p>}
+      {confirmation}
+    </section>
+  );
+}
+export default function NutritionPanel({
+  week,
+  plan,
+  report,
+  onSavePlan,
+  onSaveReport,
+}) {
+  const [advanced, setAdvanced] = useState(false);
+  const [day, setDay] = useState(() => {
+    const index = Array.from({ length: 7 }, (_, d) => dayAt(week, d)).indexOf(
+      today(),
+    );
+    return index < 0 ? 0 : index;
+  });
+  const [ask, confirmation] = useConfirm(),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const token = useRef(0),
+    running = useRef(false),
+    latest = useRef(plan);
+  latest.current = plan;
+  useEffect(
+    () => () => {
+      token.current++;
+    },
+    [],
+  );
+  const summary = summarizeNutrition(plan),
+    input = weekNutritionInput(plan),
+    outdated = report && report.inputFingerprint !== input;
+  async function generate() {
+    if (running.current) return;
+    running.current = true;
+    const current = ++token.current;
+    setError("");
+    try {
+      const config = await configuration();
+      if (
+        !(await ask(
+          `将向 ${resolveAIEndpoint(config.url)} 发送 ${week} 至 ${dayAt(week, 6)} 的预计营养、覆盖率、缺失食材及食材类别汇总。分析仅针对菜单计划，可能产生费用。`,
+          { title: "生成下周建议？", label: "同意生成" },
+        ))
+      )
+        return;
+      if (current !== token.current) return;
+      setBusy(true);
+      const result = await nutritionRequest(
+        config,
+        { weekStart: week, weekEnd: dayAt(week, 6), summary },
+        "report",
+      );
+      if (current !== token.current) return;
+      if (weekNutritionInput(latest.current) !== input)
+        throw new Error("菜单已改变，请重新生成；已有报告保留");
+      await onSaveReport(
+        validateReport({
+          weekStart: week,
+          summarySnapshot: summary,
+          inputFingerprint: input,
+          reportText: result.reportText,
+          generatedAt: new Date().toISOString(),
+          model: config.model,
+        }),
+      );
+    } catch (e) {
+      if (current === token.current) setError(e.message);
+    } finally {
+      if (current === token.current) {
+        setBusy(false);
+        running.current = false;
+      }
+    }
+  }
+  return (
+    <div className="nutrition-panel">
+      <header className="review-period">
+        <span>回顾时间</span>
+        <strong>
+          {week} — {dayAt(week, 6)}
+        </strong>
+        <p>菜单预计营养，非实际摄入</p>
+      </header>
+      <section className="review-advice" aria-label="下周建议">
+        <div className="review-section-heading">
+          <h3>
+            <Sparkles size={18} /> 下周怎么安排
+          </h3>
+          <span className="review-status">AI 建议</span>
+        </div>
+        {report ? (
+          <>
+            <p className="review-advice-date">
+              面向 {dayAt(week, 7)} — {dayAt(week, 13)}
+            </p>
+            {outdated && (
+              <p className="review-outdated" role="status">
+                菜单已改变，以下建议待更新
+              </p>
+            )}
+            <div
+              className={
+                outdated ? "review-report is-outdated" : "review-report"
+              }
+            >
+              {report.reportText
+                .split(/\n\s*\n|\n/)
+                .filter((line) => line.trim())
+                .map((line, index) => (
+                  <p key={index}>{line}</p>
+                ))}
+            </div>
+          </>
+        ) : (
+          <p>
+            {summary.recipes
+              ? "结合这一周的菜单，给下一周几条简单、可执行的安排建议。"
+              : "这一周还没有安排菜品，添加菜单后再来看看。"}
+          </p>
+        )}
+        <button
+          className="primary"
+          disabled={busy || !summary.recipes}
+          onClick={generate}
+        >
+          {busy ? "正在生成建议…" : report ? "更新下周建议" : "生成下周建议"}
+          <ArrowUpRight size={16} />
+        </button>
+        {busy && (
+          <button
+            className="text-link"
+            onClick={() => {
+              token.current++;
+              running.current = false;
+              setBusy(false);
+            }}
+          >
+            取消生成
+          </button>
+        )}
+        {error && <p role="alert">{error}</p>}
+      </section>
+      <section className="review-daily" aria-label="每日营养">
+        <div className="review-section-heading">
+          <h3>每日营养</h3>
+          <span className="subtle">点击日期查看</span>
+        </div>
+        <div className="review-dates" role="group" aria-label="回顾日期">
+          {Array.from({ length: 7 }, (_, d) => (
+            <button
+              type="button"
+              key={d}
+              aria-label={dayAt(week, d)}
+              aria-pressed={day === d}
+              onClick={(event) => {
+                setDay(d);
+                event.currentTarget.scrollIntoView({
+                  block: "nearest",
+                  inline: "nearest",
+                });
+              }}
+            >
+              <span>周{"一二三四五六日"[d]}</span>
+              <strong>{Number(dayAt(week, d).slice(8))}</strong>
+              <span
+                className={
+                  plannedItems(plan, d).length
+                    ? "review-day-dot has-menu"
+                    : "review-day-dot"
+                }
+              />
+            </button>
+          ))}
+        </div>
+        <div className="review-day-content" aria-live="polite">
+          <ReviewValues
+            summary={summarizeNutrition(plan, day)}
+            title={`${dayAt(week, day)} 预计营养`}
+          />
+          <p className="review-day-menu">
+            {plannedItems(plan, day)
+              .map(({ recipe }) => recipe.name)
+              .join(" · ") || "这一天还没有安排菜品"}
+          </p>
+        </div>
+      </section>
+      <details className="review-week-total">
+        <summary>查看这一周的营养合计</summary>
+        <ReviewValues summary={summary} title="本周预计营养" />
+      </details>
+      <button
+        type="button"
+        className="review-advanced-entry"
+        aria-label="高级计算"
+        onClick={() => setAdvanced(true)}
+      >
+        <SlidersHorizontal size={18} />
+        <span>
+          <strong>高级计算</strong>
+          <small>完善食材、调整克重与计算明细</small>
+        </span>
+        <ArrowUpRight size={18} />
+      </button>
+      <Dialog open={advanced} onOpenChange={setAdvanced}>
+        <DialogContent className="app-dialog nutrition-dialog nutrition-advanced">
+          <DialogTitle>高级计算</DialogTitle>
+          <DialogDescription>
+            调整本周菜单的营养计算，返回即可查看更新结果。
+          </DialogDescription>
+          <button
+            type="button"
+            className="text-link review-back"
+            onClick={() => setAdvanced(false)}
+          >
+            <ChevronLeft size={18} />
+            返回营养回顾
+          </button>
+          <div className="nutrition-panel">
+            <NutritionSummary summary={summary} title="本周计算详情" />
+            <button
+              className="outline"
+              disabled={busy || !summary.recipes}
+              onClick={async () => {
+                try {
+                  if (
+                    !(await ask(
+                      "将按当前菜单快照重新计算本地营养，不改当前菜谱库或采购。已有 AI 补充仅在食材未改变时保留。",
+                      { title: "重新估算该周菜单？", label: "重新计算" },
+                    ))
+                  )
+                    return;
+                  const next = structuredClone(plan);
+                  for (const { slot, index, recipe } of plannedItems(next))
+                    next[slot][index] = {
+                      ...recipe,
+                      nutrition: calculateNutrition(recipe),
+                    };
+                  await onSavePlan(next, input);
+                } catch (e) {
+                  setError(e.message);
+                }
+              }}
+            >
+              重新计算本地营养
+            </button>
+            <h3>逐道完善</h3>
+            {plannedItems(plan).map(({ slot, index, recipe }) => (
+              <details key={`${slot}:${index}`}>
+                <summary>
+                  {recipe.name} · {slot} · {recipe.servings || 1}份
+                </summary>
+                <RecipeNutrition
+                  recipe={recipe}
+                  onChange={async (value) => {
+                    const next = structuredClone(plan);
+                    next[slot][index] = {
+                      ...value,
+                      nutrition: calculateNutrition(value),
+                    };
+                    await onSavePlan(next, input);
+                  }}
+                />
+              </details>
+            ))}
+            {!!summary.missing.length && (
+              <details>
+                <summary>尚未计入的食材（{summary.missing.length} 项）</summary>
+                {summary.missing.map((item, index) => (
+                  <p key={index}>
+                    {item.recipe} · {item.ingredient}：
+                    {item.metrics
+                      .map((key) => METRICS.find(([k]) => k === key)[1])
+                      .join("、")}
+                  </p>
+                ))}
+              </details>
+            )}
+            <details>
+              <summary>参考数据与估算限制</summary>
+              <p>
+                CoFID 2021，共 {NUTRITION_SOURCE.foods.length}{" "}
+                个精确匹配参考条目，品种和烹饪状态可能不同。痕量及缺失均保留未知。
+              </p>
+              <p>{NUTRITION_SOURCE.licence}</p>
+              <a href={NUTRITION_SOURCE.url} target="_blank" rel="noreferrer">
+                查看官方来源
+              </a>
+            </details>
+            {report && (
+              <p className="subtle">
+                建议生成于 {report.generatedAt} · {report.model}
+              </p>
+            )}
+            {error && <p role="alert">{error}</p>}
+          </div>
+        </DialogContent>
+      </Dialog>
+      {confirmation}
+    </div>
+  );
 }
