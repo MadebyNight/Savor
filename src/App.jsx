@@ -6,6 +6,7 @@ import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import {businessState} from "./services.js";
 import SyncPanel from "./components/SyncPanel.jsx";
 import StockFields from "./components/StockFields.jsx";
+import SelectionItems from "./components/SelectionItems.jsx";
 import {validateStock} from "./validation.js";
 import RecognitionPanel from "./components/RecognitionPanel.jsx";
 import SettingsPanel from "./components/SettingsPanel.jsx";
@@ -1623,23 +1624,7 @@ function App() {
           )}
           {modal === "selection" && (
             <>
-              {recipes
-                .filter((recipe) => quantities[recipe.id] > 0)
-                .map((recipe) => (
-                  <div key={recipe.id} className="list-row">
-                    <b>{recipe.name}</b>
-                    <div className="counter">
-                      <button onClick={() => changeQuantity(recipe.id, -1)}>
-                        <Minus size={16} />
-                      </button>
-                      {quantities[recipe.id]}
-                      <button onClick={() => changeQuantity(recipe.id, 1)}>
-                        <Plus size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              {!selectedCount && <p>还没有选择菜品。</p>}
+              <SelectionItems recipes={recipes} quantities={quantities} onChange={changeQuantity} />
               <button className="primary" onClick={confirmSelection}>
                 {"确认并同步 · "}
                 {selectedCount}

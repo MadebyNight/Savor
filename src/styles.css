@@ -819,6 +819,84 @@ small {
   padding: 12px 0;
   display: flex;
 }
+.selection-summary,
+.selection-hint {
+  color: #666f60;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+.selection-hint { margin: 12px 0 0; }
+.selection-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 6px;
+}
+.selection-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 6px;
+  border: 1px solid #e5e6db;
+  border-radius: 14px;
+  background: #fff;
+  color: #30352b;
+  box-shadow: 0 3px 8px #3c44280c;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.selection-chip[aria-pressed="true"] {
+  background: #fff4ce;
+  border-color: #c8b46e;
+}
+.selection-quantity {
+  color: #666f60;
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 374px) {
+  .selection-chip:has(.selection-quantity) {
+    flex-direction: column;
+    gap: 0;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+}
+.selection-editor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid #dfdfce;
+  border-radius: 14px;
+  background: #f1f2e8;
+}
+.selection-editor > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.selection-editor strong { font-size: 14px; }
+.selection-editor small { display: block; color: #666f60; font-size: 12px; }
+.selection-stepper { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.selection-stepper button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+}
+.selection-stepper output { min-width: 22px; text-align: center; font-size: 14px; }
+.selection-items button:focus-visible { outline: 2px solid #b59b54; outline-offset: 2px; }
 .available {
   color: #628445;
 }

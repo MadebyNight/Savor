@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>食光 · 确认菜单条目预览</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eeede7;color:#30352b;font-family:system-ui,"Microsoft YaHei",sans-serif}button{font:inherit;color:inherit;cursor:pointer}button:focus-visible{outline:2px solid #807040;outline-offset:3px}.board{max-width:900px;margin:32px auto;padding:0 20px}h1{font-size:25px;margin:0 0 10px}.intro{color:#656b5e;line-height:1.8;margin:0 0 18px}.switch{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.switch button{border:1px solid #d9dacc;background:#faf9f5;border-radius:12px;min-height:48px;padding:8px 16px}.switch button[aria-pressed=true]{background:#3d4934;color:white;border-color:#3d4934}.stage{display:flex;gap:32px;align-items:flex-start}.phone{width:390px;max-width:100%;height:740px;border:1px solid #d7d9cc;border-radius:28px;overflow:hidden;background:#faf9f5;position:relative;flex-shrink:0;box-shadow:0 16px 48px #41472c14}.status{padding:16px 22px 10px;font-size:13px;font-weight:700;display:flex;justify-content:space-between}.head{padding:16px 22px;font-size:26px;font-weight:750}.search{margin:0 18px;padding:13px 16px;background:white;border:1px solid #e4e5d9;border-radius:14px;color:#7b8073}.dishes{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px}.dish{background:#eff0e4;height:125px;border-radius:16px;padding:18px 12px;color:#5b6550;display:flex;align-items:end}.veil{position:absolute;inset:0;background:#24291d42;display:flex;align-items:end}.sheet{width:100%;max-height:88%;background:#faf9f6;border-radius:24px 24px 0 0;display:flex;flex-direction:column;box-shadow:0 -8px 30px #30382a12}.handle{width:32px;height:4px;background:#d6d7cb;border-radius:4px;margin:10px auto 4px}.sheet-head{padding:12px 18px 16px;display:flex;justify-content:space-between;align-items:center}.sheet-head h2{font-size:21px;margin:0 0 5px}.summary{font-size:13px;color:#707767}.close{width:48px;height:48px;background:transparent;border:0;font-size:26px}.content{overflow:auto;padding:0 18px 16px;min-height:0}.items{display:flex;flex-wrap:wrap;align-content:start;align-items:start;gap:10px}.item{background:white;border:1px solid #e5e6db;border-radius:14px;box-shadow:0 3px 8px #3c44280c;max-width:100%;overflow-wrap:anywhere}.chip{min-height:48px;padding:10px 12px;display:flex;align-items:center;gap:9px;text-align:left;line-height:1.4;font-size:14px}.chip .quantity{font-size:12px;color:#70785f;white-space:nowrap}.chip[aria-pressed=true]{background:#fff4ce;border-color:#c8b46e;box-shadow:0 3px 8px #887a3520}.card{padding:10px 10px 4px;min-width:130px;flex:0 1 auto}.card strong{font-size:14px;display:block;max-width:200px;line-height:1.5}.stepper{display:flex;align-items:center;justify-content:space-between;gap:6px}.stepper button{width:48px;height:48px;border:0;background:transparent;font-size:22px;border-radius:12px}.stepper button:last-child{color:#685b2b}.stepper output{min-width:22px;text-align:center;font-size:14px}.editor{margin-top:16px;padding:8px 10px 8px 14px;border:1px solid #dfdfce;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f1f2e8}.editor strong{font-size:14px;overflow-wrap:anywhere}.editor small{display:block;color:#737968;font-size:12px;margin-top:3px}.footer{padding:12px 18px 24px;border-top:1px solid #e7e7dc;background:#faf9f6}.confirm{width:100%;min-height:48px;background:#f8d565;border:0;border-radius:14px;font-weight:700}.hint{font-size:12px;line-height:1.6;color:#737969;margin:12px 0 0}.notes{max-width:300px;padding-top:12px;line-height:1.8}.notes h3{font-size:18px;margin:0 0 8px}.notes p{color:#666e5d;font-size:14px}.reset{border:1px solid #d3d6c6;border-radius:10px;background:transparent;min-height:44px;padding:8px 14px}.toast{min-height:24px;color:#526342;font-size:13px}.empty{padding:24px 0;color:#737969}.hidden{display:none!important}@media(max-width:650px){.board{margin:20px auto;padding:0 12px}h1{font-size:22px}.stage{display:block}.phone{margin:auto;height:720px}.notes{max-width:none;padding:16px 4px}.intro{font-size:14px}.switch button{flex:1;font-size:13px;padding:8px}.sheet-head{padding-left:14px;padding-right:14px}.content{padding-left:14px;padding-right:14px}}
+/* Compact chips keep a full touch target while fitting roughly three dishes per row. */
+.items:has(.chip){gap:8px 6px}
+.chip{padding:8px 6px;gap:4px;flex:0 1 auto}
+.chip .quantity{font-variant-numeric:tabular-nums}
+@media(max-width:374px){.chip:has(.quantity){flex-direction:column;gap:0;padding-top:4px;padding-bottom:4px}}
+</style>
+<main class="board">
+ <h1>确认菜单 · 独立条目预览</h1>
+ <p class="intro">每道菜单独显示，短菜名一行约 3 个；根据菜名长度和份数自动排列、换行。</p>
+ <div class="switch" aria-label="预览方式"><button data-mode="compact" aria-pressed="true">A · 紧凑条目</button><button data-mode="direct" aria-pressed="false">B · 条目内加减</button></div>
+ <div class="stage">
+  <section class="phone" aria-label="手机效果预览">
+   <div class="status"><span>21:07</span><span>5G　▰</span></div><div class="head">今天想吃什么</div><div class="search">搜索想吃的菜</div>
+   <div class="dishes"><div class="dish">番茄炒蛋</div><div class="dish">清蒸鲈鱼</div><div class="dish">蒜蓉西兰花</div><div class="dish">红烧肉</div></div>
+   <div class="veil"><section class="sheet" aria-label="我的点单清单">
+    <div class="handle"></div><div class="sheet-head"><div><h2>我的点单清单</h2><div class="summary"></div></div><button class="close" aria-label="收起清单">×</button></div>
+    <div class="content"><div class="items"></div><div class="editor hidden"></div><p class="hint"></p></div>
+    <div class="footer"><button class="confirm"></button></div>
+   </section></div>
+  </section>
+  <aside class="notes"><h3 id="mode-title"></h3><p id="mode-desc"></p><p>可以点击条目、调整份数。减到 0 时移除这道菜，其余条目自动补位。</p><button class="reset">恢复示例菜品</button><p class="toast" role="status" aria-live="polite"></p><p>此页为交互预览，使用 12 道示例菜，不会修改你的真实菜单。</p></aside>
+ </div>
+</main>
+<script>
+const names=['番茄炒蛋','清蒸鲈鱼','蒜蓉西兰花','红烧肉','凉拌黄瓜','冬瓜排骨汤','可乐鸡翅','麻婆豆腐','香菇青菜','土豆炖牛腩','香煎三文鱼配芦笋','紫菜蛋花汤'];
+let quantities=names.map((_,i)=>i===2?2:1), mode='compact', selected=-1;
+const $=s=>document.querySelector(s);
+function stepper(i){return `<div class="stepper"><button data-index="${i}" data-delta="-1" aria-label="减少${names[i]}份数">−</button><output aria-label="${names[i]}份数">${quantities[i]}</output><button data-index="${i}" data-delta="1" aria-label="增加${names[i]}份数">＋</button></div>`}
+function render(){
+ const total=quantities.reduce((a,b)=>a+b,0),count=quantities.filter(q=>q>0).length;
+ $('.summary').textContent=`已选 ${count} 道菜 · 共 ${total} 份`;
+ $('.confirm').textContent=`确认并同步 · ${total} 份菜品`;
+ $('.items').innerHTML=names.map((n,i)=>!quantities[i]?'':mode==='compact'?`<button class="item chip" data-select="${i}" aria-label="${n}，${quantities[i]}份" aria-pressed="${i===selected}"><span>${n}</span>${quantities[i]>1?`<span class="quantity">×${quantities[i]}</span>`:''}</button>`:`<div class="item card"><strong>${n}</strong>${stepper(i)}</div>`).join('')||'<div class="empty">还没有选择菜品。</div>';
+ $('.editor').classList.toggle('hidden',mode!=='compact'||selected<0);
+ $('.editor').innerHTML=selected<0?'':`<div><strong>${names[selected]}</strong><small>调整份数</small></div>${stepper(selected)}`;
+ $('.hint').textContent=mode==='compact'?'未标数量即 1 份；点击菜品加减份数。':'直接加减份数，菜品按顺序自动排列。';
+ $('#mode-title').textContent=mode==='compact'?'A · 尽可能多展示菜品':'B · 直接操作每道菜';
+ $('#mode-desc').textContent=mode==='compact'?'短菜名一行约 3 个，不固定列数。单份省略“×1”，多份才标数量；菜名完整显示。加减份数后，条目按实际宽度自动补位、换行。':'每个独立条目保留加减按钮，操作更直接。条目会更高，同一屏展示的菜品比 A 少。';
+ document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===mode));
+}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.mode){mode=b.dataset.mode;selected=-1;render()}
+ else if(b.dataset.select!==undefined){const i=Number(b.dataset.select);selected=selected===i?-1:i;render();if(selected>=0)$('.editor').scrollIntoView({block:'nearest'});$('.chip[data-select="'+i+'"]').focus({preventScroll:true})}
+ else if(b.dataset.delta){const i=Number(b.dataset.index),delta=Number(b.dataset.delta);quantities[i]=Math.max(0,quantities[i]+delta);if(!quantities[i])selected=-1;render();const next=document.querySelector(`[data-index="${i}"][data-delta="${delta}"]`)||document.querySelector('.chip,.stepper button,.reset');next?.focus({preventScroll:true})}
+ else if(b.classList.contains('reset')){quantities=names.map((_,i)=>i===2?2:1);selected=-1;$('.veil').classList.remove('hidden');$('.toast').textContent='';render()}
+ else if(b.classList.contains('confirm'))$('.toast').textContent='预览确认成功，未写入真实菜单。';
+ else if(b.classList.contains('close')){$('.veil').classList.add('hidden');$('.toast').textContent='清单已收起，点击“恢复示例菜品”重新打开。'}
+});render();
+</script>
+</html>
