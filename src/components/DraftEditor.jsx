@@ -1,4 +1,5 @@
 import StockFields from "./StockFields.jsx";
+import { stockStatus } from "../domain.js";
 import { useState } from "react";
 import { toast } from "sonner";
 import {validateRecipe,validateStock} from '../validation.js';
@@ -90,10 +91,10 @@ export default function DraftEditor({ items = [], kind, onChange, onSave, onDefe
     return <p className="subtle">识别完成后，菜谱或食材草稿将在这里显示。</p>;
   return (
     <section aria-label="识别草稿编辑">
-      <p>核对后勾选保存。仅有菜名的草稿可先保留，补齐食材和步骤后再入库。</p>
+      <p>{stock ? "核对名称、分类、数量与期限；点击食材行展开修改，勾选后保存。" : "核对后勾选保存。仅有菜名的草稿可先保留，补齐食材和步骤后再入库。"}</p>
       {items.map((item, index) => (
-        <article className="panel editor" key={index}>
-          <label>
+        <article className={stock ? "stock-review-row" : "panel editor"} key={index}>
+          <label className={stock ? "stock-review-check" : undefined}>
             <input
               type="checkbox"
               checked={!excluded.includes(index)}
@@ -105,9 +106,9 @@ export default function DraftEditor({ items = [], kind, onChange, onSave, onDefe
                 )
               }
             />
-            保存第 {index + 1} 项
+            <span className={stock ? "sr-only" : undefined}>保存第 {index + 1} 项</span>
           </label>
-          {stock?<details className="stock-review-details"><summary>{item.name||"未命名食材"} · {item.qty??"待补充"} {item.unit} · {item.days?`${item.days}天`:"保存期待补充"}</summary><StockFields value={item} onChange={value=>update(index,value)}/></details>:<>
+          {stock?<details className="stock-review-details"><summary className={`stock-compact-row ${stockStatus(item).kind}`}><strong>{item.name||"未命名食材"}</strong><span>{item.category||'其他'}</span><span>{item.qty??"待补充"} {item.unit}</span><span className="stock-status">{stockStatus(item).label}</span></summary><StockFields value={item} onChange={value=>update(index,value)}/></details>:<>
           <label>
             名称
             <input

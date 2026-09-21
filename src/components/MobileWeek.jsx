@@ -30,15 +30,20 @@ export default function MobileWeek({
   addToMeal,
   onSelectRecipes,
   onReview,
+  onHistory,
+  slot,
+  setSlot,
 }) {
   const [overview, setOverview] = useState(false);
   useBackHandler(overview, () => setOverview(false));
-  const [slot, setSlot] = useState(null);
   const days = overview ? weekdays.map((_, index) => index) : [day];
+  const dishCount = days.reduce((count, dayIndex) => count + MEALS.reduce((sum, [key]) => sum + (plan[`${dayIndex}-${key}`]?.length || 0), 0), 0);
   return (
     <section className="mobile-week">
-      <p className="week-slogan">一饭一饮 三餐四季</p>
-      <div className="week-picker">
+      <div className="week-heading">
+      <details className="week-picker">
+        <summary>{Number(week.slice(5,7))} 月 {Number(week.slice(8))} 日 — {Number(dayAt(week,6).slice(5,7))} 月 {Number(dayAt(week,6).slice(8))} 日</summary>
+        <div className="week-picker-controls">
         <button
           className="mobile-icon"
           aria-label="上一周"
@@ -64,6 +69,9 @@ export default function MobileWeek({
         >
           <ChevronRight />
         </button>
+        </div>
+      </details>
+      <button className="text-link" onClick={() => setOverview(value => !value)}>{overview ? "返回单日" : "一周总览"}</button>
       </div>
       <div className="week-dates" aria-label="选择日期">
         {weekdays.map((name, index) => (
@@ -81,20 +89,7 @@ export default function MobileWeek({
           </button>
         ))}
       </div>
-      <div className="week-view-tools">
-        <button className="text-link" onClick={onReview}>本周菜单营养回顾</button>
-        <span>
-          {overview
-            ? "本周五餐"
-            : `${dayAt(week, day).slice(5)} · 周${weekdays[day]}`}
-        </span>
-        <button
-          className="text-link"
-          onClick={() => setOverview((value) => !value)}
-        >
-          {overview ? "返回单日" : "一周总览"}
-        </button>
-      </div>
+      <div className="week-summary"><strong className="week-slogan">一饭一饮 三餐四季</strong><span>{dishCount} 道菜</span></div>
       {days.map((dayIndex) => (
         <section
           key={dayIndex}
@@ -135,6 +130,7 @@ export default function MobileWeek({
         </section>
       ))}
       {!overview && <NutritionSummary summary={summarizeNutrition(plan,day)}/>}
+      <div className="week-view-tools"><button className="text-link" onClick={onHistory}>历史</button><button className="text-link" onClick={onReview}>本周菜单营养回顾</button></div>
       <Dialog
         open={slot !== null}
         onOpenChange={(open) => !open && setSlot(null)}
@@ -146,6 +142,7 @@ export default function MobileWeek({
           <DialogDescription>
             来自已确认选菜。安排不会增加采购量，同道菜再次添加会增加餐次份数。
           </DialogDescription>
+          <label>餐次<select aria-label="安排餐次" value={slot?.split('-').slice(1).join('-') || '早'} onChange={event=>setSlot(`${slot.split('-')[0]}-${event.target.value}`)}>{MEALS.map(([key,name])=><option key={key} value={key}>{name}</option>)}</select></label>
           {(plan[slot] || []).map((item, index) => (
             <div className="mobile-planned" key={index}>
               <div className="planned-info">

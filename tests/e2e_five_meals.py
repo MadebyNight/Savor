@@ -24,6 +24,15 @@ with sync_playwright() as p:
     def nav(name):page.get_by_role('navigation',name='主导航').get_by_role('button',name=name,exact=True).click()
     def click(name):page.get_by_role('button',name=name,exact=True).click()
     nav('周菜单');page.locator('.week-dates button').first.click()
+    expect(page.locator('.week-summary')).to_contain_text('10 道菜')
+    assert page.locator('.week-heading').bounding_box()['y'] < page.locator('.week-dates').bounding_box()['y'] < page.locator('.week-summary').bounding_box()['y']
+    click('安排菜品');page.get_by_label('安排餐次',exact=True).select_option('夜宵')
+    expect(page.get_by_role('dialog')).to_contain_text('夜宵 · 管理菜品');click('关闭弹窗')
+    page.locator('.week-picker > summary').click()
+    previous=page.get_by_label('当前周',exact=True).input_value()
+    click('下一周');assert page.get_by_label('当前周',exact=True).input_value()!=previous
+    click('上一周');expect(page.get_by_label('当前周',exact=True)).to_have_value(previous)
+    page.locator('.week-picker > summary').click()
     for width,height in [(360,800),(390,844)]:
         page.set_viewport_size({'width':width,'height':height})
         expect(page.locator('.meal-table-row')).to_have_count(5)

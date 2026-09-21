@@ -78,6 +78,7 @@ function App() {
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)").matches);
   const [editingRecipe, setEditingRecipe] = useState(false);
   const [selectedDay, setSelectedDay] = useState((new Date().getDay() + 6) % 7);
+  const [mealSlot, setMealSlot] = useState(null);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)");
     const update = () => setCompact(media.matches);
@@ -144,6 +145,13 @@ function App() {
   });
   const [editingStock,setEditingStock]=useState(null);
   const [stockFilter,setStockFilter]=useState("all");
+  const stockRows = fridge.map((stock, index) => ({stock, index, status: stockStatus(stock)}));
+  const visibleStock = stockRows.filter(({stock, status}) =>
+    (stockFilter === "all" || status.kind === stockFilter) &&
+    (category === "全部" || stock.category === category) && stock.name.includes(search.trim())
+  ).sort((a, b) => a.status.rank - b.status.rank);
+  const expiredCount = stockRows.filter(({status}) => status.kind === "expired").length;
+  const soonCount = stockRows.filter(({status}) => status.kind === "soon").length;
   const [stockSaving,setStockSaving]=useState(false);
   const [stockError,setStockError]=useState('');
   const [ingredientDraft, setIngredientDraft] = useState({
@@ -244,6 +252,7 @@ function App() {
     pageFilters.current[page] = { category, search };
     setShowSettings(false);
     setRecognition(null);
+    setMealSlot(null);
     setPage(nextPage);
     setEditingRecipe(false);
     setCategory(pageFilters.current[nextPage]?.category || "全部");
@@ -516,7 +525,7 @@ function App() {
               {!showSettings && !recognition && !editingRecipe && page === 0 && <button className="mobile-icon" aria-label="设置与备份" onClick={() => setShowSettings(true)}><Settings2 size={22} /></button>}
               {!showSettings && !recognition && !editingRecipe && page === 4 && <button onClick={() => {if(editingStock!==null)setIngredientDraft({...ingredient("",100),days:0,date:today()});setEditingStock(null);setStockError("");setModal("stock");}}><Plus size={18} />添加食材</button>}
               {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => setEditingRecipe(true)}><Plus size={18} />{recipeDraft.name ? "继续草稿" : "新建菜谱"}</button>}
-              {!showSettings && page === 3 && <button onClick={() => setModal("history")}><CalendarDays size={18} />历史</button>}
+              {!showSettings && page === 3 && <button onClick={() => setMealSlot(`${selectedDay}-早`)}><Plus size={18} />安排菜品</button>}
               {!showSettings && page === 2 && <button disabled={!shoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
             </div>
           </>}
@@ -888,7 +897,7 @@ function App() {
           {page === 3 && (
             <>
               {!compact&&<button className="outline" onClick={()=>setReviewWeek(week)}>本周菜单营养回顾</button>}
-              {compact ? <MobileWeek onReview={()=>setReviewWeek(week)} week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={confirmedRecipes.filter(recipe => confirmedQuantities[recipe.id] > 0)} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} /> : <>
+              {compact ? <MobileWeek slot={mealSlot} setSlot={setMealSlot} onHistory={()=>setModal("history")} onReview={()=>setReviewWeek(week)} week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={confirmedRecipes.filter(recipe => confirmedQuantities[recipe.id] > 0)} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} /> : <>
               <div className="panel">
                 <div className="section-tools">
                   <h2>待安排的美味</h2>
@@ -1082,7 +1091,8 @@ function App() {
                   <ArrowUpRight size={17} />
                 </button>
               </div>
-              {compact && <div className="stock-toolbar"><span>{fridge.length} 批食材</span><button className="text-link" onClick={() => openRecognition("stock")}><Camera size={18}/>拍照识别</button></div>}
+              <label className="search mobile-search"><Search size={18}/><input aria-label="搜索冰箱食材" placeholder="搜索冰箱里的食材" value={search} onChange={event => setSearch(event.target.value)}/></label>
+              {compact && <><div className="stock-summary"><strong>新鲜有数，好好吃饭</strong><span>共 {fridge.length} 批食材</span></div><div className="stock-toolbar"><button className="text-link" onClick={() => openRecognition("stock")}><Camera size={18}/>拍照识别</button></div></>}
               <div className="stock-layout">
               <aside className="chip-row dashed stock-categories" aria-label="食材分类">
                 {stockCategories.map((categoryName) => (
@@ -1098,16 +1108,16 @@ function App() {
               </aside>
               <section className="stock-results">
               <label className="stock-status-filter">期限筛选<select aria-label="期限筛选" value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期·勿食用</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></select></label>
-              {fridge.some(item=>['expired','soon'].includes(stockStatus(item).kind))&&<p role="status" className="stock-risk-summary">⚠ 过期 {fridge.filter(item=>stockStatus(item).kind==='expired').length} 批，请勿食用并及时清理；临期 {fridge.filter(item=>stockStatus(item).kind==='soon').length} 批。</p>}
-              <div className="stock-grid">
-                {fridge.map((stock,index)=>({stock,index,status:stockStatus(stock)})).sort((a,b)=>a.status.rank-b.status.rank).map(({stock,index,status})=>{
-                  return (stockFilter==='all'||status.kind===stockFilter)&&(category==='全部'||stock.category===category)&&<button key={stock.id||index} className={`stock-compact-row ${status.kind}`} onClick={()=>{setEditingStock(index);setIngredientDraft({...stock});setStockError('');setModal('stock');}}>
+              <div className="stock-grid stock-list">
+                {visibleStock.map(({stock,index,status})=>{
+                  return <button key={stock.id||index} className={`stock-compact-row ${status.kind}`} onClick={()=>{setEditingStock(index);setIngredientDraft({...stock});setStockError('');setModal('stock');}}>
                     <strong>{stock.name}</strong><span>{stock.category||'其他'}</span><span>{stock.qty} {stock.unit}</span>
                     <span className="stock-status">{status.label}</span>
                   </button>;
                 })}
               </div>
-              {!fridge.some(item => category === "全部" || item.category === category) && <div className="empty"><p>这个分类还没有食材。</p><button className="text-link" onClick={() => {if(editingStock!==null)setIngredientDraft({...ingredient("",100),days:0,date:today()});setEditingStock(null);setStockError("");setModal("stock");}}>添加食材</button></div>}
+              {!visibleStock.length && <div className="empty"><p>{fridge.length ? "没有符合当前搜索和筛选条件的食材。" : "冰箱里还没有食材。"}</p>{!!fridge.length && <button className="text-link" onClick={()=>{setSearch('');setCategory('全部');setStockFilter('all');}}>清除筛选</button>}<button className="text-link" onClick={() => {if(editingStock!==null)setIngredientDraft({...ingredient("",100),days:0,date:today()});setEditingStock(null);setStockError("");setModal("stock");}}>添加食材</button></div>}
+              {(expiredCount > 0 || soonCount > 0) && <p role="status" className="stock-risk-summary">⚠ {expiredCount > 0 && <strong>{expiredCount} 批已过期，请勿食用并及时清理。 </strong>}{soonCount > 0 && <span>{soonCount} 批临期，请尽快食用。</span>}</p>}
               <p className="data-note">
                 新鲜度按录入日期与自设保存天数估算，请结合实际状态判断。
               </p>

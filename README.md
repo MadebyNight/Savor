@@ -40,6 +40,7 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 - `python tests/e2e.py`：启动 Vite 后运行，覆盖核心浏览器流程。
 - `python tests/e2e_ai.py`：AI模拟响应、错误、草稿、取消和手机导航。
 - `python tests/e2e_mobile.py`：正式手机界面、分类搜索、份数与库存抵扣、按日菜单及总览、草稿恢复、历史快照、小屏与横屏布局。评审截图保留在 `.android-tools/mobile-review/`。
+- `python tests/e2e_layout.py`：最终预览结构回归，检查冰箱横排分类、首屏库存、组合筛选、原批次编辑、共用搜索框与菜篮子样式隔离；截图保留在 `.android-tools/layout-fix/`。支持 `E2E_URL` 指向生产预览。
 - 生产样式回归：先 `npm run build`、`npm run preview`，再设置 `$env:E2E_URL='http://127.0.0.1:4173'` 运行 `python tests/e2e_mobile.py`，包含弹窗正常高度/键盘压缩高度的边界检查。
 - `python tests/android_upgrade.py prepare` / `verify`：经用户确认后用于专用真机升级验收，先备份再安装，验证结束恢复业务基线；设备可通过 `ANDROID_SERIAL` 指定。已有基线时拒绝覆盖，`.android-tools/v1.1-acceptance/` 备份可能含私有数据，不提交、不对外分享。
 - `python tests/e2e_sync_startup.py`：在新启动的 Vite 开发服务器（默认 5173）上验证启动同步、居中确认、账号切换和下载期间本地修改保护；使用内存测试凭据，不连接真实网盘。

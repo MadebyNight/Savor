@@ -6,6 +6,7 @@ from playwright.sync_api import sync_playwright, expect
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'.android-tools/ai-review'
 OUT.mkdir(parents=True,exist_ok=True)
+(ROOT/'.android-tools/layout-fix').mkdir(parents=True,exist_ok=True)
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True,executable_path=str(ROOT/'.android-tools/playwright/chromium-1223/chrome-win64/chrome.exe'))
     page=browser.new_page(viewport={'width':390,'height':844})
@@ -65,12 +66,25 @@ with sync_playwright() as p:
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='冰箱',exact=True).click()
     with page.expect_file_chooser() as chooser: click('拍照识别')
     chooser.value.set_files({'name':'test.png','mimeType':'image/png','buffer':base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')})
-    response['items']=[{'name':'牛奶','qty':2,'unit':'盒','days':3}];send()
+    response['items']=[{'name':'牛奶','category':'奶制品','qty':2,'unit':'盒','days':3}];send()
     stock=page.get_by_role('dialog',name='核对并保存食材',exact=True);expect(stock).to_be_visible()
     for width in [320,390]:
         page.set_viewport_size({'width':width,'height':844})
         box=stock.bounding_box();assert box['x']>=0 and box['x']+box['width']<=width
         assert stock.evaluate('e=>e.scrollWidth<=e.clientWidth+1')
+        row=page.locator('.stock-review-row');assert row.bounding_box()['height']<120
+        expect(row.locator('.stock-review-details > summary')).to_contain_text('奶制品')
+        if width == 320:
+            category=row.locator('.stock-review-details > summary > span').first
+            assert category.bounding_box()['y']>row.locator('summary > strong').bounding_box()['y']
+            assert category.evaluate('e=>e.scrollWidth<=e.clientWidth+1')
+        expect(row.locator('.stock-status')).to_contain_text('剩余')
+        assert row.get_by_role('checkbox').bounding_box()['y'] < row.locator('.stock-review-details > summary').bounding_box()['y']+48
+    page.locator('.stock-review-details > summary').click()
+    page.get_by_label('数量',exact=True).fill('3')
+    page.locator('.stock-review-details > summary').click()
+    expect(page.locator('.stock-review-details > summary')).to_contain_text('3 盒')
+    page.screenshot(path=str(ROOT/'.android-tools/layout-fix/stock-review.png'))
     click('稍后处理');response['hold']=True;send(True);click('取消等待')
     assert pending;pending[0].fulfill(status=200,content_type='application/json',body=json.dumps({'choices':[{'message':{'content':'{"items":[]}'}}]}))
     page.wait_for_load_state('networkidle');expect(stock).not_to_be_visible();reopen()

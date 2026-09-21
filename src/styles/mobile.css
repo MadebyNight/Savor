@@ -225,11 +225,11 @@
   .compact-app .search {
     width: auto;
     max-width: none;
-    background: #eeeee7;
-    border: 0;
+    background: #fff;
+    border: 1px solid #ddd3b9;
     border-radius: 12px;
     padding: 0 12px;
-    min-height: 44px;
+    min-height: 48px;
     flex-shrink: 0;
   }
   .compact-app .search input {
@@ -486,7 +486,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 14px 8px;
+    padding: 0 14px;
     font-size: 12px;
     gap: 8px;
     color: #666f5c;
@@ -500,6 +500,15 @@
     flex-direction: column;
     gap: 0;
   }
+  .compact-app .page-4:not(.show-settings) { display:block; padding:0 14px 20px; overflow-y:auto; }
+  .compact-app .page-4 .mobile-search { margin:0 0 4px; }
+  .compact-app .page-4 .stock-summary { margin:0; }
+  .compact-app .page-4 .stock-toolbar { padding:0; }
+  .compact-app .page-4 .stock-layout { display:block; overflow:visible; }
+  .compact-app .page-4 .stock-results { padding:0; overflow:visible; background:transparent; }
+  .compact-app .page-4 .stock-categories { flex-direction:row; flex-wrap:nowrap; width:100%; gap:4px; padding:4px; margin:0 0 8px; border-radius:10px; overflow-x:auto; overflow-y:hidden; }
+  .compact-app .page-4 .stock-categories button { width:auto; min-width:48px; min-height:48px; flex:1 0 auto; padding:8px; border-radius:7px; }
+  .compact-app .page-4 .stock-categories button.active::before { left:calc(50% - 8px); top:auto; bottom:2px; width:16px; height:2px; }
   .compact-app .stock-card {
     padding: 15px 0;
     border: 0;
@@ -762,12 +771,18 @@
     background: #18211566;
   }
   .week-picker {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    gap: 4px;
+    flex: 1;
+    min-width: 0;
   }
+  .week-heading { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .week-heading > button { min-height:48px; font-size:12px; }
+  .week-picker summary { cursor:pointer; padding:12px 0; min-height:48px; font-weight:600; }
+  .week-picker[open] { flex-basis:100%; }
+  .week-picker-controls { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px; padding-bottom:8px; }
+  .week-summary,.stock-summary { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid #e4e0d2; margin-bottom:8px; }
+  .week-summary strong,.stock-summary strong { font-size:1rem; font-weight:600; border-left:3px solid #cbb474; padding-left:7px; margin:0; }
+  .week-summary > span,.stock-summary > span { font-size:.86rem; color:#666f60; flex-shrink:0; }
+  .stock-summary { margin:0 14px; }
   .week-picker label {
     display: flex;
     align-items: center;
@@ -919,6 +934,9 @@
   }
 }
 @media (max-width: 374px) {
+  .stock-review-details > .stock-compact-row { grid-template-columns:auto auto minmax(0,1fr); gap:4px 8px; }
+  .stock-review-details > .stock-compact-row strong { grid-column:1 / -1; }
+  .stock-review-details > .stock-compact-row > span:first-of-type { white-space:nowrap; }
   .compact-app .categories,
   .compact-app .stock-categories {
     width: 68px;
