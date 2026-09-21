@@ -1,3 +1,4 @@
+import {getReminderStatus,consumeReminderLaunch,markWeekReviewed} from './reminders.js';
 import NutritionPanel, {RecipeNutrition} from './components/NutritionPanel.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
 ﻿import { stockStatus, MEALS, monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
@@ -101,9 +102,17 @@ function App() {
   // 修改点单只更新 quantities；确认后才更新采购缺口与周菜单素材。
   const [quantities, setQuantities] = useState({});
   const [confirmedQuantities, setConfirmedQuantities] = useState({});
+  const [hydrated, setHydrated] = useState(false);
   const [weeks, setWeeks] = useState({});
   const [nutritionReports,setNutritionReports]=useState({});
   const [reviewWeek,setReviewWeek]=useState(null);
+  const [reminder,setReminder]=useState(null);
+  useEffect(()=>{if(!hydrated)return;let active=true,busy=false;
+    const refresh=async()=>{if(busy||document.visibilityState!=='visible')return;busy=true;try{const status=await getReminderStatus();if(active)setReminder(status);const target=await consumeReminderLaunch();if(active&&target&&/^\d{4}-\d{2}-\d{2}$/.test(target)&&monday(target)===target)setReviewWeek(target);}catch{if(active)setReminder(null);}finally{busy=false;}};
+    refresh();const interval=setInterval(refresh,15000);window.addEventListener('shiguang:reminders',refresh);document.addEventListener('visibilitychange',refresh);
+    return()=>{active=false;clearInterval(interval);window.removeEventListener('shiguang:reminders',refresh);document.removeEventListener('visibilitychange',refresh);};
+  },[hydrated]);
+  useEffect(()=>{if(reviewWeek)markWeekReviewed(reviewWeek).catch(()=>toast.error('回顾状态未保存，请重新打开回顾页重试'));},[reviewWeek]);
   const [week, setWeek] = useState(monday(today()));
   const plan = weeks[week] || {};
   const setPlan = (update) =>
@@ -115,7 +124,7 @@ function App() {
   const [confirmedRecipes, setConfirmedRecipes] = useState([]);
   const [copyTarget, setCopyTarget] = useState(monday(today()));
   const [archives, setArchives] = useState({});
-  const [hydrated, setHydrated] = useState(false);
+
   const [category, setCategory] = useState("全部");
   const [search, setSearch] = useState("");
   const pageFilters = useRef({});
@@ -1475,6 +1484,7 @@ function App() {
       {compact && <nav className="mobile-bottom-nav" aria-label="主导航">
         {[[0,"点单",Utensils],[4,"冰箱",Refrigerator],[2,"菜篮子",ShoppingBasket],[3,"周菜单",CalendarDays],[1,"菜谱",BookOpen]].map(([index,label,Icon]) => <button key={index} aria-current={page === index && !showSettings ? "page" : undefined} onClick={() => navigate(index)}><span><Icon size={22}/></span>{label}</button>)}
       </nav>}
+      {reminder?.settings.inApp&&reminder.pendingWeek&&<aside className="reminder-banner" role="status"><span>{reminder.pendingWeek} 起这一周的菜单营养待回顾</span><button className="text-link" onClick={()=>setReviewWeek(reminder.pendingWeek)}>查看营养回顾</button></aside>}
       <Dialog open={!!reviewWeek} onOpenChange={open=>!open&&setReviewWeek(null)}>
         <DialogContent className="app-dialog nutrition-dialog"><DialogTitle>菜单营养回顾</DialogTitle><DialogDescription>按菜谱快照估算，支持离线查看。</DialogDescription>
           {reviewWeek&&<NutritionPanel key={reviewWeek} week={reviewWeek} plan={weeks[reviewWeek]||{}} report={nutritionReports[reviewWeek]}

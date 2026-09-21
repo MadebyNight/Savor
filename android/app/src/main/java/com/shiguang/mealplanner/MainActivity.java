@@ -8,6 +8,10 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 public class MainActivity extends BridgeActivity {
+    @Override public void onResume(){super.onResume();try{WeeklyReminders.foreground(this,true);}catch(RuntimeException error){android.util.Log.e("WeeklyReminder","resume scheduling failed");}}
+    @Override public void onPause(){WeeklyReminders.foreground(this,false);super.onPause();}
+    @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);}
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(LocalDataPlugin.class);

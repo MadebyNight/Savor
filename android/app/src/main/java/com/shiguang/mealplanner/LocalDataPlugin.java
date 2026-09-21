@@ -40,8 +40,22 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
-@CapacitorPlugin(name = "LocalData")
+@CapacitorPlugin(name = "LocalData", permissions = {@com.getcapacitor.annotation.Permission(alias="notifications", strings={"android.permission.POST_NOTIFICATIONS"})})
 public class LocalDataPlugin extends Plugin {
+    @PluginMethod public void reminderStatus(PluginCall call){try{call.resolve(WeeklyReminders.tick(getContext(),true));}catch(Exception e){call.reject("提醒状态读取失败");}}
+    @PluginMethod public void saveReminders(PluginCall call){
+        JSObject settings=call.getObject("settings");if(settings==null){call.reject("提醒设置无效");return;}
+        if(settings.optBoolean("system")&&android.os.Build.VERSION.SDK_INT>=33&&getPermissionState("notifications")!=com.getcapacitor.PermissionState.GRANTED){requestPermissionForAlias("notifications",call,"reminderPermission");return;}
+        reminderPermission(call);
+    }
+    @com.getcapacitor.annotation.PermissionCallback private void reminderPermission(PluginCall call){try{call.resolve(WeeklyReminders.save(getContext(),call.getObject("settings")));}catch(Exception e){call.reject("提醒设置保存失败");}}
+    @PluginMethod public void markWeekReviewed(PluginCall call){try{call.resolve(WeeklyReminders.reviewed(getContext(),call.getString("week")));}catch(Exception e){call.reject("回顾状态保存失败");}}
+    @PluginMethod public void consumeReminderLaunch(PluginCall call){
+        getActivity().runOnUiThread(()->{Intent intent=getActivity().getIntent();String week=intent.getStringExtra(WeeklyReminders.EXTRA);intent.removeExtra(WeeklyReminders.EXTRA);call.resolve(value(week));});
+    }
+    @PluginMethod public void openNotificationSettings(PluginCall call){
+        getActivity().runOnUiThread(()->{try{Intent intent=new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getContext().getPackageName()));getActivity().startActivity(intent);call.resolve();}catch(Exception e){call.reject("无法打开系统设置");}});
+    }
     private final ExecutorService storage = Executors.newSingleThreadExecutor();
     private final ExecutorService network = Executors.newCachedThreadPool();
     private static final String KEY_ALIAS = "shiguang.credentials.v1";

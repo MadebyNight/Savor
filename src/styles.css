@@ -1612,3 +1612,9 @@ html [data-sonner-toaster][data-sonner-theme] {
 .nutrition-weight-fields input {width:100%;min-width:0;}
 .nutrition-panel article {padding:12px;background:#faf6e9;border-radius:12px;}
 .nutrition-dialog {max-width:720px;}
+
+.reminder-settings {display:grid;gap:12px;}
+.reminder-settings label:has(input[type=checkbox]) {display:flex;align-items:center;gap:10px;}
+.reminder-settings input[type=checkbox] {width:20px;height:20px;}
+.reminder-banner {position:fixed;z-index:45;bottom:calc(76px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:620px;margin:auto;padding:10px 14px;border:1px solid #c2a04c;border-radius:12px;background:#fff9e6;box-shadow:0 3px 16px #3f30151a;display:flex;gap:12px;align-items:center;justify-content:space-between;font-size:13px;}
+.reminder-banner .text-link {flex-shrink:0;}

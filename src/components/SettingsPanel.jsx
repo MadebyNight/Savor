@@ -1,3 +1,4 @@
+import ReminderSettings from './ReminderSettings.jsx';
 import {developerAvailable,getDeveloperConfig,enableDeveloperConfig,disableDeveloperConfig} from '../developer-ai.js';
 import useConfirm from './useConfirm.jsx';
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from './Dialog.jsx';
@@ -48,8 +49,9 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
   return <div className="panel settings-panel">
     <h2>设置与数据</h2><p>核心数据在本机保存。AI 识别需要网络，确认后才发送内容。</p>
     <nav className="settings-pages" aria-label="设置分页">
-      {[['ai','AI 配置'],['backup','备份恢复'],['sync','坚果云同步']].map(([id,label])=><button key={id} type="button" aria-current={page===id?'page':undefined} aria-controls={`settings-${id}`} onClick={()=>setPage(id)}>{label}</button>)}
+      {[['ai','AI 配置'],['backup','备份恢复'],['sync','坚果云同步'],['reminders','营养周报提醒']].map(([id,label])=><button key={id} type="button" aria-current={page===id?'page':undefined} aria-controls={`settings-${id}`} onClick={()=>setPage(id)}>{label}</button>)}
     </nav>
+    {page==='reminders'&&<ReminderSettings/>}
     <section id="settings-ai" className="settings-page" hidden={page!=='ai'} aria-label="AI 配置">
     <h3>AI 服务</h3>
     <label>接口地址<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
