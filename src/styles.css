@@ -1604,3 +1604,11 @@ html [data-sonner-toaster][data-sonner-theme] {
 }
 
 .app-dialog.stock-dialog[aria-busy="true"] [data-slot="dialog-close"] { display:none; }
+
+.nutrition-panel {display:grid;gap:12px;min-width:0;}
+.nutrition-panel details,.recipe-nutrition {padding:10px;border:1px solid #dfd5b9;border-radius:12px;min-width:0;overflow-wrap:anywhere;}
+.nutrition-panel summary {cursor:pointer;padding:6px 0;}
+.nutrition-weight-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;}
+.nutrition-weight-fields input {width:100%;min-width:0;}
+.nutrition-panel article {padding:12px;background:#faf6e9;border-radius:12px;}
+.nutrition-dialog {max-width:720px;}

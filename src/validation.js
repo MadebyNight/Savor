@@ -1,3 +1,4 @@
+import {validateNutrition} from './nutrition.js';
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const fail = where => { throw new Error(where + '格式无效，请核对字段类型后重试'); };
 const text = (value, where, required = false) => {
@@ -27,7 +28,9 @@ export function validateRecipe(recipe, where = '菜谱', draft = false) {
     text(item.category, field + '分类');
     text(item.unit, field + '单位');
     number(item.qty, field + '数量', Number.MIN_VALUE);
+    number(item.grams,field+'可食克重',Number.MIN_VALUE);
   });
+  if(recipe.nutrition!=null)validateNutrition(recipe.nutrition);
   recipe.steps.forEach(step => text(step, where + '步骤', !draft));
   return recipe;
 }

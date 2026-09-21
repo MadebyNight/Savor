@@ -1,3 +1,5 @@
+import {NutritionSummary} from './NutritionPanel.jsx';
+import {summarizeNutrition} from '../nutrition.js';
 import { useState } from "react";
 import useBackHandler from "../useBackHandler.js";
 import {
@@ -27,6 +29,7 @@ export default function MobileWeek({
   findRecipe,
   addToMeal,
   onSelectRecipes,
+  onReview,
 }) {
   const [overview, setOverview] = useState(false);
   useBackHandler(overview, () => setOverview(false));
@@ -79,6 +82,7 @@ export default function MobileWeek({
         ))}
       </div>
       <div className="week-view-tools">
+        <button className="text-link" onClick={onReview}>本周菜单营养回顾</button>
         <span>
           {overview
             ? "本周五餐"
@@ -130,29 +134,7 @@ export default function MobileWeek({
           </div>
         </section>
       ))}
-      {!overview && (
-        <section className="nutrition-summary" aria-label="当日预计营养">
-          <h3>当日预计营养</h3>
-          <p className="subtle">菜单预计营养，非实际摄入</p>
-          <div className="nutrition-values">
-            {[
-              ["能量", "kcal"],
-              ["蛋白质", "g"],
-              ["脂肪", "g"],
-              ["碳水化合物", "g"],
-              ["膳食纤维", "g"],
-            ].map(([name, unit]) => (
-              <div key={name}>
-                <small>{name}</small>
-                <b>
-                  — <small>{unit}</small>
-                </b>
-              </div>
-            ))}
-          </div>
-          <p className="subtle">未估算</p>
-        </section>
-      )}
+      {!overview && <NutritionSummary summary={summarizeNutrition(plan,day)}/>}
       <Dialog
         open={slot !== null}
         onOpenChange={(open) => !open && setSlot(null)}

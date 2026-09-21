@@ -1,3 +1,5 @@
+import NutritionPanel, {RecipeNutrition} from './components/NutritionPanel.jsx';
+import {calculateNutrition,weekNutritionInput} from './nutrition.js';
 ﻿import { stockStatus, MEALS, monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import {businessState} from "./services.js";
@@ -100,6 +102,8 @@ function App() {
   const [quantities, setQuantities] = useState({});
   const [confirmedQuantities, setConfirmedQuantities] = useState({});
   const [weeks, setWeeks] = useState({});
+  const [nutritionReports,setNutritionReports]=useState({});
+  const [reviewWeek,setReviewWeek]=useState(null);
   const [week, setWeek] = useState(monday(today()));
   const plan = weeks[week] || {};
   const setPlan = (update) =>
@@ -145,6 +149,7 @@ function App() {
     qty: quantities,
     confirmed: confirmedQuantities,
     weeks,
+    nutritionReports,
     archives,
     confirmedRecipes,
     recipeDraft,
@@ -156,6 +161,7 @@ function App() {
     setQuantities(state.qty || {});
     setConfirmedQuantities(state.confirmed || {});
     setWeeks(state.weeks || {});
+    setNutritionReports(state.nutritionReports || {});
     setArchives(state.archives || (state.plan ? { 旧版存档: state.plan } : {}));
     setConfirmedRecipes(
       state.confirmedRecipes ||
@@ -219,6 +225,7 @@ function App() {
     quantities,
     confirmedQuantities,
     weeks,
+    nutritionReports,
     archives,
     confirmedRecipes,
     recipeDraft,
@@ -258,7 +265,7 @@ function App() {
     if (!selectedCount && !(await ask("清空后不再计算采购缺口，已排菜单保持不变。", { title: "清空采购需求？", label: "确认清空", danger: true })))
       return;
     setConfirmedRecipes(
-      structuredClone(recipes.filter((item) => quantities[item.id] > 0)),
+      structuredClone(recipes.filter((item) => quantities[item.id] > 0).map(item=>({...item,nutrition:calculateNutrition(item)}))),
     );
     setConfirmedQuantities({
       ...quantities,
@@ -282,6 +289,7 @@ function App() {
               confirmedRecipes.find((item) => item.id === recipeId) ||
                 findRecipe(recipeId),
             ),
+            nutrition:calculateNutrition(confirmedRecipes.find(item=>item.id===recipeId)||findRecipe(recipeId)),
             servings: 1,
           });
         return { ...currentPlan, [slot]: items };
@@ -331,6 +339,7 @@ function App() {
         qty: item.qty === "" ? null : item.qty,
       })),
     };
+    savedRecipe.nutrition=calculateNutrition(savedRecipe);
     setRecipes((current) =>
       recipeDraft.id
         ? current.map((item) =>
@@ -533,7 +542,7 @@ function App() {
           )}
 
           {recognition&&!showSettings&&<RecognitionPanel key={recognition} mode={recognition} initialImage={recognitionImage} onSettings={()=>{setRecognitionImage('');setShowSettings(true);}}
-            onImportRecipes={async items=>{const next=[...latestState.current.recipes,...items];await saveState({...latestState.current,recipes:next});setRecipes(next);}}
+            onImportRecipes={async items=>{const next=[...latestState.current.recipes,...items.map(item=>({...item,nutrition:calculateNutrition(item)}))];await saveState({...latestState.current,recipes:next});setRecipes(next);}}
             onImportStock={async items=>{const next=[...latestState.current.fridge,...items];await saveState({...latestState.current,fridge:next});setFridge(next);}}/>}
           <input ref={fridgeCamera} type="file" accept="image/*" capture="environment" aria-label="冰箱拍摄图片" hidden onChange={async event=>{
             const file=event.target.files?.[0];event.target.value='';if(!file)return;
@@ -869,7 +878,8 @@ function App() {
           )}
           {page === 3 && (
             <>
-              {compact ? <MobileWeek week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={confirmedRecipes.filter(recipe => confirmedQuantities[recipe.id] > 0)} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} /> : <>
+              {!compact&&<button className="outline" onClick={()=>setReviewWeek(week)}>本周菜单营养回顾</button>}
+              {compact ? <MobileWeek onReview={()=>setReviewWeek(week)} week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={confirmedRecipes.filter(recipe => confirmedQuantities[recipe.id] > 0)} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} /> : <>
               <div className="panel">
                 <div className="section-tools">
                   <h2>待安排的美味</h2>
@@ -1429,6 +1439,7 @@ function App() {
                 >
                   ＋ 添加步骤
                 </button>
+                <RecipeNutrition recipe={recipeDraft} onChange={setRecipeDraft}/>
                 <button className="primary save-recipe" onClick={saveRecipe}>
                   <Check size={17} />
                   确认保存到菜品库
@@ -1464,6 +1475,13 @@ function App() {
       {compact && <nav className="mobile-bottom-nav" aria-label="主导航">
         {[[0,"点单",Utensils],[4,"冰箱",Refrigerator],[2,"菜篮子",ShoppingBasket],[3,"周菜单",CalendarDays],[1,"菜谱",BookOpen]].map(([index,label,Icon]) => <button key={index} aria-current={page === index && !showSettings ? "page" : undefined} onClick={() => navigate(index)}><span><Icon size={22}/></span>{label}</button>)}
       </nav>}
+      <Dialog open={!!reviewWeek} onOpenChange={open=>!open&&setReviewWeek(null)}>
+        <DialogContent className="app-dialog nutrition-dialog"><DialogTitle>菜单营养回顾</DialogTitle><DialogDescription>按菜谱快照估算，支持离线查看。</DialogDescription>
+          {reviewWeek&&<NutritionPanel key={reviewWeek} week={reviewWeek} plan={weeks[reviewWeek]||{}} report={nutritionReports[reviewWeek]}
+            onSavePlan={async(next,expected)=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==expected)throw new Error('菜单已改变，请重试');const updated={...latestState.current.weeks,[reviewWeek]:next};await saveState({...latestState.current,weeks:updated});setWeeks(updated);}}
+            onSaveReport={async report=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==report.inputFingerprint)throw new Error('菜单已改变，请重新生成');const updated={...latestState.current.nutritionReports,[reviewWeek]:report};await saveState({...latestState.current,nutritionReports:updated});setNutritionReports(updated);}}/>}
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!modal} onOpenChange={(open) => !open && !stockSaving && setModal("")}>
         <DialogContent className={`app-dialog ${modal==='stock'?'stock-dialog':''}`} aria-busy={stockSaving} >
           <DialogTitle>

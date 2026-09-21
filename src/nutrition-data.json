@@ -1,0 +1,465 @@
+{
+  "source": "CoFID 2021, Public Health England",
+  "sourceVersion": "2021",
+  "url": "https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid",
+  "licence": "Open Government Licence v3.0; Contains public sector information licensed under the Open Government Licence v3.0. © Crown copyright.",
+  "foods": [
+    {
+      "foodId": "13-161",
+      "name": "Aubergine, raw",
+      "aliases": [
+        "茄子"
+      ],
+      "basis": "Aubergine, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 15.0,
+        "proteinG": 0.9,
+        "fatG": 0.4,
+        "carbohydrateG": 2.2,
+        "fiberG": null
+      }
+    },
+    {
+      "foodId": "18-471",
+      "name": "Beef, rump steak, raw, lean and fat",
+      "aliases": [
+        "牛臀肉"
+      ],
+      "basis": "Beef, rump steak, raw, lean and fat; per 100g edible portion",
+      "values": {
+        "energyKcal": 174.0,
+        "proteinG": 20.7,
+        "fatG": 10.1,
+        "carbohydrateG": 0.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "13-502",
+      "name": "Broccoli, green, raw",
+      "aliases": [
+        "西兰花"
+      ],
+      "basis": "Broccoli, green, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 34.0,
+        "proteinG": 4.3,
+        "fatG": 0.6,
+        "carbohydrateG": 3.2,
+        "fiberG": 4.0
+      }
+    },
+    {
+      "foodId": "13-187",
+      "name": "Cabbage, Chinese, raw",
+      "aliases": [
+        "大白菜"
+      ],
+      "basis": "Cabbage, Chinese, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 12.0,
+        "proteinG": 1.0,
+        "fatG": 0.2,
+        "carbohydrateG": 1.4,
+        "fiberG": null
+      }
+    },
+    {
+      "foodId": "13-496",
+      "name": "Carrots, old, raw",
+      "aliases": [
+        "胡萝卜"
+      ],
+      "basis": "Carrots, old, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 34.0,
+        "proteinG": 0.5,
+        "fatG": 0.4,
+        "carbohydrateG": 7.7,
+        "fiberG": 3.9
+      }
+    },
+    {
+      "foodId": "18-290",
+      "name": "Chicken, light meat, raw",
+      "aliases": [
+        "鸡胸肉"
+      ],
+      "basis": "Chicken, light meat, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 106.0,
+        "proteinG": 24.0,
+        "fatG": 1.1,
+        "carbohydrateG": 0.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "18-488",
+      "name": "Chicken, meat, average, raw",
+      "aliases": [
+        "生鸡肉"
+      ],
+      "basis": "Chicken, meat, average, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 108.0,
+        "proteinG": 22.3,
+        "fatG": 2.1,
+        "carbohydrateG": 0.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "13-523",
+      "name": "Cucumber, raw, flesh and skin",
+      "aliases": [
+        "黄瓜"
+      ],
+      "basis": "Cucumber, raw, flesh and skin; per 100g edible portion",
+      "values": {
+        "energyKcal": 14.0,
+        "proteinG": 1.0,
+        "fatG": 0.6,
+        "carbohydrateG": 1.2,
+        "fiberG": 0.7
+      }
+    },
+    {
+      "foodId": "12-940",
+      "name": "Eggs, chicken, whole, boiled",
+      "aliases": [
+        "水煮蛋",
+        "熟鸡蛋"
+      ],
+      "basis": "Eggs, chicken, whole, boiled; per 100g edible portion",
+      "values": {
+        "energyKcal": 143.0,
+        "proteinG": 14.1,
+        "fatG": 9.6,
+        "carbohydrateG": null,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "12-937",
+      "name": "Eggs, chicken, whole, raw",
+      "aliases": [
+        "鸡蛋"
+      ],
+      "basis": "Eggs, chicken, whole, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 131.0,
+        "proteinG": 12.6,
+        "fatG": 9.0,
+        "carbohydrateG": null,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "13-244",
+      "name": "Garlic, raw",
+      "aliases": [
+        "大蒜",
+        "蒜"
+      ],
+      "basis": "Garlic, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 98.0,
+        "proteinG": 7.9,
+        "fatG": 0.6,
+        "carbohydrateG": 16.3,
+        "fiberG": null
+      }
+    },
+    {
+      "foodId": "13-890",
+      "name": "Ginger, fresh",
+      "aliases": [
+        "生姜",
+        "姜"
+      ],
+      "basis": "Ginger, fresh; per 100g edible portion",
+      "values": {
+        "energyKcal": 44.0,
+        "proteinG": 1.8,
+        "fatG": 0.8,
+        "carbohydrateG": 8.1,
+        "fiberG": 2.0
+      }
+    },
+    {
+      "foodId": "12-596",
+      "name": "Milk, whole, pasteurised, average",
+      "aliases": [
+        "全脂牛奶"
+      ],
+      "basis": "Milk, whole, pasteurised, average; per 100g edible portion",
+      "values": {
+        "energyKcal": 63.0,
+        "proteinG": 3.4,
+        "fatG": 3.6,
+        "carbohydrateG": 4.6,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "13-293",
+      "name": "Mushrooms, oyster, raw",
+      "aliases": [
+        "平菇"
+      ],
+      "basis": "Mushrooms, oyster, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 8.0,
+        "proteinG": 1.6,
+        "fatG": 0.2,
+        "carbohydrateG": null,
+        "fiberG": null
+      }
+    },
+    {
+      "foodId": "13-294",
+      "name": "Mushrooms, shiitake, dried, raw",
+      "aliases": [
+        "干香菇"
+      ],
+      "basis": "Mushrooms, shiitake, dried, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 296.0,
+        "proteinG": 9.6,
+        "fatG": 1.0,
+        "carbohydrateG": 63.9,
+        "fiberG": null
+      }
+    },
+    {
+      "foodId": "13-505",
+      "name": "Mushrooms, white, raw",
+      "aliases": [
+        "白蘑菇",
+        "口蘑"
+      ],
+      "basis": "Mushrooms, white, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 7.0,
+        "proteinG": 1.0,
+        "fatG": 0.2,
+        "carbohydrateG": 0.3,
+        "fiberG": 0.7
+      }
+    },
+    {
+      "foodId": "17-038",
+      "name": "Oil, olive",
+      "aliases": [
+        "橄榄油"
+      ],
+      "basis": "Oil, olive; per 100g edible portion",
+      "values": {
+        "energyKcal": 899.0,
+        "proteinG": null,
+        "fatG": 99.9,
+        "carbohydrateG": 0.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "17-041",
+      "name": "Oil, rapeseed",
+      "aliases": [
+        "菜籽油"
+      ],
+      "basis": "Oil, rapeseed; per 100g edible portion",
+      "values": {
+        "energyKcal": 899.0,
+        "proteinG": null,
+        "fatG": 99.9,
+        "carbohydrateG": 0.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "17-045",
+      "name": "Oil, sunflower",
+      "aliases": [
+        "葵花籽油"
+      ],
+      "basis": "Oil, sunflower; per 100g edible portion",
+      "values": {
+        "energyKcal": 899.0,
+        "proteinG": null,
+        "fatG": 99.9,
+        "carbohydrateG": 0.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "13-499",
+      "name": "Onions, raw",
+      "aliases": [
+        "洋葱"
+      ],
+      "basis": "Onions, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 35.0,
+        "proteinG": 1.0,
+        "fatG": 0.1,
+        "carbohydrateG": 8.0,
+        "fiberG": 2.2
+      }
+    },
+    {
+      "foodId": "13-318",
+      "name": "Peppers, capsicum, green, raw",
+      "aliases": [
+        "青椒"
+      ],
+      "basis": "Peppers, capsicum, green, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 15.0,
+        "proteinG": 0.8,
+        "fatG": 0.3,
+        "carbohydrateG": 2.6,
+        "fiberG": null
+      }
+    },
+    {
+      "foodId": "18-521",
+      "name": "Pork, loin steaks, raw, lean",
+      "aliases": [
+        "猪里脊"
+      ],
+      "basis": "Pork, loin steaks, raw, lean; per 100g edible portion",
+      "values": {
+        "energyKcal": 110.0,
+        "proteinG": 23.2,
+        "fatG": 1.9,
+        "carbohydrateG": 0.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "13-489",
+      "name": "Potatoes, old, raw, flesh only",
+      "aliases": [
+        "土豆",
+        "马铃薯"
+      ],
+      "basis": "Potatoes, old, raw, flesh only; per 100g edible portion",
+      "values": {
+        "energyKcal": 82.0,
+        "proteinG": 1.9,
+        "fatG": 0.1,
+        "carbohydrateG": 19.6,
+        "fiberG": 2.0
+      }
+    },
+    {
+      "foodId": "11-862",
+      "name": "Rice, white, long grain, boiled in unsalted water",
+      "aliases": [
+        "长粒白米饭"
+      ],
+      "basis": "Rice, white, long grain, boiled in unsalted water; per 100g edible portion",
+      "values": {
+        "energyKcal": 131.0,
+        "proteinG": 2.8,
+        "fatG": 0.4,
+        "carbohydrateG": 31.1,
+        "fiberG": 0.5
+      }
+    },
+    {
+      "foodId": "11-861",
+      "name": "Rice, white, long grain, raw",
+      "aliases": [
+        "长粒白米"
+      ],
+      "basis": "Rice, white, long grain, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 355.0,
+        "proteinG": 6.7,
+        "fatG": 1.0,
+        "carbohydrateG": 85.1,
+        "fiberG": 1.1
+      }
+    },
+    {
+      "foodId": "17-367",
+      "name": "Salt",
+      "aliases": [
+        "盐",
+        "食盐"
+      ],
+      "basis": "Salt; per 100g edible portion",
+      "values": {
+        "energyKcal": 0.0,
+        "proteinG": 0.0,
+        "fatG": 0.0,
+        "carbohydrateG": 0.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "13-572",
+      "name": "Spinach, mature, raw",
+      "aliases": [
+        "菠菜"
+      ],
+      "basis": "Spinach, mature, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 25.0,
+        "proteinG": 2.8,
+        "fatG": 0.8,
+        "carbohydrateG": 1.6,
+        "fiberG": null
+      }
+    },
+    {
+      "foodId": "17-063",
+      "name": "Sugar, white",
+      "aliases": [
+        "白糖"
+      ],
+      "basis": "Sugar, white; per 100g edible portion",
+      "values": {
+        "energyKcal": 394.0,
+        "proteinG": null,
+        "fatG": 0.0,
+        "carbohydrateG": 105.0,
+        "fiberG": 0.0
+      }
+    },
+    {
+      "foodId": "13-570",
+      "name": "Tofu, soya bean, steamed",
+      "aliases": [
+        "蒸豆腐"
+      ],
+      "basis": "Tofu, soya bean, steamed; per 100g edible portion",
+      "values": {
+        "energyKcal": 73.0,
+        "proteinG": 8.1,
+        "fatG": 4.2,
+        "carbohydrateG": 0.7,
+        "fiberG": null
+      }
+    },
+    {
+      "foodId": "13-517",
+      "name": "Tomatoes, standard, raw",
+      "aliases": [
+        "番茄",
+        "西红柿"
+      ],
+      "basis": "Tomatoes, standard, raw; per 100g edible portion",
+      "values": {
+        "energyKcal": 14.0,
+        "proteinG": 0.5,
+        "fatG": 0.1,
+        "carbohydrateG": 3.0,
+        "fiberG": 1.0
+      }
+    }
+  ]
+}
