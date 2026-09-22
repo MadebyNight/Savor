@@ -49,7 +49,7 @@ export default function SelectionItems({ recipes, quantities, onChange }) {
           </div>
         </div>
       )}
-      <p className="selection-hint">{selected.length ? "未标数量即 1 份；点击菜品加减份数。" : "还没有选择菜品。"}</p>
+      {!selected.length && <p className="selection-hint">还没有选择菜品。</p>}
     </div>
   );
 }

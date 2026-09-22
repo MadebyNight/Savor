@@ -5,7 +5,7 @@ import {Dialog,DialogContent,DialogTitle,DialogDescription} from './Dialog.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
-import { defaultAI,resolveAIEndpoint,testAIConnection,backup,validateBackup } from '../services.js';
+import { defaultAI,testAIConnection,backup,validateBackup } from '../services.js';
 export default function SettingsPanel({state,onRestore,onSyncTarget}) {
   const [page,setPage] = useState('ai');
   const [ask, confirmation] = useConfirm();
@@ -18,7 +18,6 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
   const [unlockError,setUnlockError]=useState('');
   const [unlocking,setUnlocking]=useState(false);
   const effectiveConfig=developer || config;
-  const endpoint=(()=>{try{return resolveAIEndpoint(effectiveConfig.url);}catch{return '';}})();
   const [testing,setTesting]=useState(false);
   const [testResult,setTestResult]=useState(null);
   const testGeneration=useRef(0);
@@ -31,7 +30,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
     testRunning.current=true;
     const current=++testGeneration.current;
     try{
-      if(!(await ask('将向 '+(endpoint||effectiveConfig.url)+' 发送一条固定测试文本，不包含菜谱或图片，可能产生少量费用。测试不会保存配置。',{title:'测试 AI 连接？',label:'开始测试'})))return;
+      if(!(await ask('测试当前填写的 AI 配置？',{title:'测试 AI 连接？',label:'开始测试'})))return;
       if(current!==testGeneration.current)return;
       setTesting(true);setTestResult(null);
       const result=await testAIConnection(effectiveConfig,developer?'':key);
@@ -47,7 +46,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
     try {const incoming=validateBackup(JSON.parse(await file.text()));if(!(await ask('恢复将整体替换当前业务数据，应用会先保留恢复前备份。',{title:'恢复备份？',label:'确认恢复',danger:true})))return;await setPreference('before-restore',backup(state));await onRestore(incoming);toast.success('备份已恢复');}catch(e){toast.error(e.message);}
   }
   return <div className="panel settings-panel">
-    <h2>设置与数据</h2><p>核心数据在本机保存。AI 识别需要网络，确认后才发送内容。</p>
+    <h2>设置与数据</h2>
     <nav className="settings-pages" aria-label="设置分页">
       {[['ai','AI 配置'],['backup','备份恢复'],['sync','坚果云同步'],['reminders','营养周报提醒']].map(([id,label])=><button key={id} type="button" aria-current={page===id?'page':undefined} aria-controls={`settings-${id}`} onClick={event=>{setPage(id);event.currentTarget.scrollIntoView({block:"nearest",inline:"nearest"});}}>{label}</button>)}
     </nav>
@@ -55,13 +54,13 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
     <section id="settings-ai" className="settings-page" hidden={page!=='ai'} aria-label="AI 配置">
     <h3>AI 服务</h3>
     <label>接口地址<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
-    <p className="subtle" style={{overflowWrap:'anywhere'}}>支持基础地址或完整对话接口。{endpoint&&<>实际请求地址：{endpoint}</>}</p>
+
     <label>模型<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.model} onChange={e=>setConfig({...config,model:e.target.value})}/></label>
     <label>API Key<input disabled={testing||!!developer||loadingConfig||unlocking} type="password" autoComplete="new-password" value={developer?'':key} onChange={e=>setKey(e.target.value)} placeholder={developer?'开发者 Key 已加密保管':'留空保留已保存的 Key'}/></label>
     <div className="actions"><button className="primary" disabled={testing||!!developer||loadingConfig||unlocking} onClick={async()=>{try{await setPreference('ai-config',config);if(key)await setSecret('ai',key);setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||loadingConfig||unlocking} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>
-    <p className="subtle">{developer?'当前使用开发者配置，关闭后恢复个人配置。':'测试当前填写的配置；Key 留空时使用已保存的 Key。测试成功后仍需点击保存。'}</p>
+
     {developerAvailable&&<div className="developer-config">
-      <div><strong>开发者配置</strong><p className="subtle">{developer?'已启用；个人配置仍保留。':'输入密码，使用开发者提供的 AI 配置。'}</p></div>
+      <div><strong>开发者配置</strong></div>
       <button className={developer?'primary':'outline'} aria-pressed={!!developer} disabled={testing||loadingConfig||unlocking} onClick={async()=>{
         if(!developer){setUnlockPassword('');setUnlockError('');setUnlockOpen(true);return;}
         setUnlocking(true);
@@ -71,7 +70,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
     </section>
     {unlockOpen&&<Dialog open onOpenChange={open=>{if(!open&&!unlocking){setUnlockOpen(false);setUnlockPassword('');setUnlockError('');}}}><DialogContent className="app-dialog developer-unlock-dialog" forceBackdrop aria-busy={unlocking}>
       <DialogTitle>启用开发者配置</DialogTitle>
-      <DialogDescription>输入密码解锁此安装包内的 AI 配置。启用不会覆盖你的个人配置，也不会自动发送识别请求。</DialogDescription>
+      <DialogDescription>输入密码启用 AI 配置。</DialogDescription>
       <form className="developer-unlock-form" onSubmit={async event=>{
         event.preventDefault();if(unlocking||!unlockPassword)return;
         setUnlocking(true);setUnlockError('');
@@ -85,7 +84,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
     {testResult&&<Dialog open onOpenChange={open=>{if(!open)setTestResult(null);}}><DialogContent className={`app-dialog ai-result-dialog ai-test-result ${testResult.ok?'is-success':'is-error'}`} forceBackdrop>
       <DialogTitle>{testResult.ok?'连接成功':'连接测试未完成'}</DialogTitle>
       <DialogDescription>当前 AI 接口的连接测试结果</DialogDescription>
-      {testResult.ok?<><p>请求模型：{testResult.requestedModel}</p><p>接口返回模型：{testResult.returnedModel||'未提供模型名称'}</p><p>耗时：{(testResult.elapsedMs/1000).toFixed(2)} 秒</p><small>模型名称以接口返回为准；本次仅验证文本调用，图片识别需另行验证。</small></>:<p>{testResult.message}</p>}
+      {testResult.ok?<><p>请求模型：{testResult.requestedModel}</p><p>接口返回模型：{testResult.returnedModel||'未提供模型名称'}</p><p>耗时：{(testResult.elapsedMs/1000).toFixed(2)} 秒</p></>:<p>{testResult.message}</p>}
       <button className="primary" onClick={()=>setTestResult(null)}>知道了</button>
     </DialogContent></Dialog>}
     <section id="settings-backup" className="settings-page" hidden={page!=='backup'} aria-label="备份恢复">

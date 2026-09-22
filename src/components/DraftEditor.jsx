@@ -91,7 +91,7 @@ export default function DraftEditor({ items = [], kind, onChange, onSave, onDefe
     return <p className="subtle">识别完成后，菜谱或食材草稿将在这里显示。</p>;
   return (
     <section aria-label="识别草稿编辑">
-      <p>{stock ? "核对名称、分类、数量与期限；点击食材行展开修改，勾选后保存。" : "核对后勾选保存。仅有菜名的草稿可先保留，补齐食材和步骤后再入库。"}</p>
+
       {items.map((item, index) => (
         <article className={stock ? "stock-review-row" : "panel editor"} key={index}>
           <label className={stock ? "stock-review-check" : undefined}>
@@ -162,7 +162,7 @@ export default function DraftEditor({ items = [], kind, onChange, onSave, onDefe
                 </label>
               </div>
               <h3>食材</h3>
-              <p className="subtle">数量留空代表适量或未知。</p>
+
               {(item.ingredients || []).map((value, ingredientIndex) => (
                 <div className="ingredient-row" key={ingredientIndex}>
                   <input

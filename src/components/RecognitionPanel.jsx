@@ -7,7 +7,7 @@ import {
   saveRecognitionDraft,
 } from "../storage.js";
 import { getDeveloperConfig } from "../developer-ai.js";
-import { defaultAI, resolveAIEndpoint, recognize } from "../services.js";
+import { defaultAI, recognize } from "../services.js";
 import { fetchArticle } from "../links.js";
 import { normalizeAIDrafts } from "../validation.js";
 import DraftEditor from "./DraftEditor.jsx";
@@ -36,13 +36,6 @@ export default function RecognitionPanel({
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [ready, setReady] = useState(false),
     [loadError, setLoadError] = useState("");
-  const endpoint = (() => {
-    try {
-      return resolveAIEndpoint(effectiveConfig.url);
-    } catch {
-      return "";
-    }
-  })();
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
   const [fetching, setFetching] = useState(false);
@@ -150,9 +143,7 @@ export default function RecognitionPanel({
       if (
         mode !== "stock" &&
         !(await ask(
-          "将把当前文字和图片发送到 " +
-            (endpoint || effectiveConfig.url) +
-            " 进行识别，可能产生服务商费用。",
+          "识别当前文字和图片，生成菜谱草稿。",
           { title: "发送给 AI 识别？", label: "同意发送" },
         ))
       )
@@ -271,9 +262,7 @@ export default function RecognitionPanel({
                   onChange={selectImage}
                 />
               </div>
-              <p className="subtle">
-                {mode === 'stock' ? `拍摄或选图后自动发送到 ${endpoint || effectiveConfig.url} 识别，可能产生费用。单张不超过 10MB。` : '可选择菜谱截图或购物小票，单张不超过 10MB。确认发送后，才会交给当前 AI 服务识别。'}
-              </p>
+
               {readingImage && <p role="status">正在读取图片…</p>}
               {image && (
                 <div className="recognition-image">
@@ -338,10 +327,7 @@ export default function RecognitionPanel({
                   >
                     {fetching ? "正在获取正文…" : "获取公开正文"}
                   </button>
-                  <p className="subtle">
-                    需要登录或无法读取的页面，请粘贴正文或上传截图。获取正文不会自动发送给
-                    AI。
-                  </p>
+
                 </>
               )}
               <textarea

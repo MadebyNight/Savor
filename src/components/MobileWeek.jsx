@@ -141,7 +141,7 @@ export default function MobileWeek({
             {MEALS.find(([key]) => slot?.endsWith("-" + key))?.[1]} · 管理菜品
           </DialogTitle>
           <DialogDescription>
-            来自已确认选菜。安排不会增加采购量，同道菜再次添加会增加餐次份数。
+            选择要安排的菜品。
           </DialogDescription>
           <label>餐次<AppSelect aria-label="安排餐次" value={slot?.split('-').slice(1).join('-') || '早'} onChange={event=>setSlot(`${slot.split('-')[0]}-${event.target.value}`)}>{MEALS.map(([key,name])=><option key={key} value={key}>{name}</option>)}</AppSelect></label>
           {(plan[slot] || []).map((item, index) => (

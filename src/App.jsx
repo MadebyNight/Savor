@@ -809,9 +809,7 @@ function App() {
                       没有找到匹配的菜谱，试试其他分类或食材。
                     </div>
                   )}
-                  <p className="data-note">
-                    示例菜谱可编辑和删除 · 每份为一道完整菜
-                  </p>
+
                 </section>
               </div>
               {(!compact || selectedCount > 0 || Object.values(confirmedQuantities).some(Boolean)) && <div className="selection-bar">
@@ -1100,7 +1098,7 @@ function App() {
                 <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeAlbum.current.click()}><ImagePlus size={18}/>相册选择</button>
                 <button type="button" className="outline" onClick={manualStock}><Plus size={18}/>手动添加</button>
               </div>
-              <p className="stock-upload-note">选图后自动发送给已配置的 AI 识别，可能产生费用。</p>
+
               {readingStockImage&&<p role="status">正在读取图片…</p>}
               <div className="stock-layout">
               <aside className="chip-row dashed stock-categories" aria-label="食材分类">
@@ -1127,9 +1125,7 @@ function App() {
               </div>
               {!visibleStock.length && <div className="empty"><p>{fridge.length ? "没有符合当前搜索和筛选条件的食材。" : "冰箱里还没有食材。"}</p>{!!fridge.length && <button className="text-link" onClick={()=>{setSearch('');setCategory('全部');setStockFilter('all');}}>清除筛选</button>}</div>}
               {(expiredCount > 0 || soonCount > 0) && <p role="status" className="stock-risk-summary">⚠ {expiredCount > 0 && <strong>{expiredCount} 批过期 </strong>}{soonCount > 0 && <span>{soonCount} 批临期</span>}</p>}
-              <p className="data-note">
-                新鲜度按录入日期与自设保存天数估算，请结合实际状态判断。
-              </p>
+
               <button className="primary stock-recommend-entry" disabled={!fridge.length} onClick={()=>setModal('fridge-recipes')}>看看能做什么<ArrowRight size={17}/></button>
               </section>
               </div>
@@ -1249,9 +1245,7 @@ function App() {
                     />
                   </label>
                 </div>
-                <p className="data-note">
-                  食材数量留空表示适量或未知，采购时需自行确认。编辑草稿自动保留。
-                </p>
+
                 <h3>所需食材</h3>
                 {recipeDraft.ingredients.map((item, index) => (
                   <div key={index} className="ingredient-row">
@@ -1502,7 +1496,7 @@ function App() {
           {modal === "fridge-recipes" && (()=>{
             const available=new Set(fridge.filter(stock=>usableStock(stock)).map(stock=>trimName(stock.name)));
             const matches=recipes.map(recipe=>({recipe,count:recipe.ingredients.filter(item=>available.has(trimName(item.name))).length})).filter(item=>item.count>0).sort((a,b)=>b.count-a.count);
-            return <><p className="subtle">按冰箱现有食材匹配，点开菜品查看做法与所需食材。</p><div className="fridge-recipe-picker">{matches.map(({recipe,count})=><button type="button" key={recipe.id} className="fridge-recipe-choice" onClick={()=>{setActiveRecipe(recipe);setModal('detail');}}><span><strong>{recipe.name}</strong><small>匹配 {count} 种食材</small></span><ArrowRight size={18}/></button>)}</div>{!matches.length&&<p>暂时没有匹配菜品，可以去菜谱库挑选。</p>}<button className="outline" onClick={()=>{setModal('');navigate(1);}}>浏览菜谱库</button></>;
+            return <><div className="fridge-recipe-picker">{matches.map(({recipe,count})=><button type="button" key={recipe.id} className="fridge-recipe-choice" onClick={()=>{setActiveRecipe(recipe);setModal('detail');}}><span><strong>{recipe.name}</strong><small>匹配 {count} 种食材</small></span><ArrowRight size={18}/></button>)}</div>{!matches.length&&<p>暂时没有匹配菜品，可以去菜谱库挑选。</p>}<button className="outline" onClick={()=>{setModal('');navigate(1);}}>浏览菜谱库</button></>;
           })()}
           {modal === "detail" && activeRecipe && (
             <>
@@ -1672,9 +1666,7 @@ function App() {
               >
                 分享采购清单
               </button>
-              <p className="data-note">
-                可下载文件后发送到微信；直接分享取决于设备支持。
-              </p>
+
             </>
           )}
           {modal === "clear" && (
@@ -1731,9 +1723,7 @@ function App() {
                     </div>
                   ),
                 )
-              ) : (
-                <p>选择有安排的周，可查看并复制到其他周。</p>
-              )}
+              ) : null}
               <label>
                 复制到目标周{" "}
                 <DateTimePicker aria-label="复制到目标周"
@@ -1805,9 +1795,7 @@ function App() {
                   粘贴正文识别
                 </button>
               </div>
-              <p>
-                图文与正文分别保留草稿。公开链接无法读取时可粘贴正文或使用截图，确认后才发送给 AI。
-              </p>
+
               <button
                 className="primary"
                 onClick={() => {navigate(1);setEditingRecipe(true);setModal("");}}

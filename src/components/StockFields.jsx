@@ -79,9 +79,7 @@ export default function StockFields({ value, onChange }) {
         {value.storageMethod==='frozen'&&<p className="subtle">冷冻表是品质建议，不能作为安全到期日；请按包装补填期限。</p>}
       </details>
       {confirmation}
-      <p className="subtle wide">
-        入库日算第 1 天；0 或留空表示保存期待补充。包装标示与实际状态优先。
-      </p>
+
     </div>
   );
 }

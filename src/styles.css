@@ -1790,7 +1790,6 @@ html [data-sonner-toaster][data-sonner-theme] {
 .stock-add-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0 6px; }
 .stock-add-actions button { min-width:0; min-height:48px; padding:8px 5px; gap:5px; font-size:.93rem; white-space:nowrap; }
 .stock-add-actions svg { flex-shrink:0; }
-.stock-upload-note { color:#787c72; font-size:.8rem; line-height:1.6; margin:0 0 12px; }
 .stock-recommend-entry { width:100%; margin-top:14px; }
 .fridge-recipe-picker { display:grid; gap:8px; max-height:50dvh; overflow-y:auto; }
 .fridge-recipe-choice { display:flex; justify-content:space-between; gap:12px; padding:14px; border:1px solid #e4e7dc; border-radius:12px; background:#f7f8f2; color:#43543a; text-align:left; }

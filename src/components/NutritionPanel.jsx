@@ -10,7 +10,7 @@ import {
   weekNutritionInput,
   nutritionInput,
 } from "../nutrition.js";
-import { nutritionRequest, defaultAI, resolveAIEndpoint } from "../services.js";
+import { nutritionRequest, defaultAI } from "../services.js";
 import { validateReport } from "../nutrition-report.js";
 import { getPreference } from "../storage.js";
 import { getDeveloperConfig } from "../developer-ai.js";
@@ -37,12 +37,12 @@ async function configuration() {
     (await getPreference("ai-config", defaultAI))
   );
 }
-export function NutritionSummary({ summary, title = "当日预计营养" }) {
+export function NutritionSummary({ summary, title = "当日预计营养", detailed = false }) {
   const partial = summary.missing?.length > 0;
   return (
     <section className="nutrition-summary" aria-label={title}>
       <h3>{title}</h3>
-      <p className="subtle">菜单预计营养，非实际摄入</p>
+
       <div className="nutrition-values">
         {METRICS.map(([key, label, unit]) => (
           <div key={key}>
@@ -53,9 +53,9 @@ export function NutritionSummary({ summary, title = "当日预计营养" }) {
                 : Math.round(summary.values[key] * 10) / 10}{" "}
               <small>{unit}</small>
             </b>
-            <small>
+            {detailed && <small>
               {summary.coverage[key].known}/{summary.coverage[key].total} 项
-            </small>
+            </small>}
           </div>
         ))}
       </div>
@@ -65,13 +65,13 @@ export function NutritionSummary({ summary, title = "当日预计营养" }) {
           : partial
             ? "部分估算 · 已知部分合计"
             : "已估算"}{" "}
-        · 覆盖率按食材条目计，非重量覆盖率
+
       </p>
-      <p className="subtle">
+      {detailed && <p className="subtle">
         来源：{summary.sources?.local ? "本地 CoFID 2021 " : ""}
         {summary.sources?.ai ? "AI 补充估算" : ""}
         {!summary.sources?.local && !summary.sources?.ai ? "待补充" : ""}
-      </p>
+      </p>}
     </section>
   );
 }
@@ -171,7 +171,7 @@ export function RecipeNutrition({ recipe, onChange }) {
       const config = await configuration();
       if (
         !(await ask(
-          `将向 ${resolveAIEndpoint(config.url)} 发送下方 ${missing.length} 项食材名称、数量、单位及缺失指标。AI 对克重和营养的假设仅是估算，可能产生费用。`,
+          `补充这 ${missing.length} 项食材的营养估算？`,
           { title: "发送营养缺失项？", label: "同意估算" },
         ))
       )
@@ -200,9 +200,7 @@ export function RecipeNutrition({ recipe, onChange }) {
   return (
     <section className="recipe-nutrition">
       <NutritionSummary summary={summary} title="整菜预计营养" />
-      <p className="subtle">
-        按可食部计算；未录入的油、调料及弃汤/烹饪损失未计。单位不明确时填写整项食材可食克重。
-      </p>
+
       <div className="nutrition-weight-fields">
         {recipe.ingredients.map((item, index) => (
           <label key={index}>
@@ -344,7 +342,7 @@ export default function NutritionPanel({
       const config = await configuration();
       if (
         !(await ask(
-          `将向 ${resolveAIEndpoint(config.url)} 发送 ${week} 至 ${dayAt(week, 6)} 的预计营养、覆盖率、缺失食材及食材类别汇总。分析仅针对菜单计划，可能产生费用。`,
+          `根据 ${week} 至 ${dayAt(week, 6)} 的菜单生成下周建议？`,
           { title: "生成下周建议？", label: "同意生成" },
         ))
       )
@@ -381,11 +379,11 @@ export default function NutritionPanel({
   return (
     <div className="nutrition-panel">
       <header className="review-period">
-        <span>回顾时间</span>
+        <span>菜单营养估算</span>
         <strong>
           {week} — {dayAt(week, 6)}
         </strong>
-        <p>菜单预计营养，非实际摄入</p>
+
       </header>
       <section className="review-advice" aria-label="下周建议">
         <div className="review-section-heading">
@@ -449,7 +447,7 @@ export default function NutritionPanel({
       <section className="review-daily" aria-label="每日营养">
         <div className="review-section-heading">
           <h3>每日营养</h3>
-          <span className="subtle">点击日期查看</span>
+
         </div>
         <div className="review-dates" role="group" aria-label="回顾日期">
           {Array.from({ length: 7 }, (_, d) => (
@@ -522,7 +520,7 @@ export default function NutritionPanel({
             返回营养回顾
           </button>
           <div className="nutrition-panel">
-            <NutritionSummary summary={summary} title="本周计算详情" />
+            <NutritionSummary summary={summary} title="本周计算详情" detailed />
             <button
               className="outline"
               disabled={busy || !summary.recipes}
