@@ -21,6 +21,8 @@ import {
 export default function RecognitionPanel({
   mode,
   initialImage,
+  autoStart = false,
+  onAutoStart,
   onSettings,
   onImportRecipes,
   onImportStock,
@@ -60,6 +62,7 @@ export default function RecognitionPanel({
   const draftItems = draftResult.items;
   const [busy, setBusy] = useState(false);
   const generation = useRef(0);
+  const startedImage = useRef(null);
   useEffect(
     () => () => {
       generation.current++;
@@ -84,6 +87,7 @@ export default function RecognitionPanel({
       if (current !== generation.current) return;
       setImage(value);
       await persist(draft, { image: value });
+      if (mode === "stock") await run({ automatic: true, selectedImage: value });
     } catch (e) {
       toast.error(e.message);
     } finally {
@@ -109,7 +113,7 @@ export default function RecognitionPanel({
     loadRecognitionDraft(mode)
       .then(async (value) => {
         if (initialImage) {
-          value = { ...value, image: initialImage };
+          value = { ...value, image: initialImage, ...(mode === 'stock' ? {text:''} : {}) };
           await saveRecognitionDraft(mode, value);
         }
         if (active) {
@@ -126,13 +130,25 @@ export default function RecognitionPanel({
       active = false;
     };
   }, [mode, initialImage]);
-  async function run() {
+  useEffect(() => {
+    if (!autoStart || !initialImage || !ready || loadingConfig || loadError || startedImage.current === initialImage) return;
+    startedImage.current = initialImage;
+    onAutoStart?.();
+    run({ automatic: true, selectedImage: initialImage });
+  }, [autoStart, initialImage, ready, loadingConfig, loadError]);
+  async function run({ automatic = false, selectedImage = image } = {}) {
     if (running.current) return;
     running.current = true;
     const current = ++generation.current;
     try {
-      if (!text.trim() && !image) return toast.error("请粘贴文字或选择图片");
+      if (!text.trim() && !selectedImage) return toast.error("请粘贴文字或选择图片");
+      if (mode === 'stock' && draftResult.error) {
+        setReviewError('已有草稿格式异常，请先处理已有草稿后重试，原草稿未替换。');
+        setReviewOpen(true);
+        return;
+      }
       if (
+        mode !== "stock" &&
         !(await ask(
           "将把当前文字和图片发送到 " +
             (endpoint || effectiveConfig.url) +
@@ -142,6 +158,7 @@ export default function RecognitionPanel({
       )
         return;
       if (
+        mode !== "stock" &&
         draft &&
         draft !== "[]" &&
         !(await ask("新识别将替换当前未保存的识别草稿。", {
@@ -154,14 +171,18 @@ export default function RecognitionPanel({
       if (current !== generation.current) return;
       setBusy(true);
       try {
-        await persist();
+        const requestText = automatic ? '' : text;
+        await persist(draft, {image:selectedImage, text:requestText});
         if (current !== generation.current) return;
-        const items = await recognize(effectiveConfig, text, image, kind);
+        const items = await recognize(effectiveConfig, requestText, selectedImage, kind);
         if (current !== generation.current) return;
-        const value = JSON.stringify(items, null, 2);
+        if (mode === 'stock' && draftItems.length + items.length > 100) {
+          throw new Error('待保存食材超过 100 项，请先保存已有草稿后重试；已有草稿未替换。');
+        }
+        const value = JSON.stringify(mode === 'stock' ? [...draftItems,...items] : items, null, 2);
+        await persist(value, {image:selectedImage,text:requestText});
+        if (current !== generation.current) return;
         setDraft(value);
-        await persist(value);
-        if (current !== generation.current) return;
         setReviewError("");
         setReviewOpen(true);
       } catch (e) {
@@ -251,8 +272,7 @@ export default function RecognitionPanel({
                 />
               </div>
               <p className="subtle">
-                可选择菜谱截图或购物小票，单张不超过
-                10MB。确认发送后，才会交给当前 AI 服务识别。
+                {mode === 'stock' ? `拍摄或选图后自动发送到 ${endpoint || effectiveConfig.url} 识别，可能产生费用。单张不超过 10MB。` : '可选择菜谱截图或购物小票，单张不超过 10MB。确认发送后，才会交给当前 AI 服务识别。'}
               </p>
               {readingImage && <p role="status">正在读取图片…</p>}
               {image && (
@@ -343,9 +363,9 @@ export default function RecognitionPanel({
             <button
               className="primary"
               disabled={busy || readingImage || loadingConfig}
-              onClick={run}
+              onClick={() => run()}
             >
-              {busy ? "正在识别…" : "确认发送并识别"}
+              {busy ? "正在识别…" : mode === 'stock' ? '重新识别' : "确认发送并识别"}
             </button>
             {busy && (
               <button

@@ -44,9 +44,9 @@ with sync_playwright() as p:
     expect(page.get_by_label('识别原文',exact=True)).to_have_count(0)
     expect(page.get_by_role('button',name='查看待保存草稿',exact=False)).to_have_count(0)
     nav('冰箱')
-    with page.expect_file_chooser() as chooser: click('拍照识别')
+    with page.expect_file_chooser() as chooser: click('拍摄')
     assert chooser.value.element.get_attribute('capture')=='environment'
-    expect(page.get_by_role('heading',name='拍照识别食材',exact=True)).to_be_visible()
+    expect(page.get_by_role('heading',name='冰箱',exact=True)).to_be_visible()
     assert len(requests)==1
     page.reload(wait_until='domcontentloaded');open_text()
     expect(page.get_by_label('识别原文',exact=True)).to_have_value('独立正文草稿')

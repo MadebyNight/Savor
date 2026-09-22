@@ -54,7 +54,7 @@ with sync_playwright() as p:
     shot('02-已选.png')
 
     nav('冰箱')
-    page.locator('.topbar').get_by_role('button',name='添加食材',exact=True).click()
+    page.get_by_role('button',name='手动添加',exact=True).click()
     page.get_by_role('dialog').get_by_label('食材名称',exact=True).fill('番茄')
     page.get_by_role('dialog').get_by_label('数量',exact=True).fill('100')
     # 同时用于生产预览，防止 CSS 构建优化引入弹窗位移回归。

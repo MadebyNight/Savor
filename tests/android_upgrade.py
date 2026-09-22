@@ -121,7 +121,7 @@ with sync_playwright() as p:
         page.get_by_role('dialog').get_by_role('button',name='确认并同步',exact=False).click()
         wait_state('s.confirmedRecipes.some(r=>r.name==="V1.1验收临时菜" && s.confirmed[r.id]===2)')
         report['checks'].append('搜索食材、选菜两份、确认采购快照')
-        nav('冰箱');page.locator('.topbar').get_by_role('button',name='添加食材',exact=True).click()
+        nav('冰箱');page.get_by_role('button',name='手动添加',exact=True).click()
         page.get_by_role('dialog').get_by_label('食材名称',exact=True).fill('V1.1验收食材')
         page.get_by_role('dialog').get_by_label('数量',exact=True).fill('30')
         page.wait_for_function("""() => {

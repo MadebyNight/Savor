@@ -132,7 +132,6 @@ export default function MobileWeek({
       ))}
       <NutritionReviewButton onClick={onReview}/>
       {!overview && <NutritionSummary summary={summarizeNutrition(plan,day)}/>}
-      <div className="week-view-tools"><button className="text-link" onClick={onHistory}>历史</button></div>
       <Dialog
         open={slot !== null}
         onOpenChange={(open) => !open && setSlot(null)}

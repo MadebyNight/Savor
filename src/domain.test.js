@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { stockStatus, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit, trimName } from "./domain.js";
+import { stockStatus, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit, trimName } from "./domain.js";
 import {backup,validateBackup} from './services.js';
 test('五餐备份往返保留旧三餐、新餐次和独立快照，采购不随安排增加',()=>{
   assert.deepEqual(MEALS.map(([key])=>key),['早','中','下午茶','晚','夜宵']);
@@ -77,4 +77,25 @@ test('单位与名称规范化后可抵扣',()=>{
  const recipe={id:'r',ingredients:[{name:' 番茄 ',qty:100,unit:'克'}]};
  assert.equal(normalizeUnit('克'),'g');assert.equal(trimName(' 番茄 '),'番茄');
  assert.deepEqual(procurement([recipe],{r:1},[{name:'番茄',qty:100,unit:'g'}]),[]);
+});
+
+
+test('采购勾选按名称单位和数量保留，需求变化或移除自动失效',()=>{
+ const item={name:'米',unit:'g',qty:100};const purchased={[shoppingKey(item)]:100};
+ assert.equal(isPurchased(item,purchased),true);
+ assert.equal(isPurchased({...item,qty:200},purchased),false);
+ assert.equal(isPurchased({...item,unit:'袋'},purchased),false);
+ assert.deepEqual(reconcilePurchased([item],purchased),purchased);
+ assert.deepEqual(reconcilePurchased([],purchased),{});
+ const unknown={...item,qty:null};assert.equal(isPurchased(unknown,{}),false);
+ assert.equal(isPurchased(unknown,{[shoppingKey(unknown)]:null}),true);
+ const state={recipes:[],fridge:[],confirmed:{},weeks:{},archives:{},confirmedRecipes:[],purchased};
+ assert.deepEqual(validateBackup(backup(state)).purchased,purchased);
+ assert.throws(()=>validateBackup(backup({...state,purchased:{invalid:'true'}})));
+});
+test('库存状态短文案，保留原来的到期边界',()=>{
+ const stock={date:'2026-09-01',days:3};
+ assert.equal(stockStatus(stock,'2026-09-04').label,'过期');
+ assert.equal(stockStatus(stock,'2026-09-03').label,'剩余0天');
+ assert.equal(stockStatus(stock,'2026-09-02').label,'剩余1天');
 });

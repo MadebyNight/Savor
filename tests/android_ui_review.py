@@ -1,4 +1,5 @@
 """连接真机验收当前 APK 的回顾及选择器；不写入业务测试数据。"""
+import os
 import hashlib
 import json
 import subprocess
@@ -8,7 +9,7 @@ from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[1]
 ADB = ROOT / '.android-tools/sdk/platform-tools/adb.exe'
-OUT = ROOT / '.android-tools/device-logs/review-acceptance-20260922'
+OUT = ROOT / '.android-tools/device-logs' / os.environ.get('DEVICE_REVIEW_DIR','review-acceptance-20260922')
 OUT.mkdir(exist_ok=True)
 SERIAL = 'ea767f86'
 PACKAGE = 'com.shiguang.mealplanner'
@@ -40,7 +41,9 @@ def state(page):
 
 
 def digest(value):
-    return hashlib.sha256(json.dumps(json.loads(value), sort_keys=True).encode()).hexdigest()
+    parsed=json.loads(value)
+    if not parsed.get('purchased'): parsed.pop('purchased',None)
+    return hashlib.sha256(json.dumps(parsed, sort_keys=True).encode()).hexdigest()
 
 
 def shot(name):
@@ -100,6 +103,9 @@ with sync_playwright() as p:
         report['checks'].append('设置导航单行、触摸滑动、提醒页切换')
         back()
         nav('周菜单')
+        history,clear=[page.get_by_role('button',name=name,exact=True).bounding_box() for name in ['历史','清空本周']]
+        assert abs(history['y']-clear['y'])<1
+        report['checks'].append('历史和清空本周同一行')
         page.locator('.nutrition-review-entry').scroll_into_view_if_needed()
         shot('review-entry')
         click('本周菜单营养回顾')
@@ -124,12 +130,23 @@ with sync_playwright() as p:
         report['checks'].append('Android 返回键只关闭高级计算，保留日期')
         back()
         expect(page.locator('.nutrition-dialog')).to_have_count(0)
+        nav('菜篮子')
+        if page.locator('.shopping-card').count():
+            card=page.locator('.shopping-card').first
+            expect(card.get_by_role('checkbox')).to_be_visible()
+            shot('basket-checkbox')
         nav('冰箱')
+        expect(page.locator('.stock-add-actions button')).to_have_count(3)
+        ys=page.locator('.stock-add-actions button').evaluate_all('els=>els.map(e=>e.getBoundingClientRect().y)')
+        assert max(ys)-min(ys)<1
+        expect(page.get_by_role('button',name='拍照识别',exact=True)).to_have_count(0)
+        shot('fridge-three-actions')
+        report['checks'].append('冰箱三项入口同一行、采购勾选入口')
         stock = page.locator('.stock-compact-row')
         if stock.count():
             stock.first.click()
         else:
-            page.locator('.topbar').get_by_role('button', name='添加食材', exact=True).click()
+            page.get_by_role('button', name='手动添加', exact=True).click()
         fields = page.locator('.stock-fields > label > input, .stock-fields > label > .picker-trigger')
         page.locator('.stock-dialog').evaluate('async e=>{await Promise.all(e.getAnimations().map(a=>a.finished))}')
         boxes = [field.bounding_box() for field in fields.all()]

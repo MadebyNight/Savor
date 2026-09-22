@@ -19,8 +19,8 @@ export function stockStatus(stock, date = new Date().toLocaleDateString('sv-SE')
   const expiry = dayAt(stock.date || date, Number(stock.days) - 1);
   const remaining = Math.round((Date.parse(expiry+'T00:00:00Z')-Date.parse(date+'T00:00:00Z'))/86400000);
   const threshold = stock.days <= 3 ? 1 : stock.days <= 7 ? 2 : 3;
-  if (remaining < 0) return {kind:'expired',remaining,rank:0,label:'⚠ 过期·勿食用'};
-  if (remaining <= threshold) return {kind:'soon',remaining,rank:1,label:remaining===0?'⚠ 今天到期':`⚠ 剩余${remaining}天，尽快食用`};
+  if (remaining < 0) return {kind:'expired',remaining,rank:0,label:'过期'};
+  if (remaining <= threshold) return {kind:'soon',remaining,rank:1,label:`剩余${remaining}天`};
   return {kind:'normal',remaining,rank:3,label:`剩余${remaining}天`};
 }
 export function procurement(recipes, quantities, fridge, date) {
@@ -62,4 +62,10 @@ export function procurement(recipes, quantities, fridge, date) {
             ),
     }))
     .filter((item) => item.qty == null || item.qty > 0);
+}
+
+export const shoppingKey = item => JSON.stringify([trimName(item.name),normalizeUnit(item.unit)]);
+export const isPurchased = (item, purchased) => Object.hasOwn(purchased,shoppingKey(item)) && purchased[shoppingKey(item)]===item.qty;
+export function reconcilePurchased(items,purchased){
+ return Object.fromEntries(items.filter(item=>isPurchased(item,purchased)).map(item=>[shoppingKey(item),item.qty]));
 }

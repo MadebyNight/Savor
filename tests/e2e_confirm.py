@@ -22,6 +22,15 @@ with sync_playwright() as p:
         expect(dialog(title)).not_to_be_visible()
         assert data()==before and len(requests)==calls
     def accept(title,label):dialog(title).get_by_role('button',name=label,exact=True).click()
+    def choose_date(label,value):
+        import datetime
+        trigger=page.get_by_role('button',name=label,exact=True)
+        current=(trigger.get_attribute('value') or datetime.date.today().isoformat())[:7]
+        delta=(int(value[:4])-int(current[:4]))*12+int(value[5:7])-int(current[5:7])
+        trigger.click()
+        for _ in range(abs(delta)):click('下个月' if delta>0 else '上个月')
+        page.locator('.calendar-grid').get_by_role('button',name=value,exact=True).click()
+        click('确认选择');expect(page.locator('.picker-dialog')).to_have_count(0)
     def pref(key,value):page.evaluate('([k,v])=>localStorage.setItem("pref:"+k,JSON.stringify(v))',[key,value])
     def settings():
         page.get_by_role('navigation',name='主导航').get_by_role('button',name='点单',exact=True).click()
@@ -40,8 +49,8 @@ with sync_playwright() as p:
 
     # 覆盖已有周安排：嵌套应用弹窗，取消保留，确认仅替换目标周。
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='周菜单',exact=True).click()
-    click('历史');page.get_by_label('选择存档日期',exact=True).fill('2026-10-05')
-    page.get_by_label('复制到目标周',exact=True).fill('2026-10-12')
+    click('历史');choose_date('选择存档日期','2026-10-05')
+    choose_date('复制到目标周','2026-10-12')
     click('复制菜单');cancel('替换目标周安排？')
     click('复制菜单');accept('替换目标周安排？','确认替换')
     page.wait_for_function('()=>{let w=JSON.parse(localStorage.getItem("shiguang-v1")).weeks;return JSON.stringify(w["2026-10-05"])===JSON.stringify(w["2026-10-12"])}')
@@ -62,7 +71,8 @@ with sync_playwright() as p:
     expect(page.get_by_label('草稿名称1',exact=True)).to_have_value(snapshot['name'])
     click('稍后处理')
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='冰箱',exact=True).click()
-    with page.expect_file_chooser(): click('拍照识别')
+    with page.expect_file_chooser() as chooser: click('拍摄')
+    chooser.value.set_files([])
     expect(page.get_by_role('button',name='查看待保存草稿',exact=False)).to_have_count(0)
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱');click('粘贴正文识别')
     expect(page.get_by_label('识别原文',exact=True)).to_have_value('保留原文')

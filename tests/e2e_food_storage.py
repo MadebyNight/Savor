@@ -8,7 +8,7 @@ with sync_playwright() as p:
  page.goto(os.environ.get('E2E_URL','http://127.0.0.1:5173'),wait_until='domcontentloaded')
  def click(name):page.get_by_role('button',name=name,exact=True).click()
  def fridge():page.get_by_role('navigation',name='主导航').get_by_role('button',name='冰箱',exact=True).click()
- fridge();page.locator('.topbar').get_by_role('button',name='添加食材',exact=True).click()
+ fridge();page.get_by_role('button',name='手动添加',exact=True).click()
  page.get_by_label('食材名称',exact=True).fill('鸡胸肉');page.get_by_label('保存方式',exact=True).click();page.locator('.picker-options').get_by_role('button',name='冷藏（≤4°C）',exact=True).click()
  expect(page.get_by_label('保存天数',exact=True)).to_have_value('1')
  page.get_by_label('保存天数',exact=True).fill('5')

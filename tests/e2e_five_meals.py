@@ -48,7 +48,7 @@ with sync_playwright() as p:
     click('一周总览');expect(page.locator('.meal-table-row')).to_have_count(35)
     click('返回单日');page.reload(wait_until='domcontentloaded');nav('周菜单');page.locator('.week-dates button').first.click()
     expect(page.locator('.meal-table-dishes').filter(has_text='酸奶')).to_contain_text('×2')
-    nav('冰箱');page.locator('.topbar').get_by_role('button',name='添加食材',exact=True).click()
+    nav('冰箱');page.get_by_role('button',name='手动添加',exact=True).click()
     page.get_by_label('食材名称',exact=True).fill('手动未知期限食材')
     page.get_by_label('数量',exact=True).fill('0.5')
     page.get_by_label('保存天数',exact=True).fill('0')

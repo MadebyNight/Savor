@@ -2,7 +2,7 @@ import { AppSelect, DateTimePicker } from "./components/Pickers.jsx";
 import {getReminderStatus,consumeReminderLaunch,markWeekReviewed} from './reminders.js';
 import NutritionPanel, {RecipeNutrition,NutritionReviewButton} from './components/NutritionPanel.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
-﻿import { stockStatus, MEALS, monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
+﻿import { stockStatus, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import {businessState} from "./services.js";
 import SyncPanel from "./components/SyncPanel.jsx";
@@ -28,6 +28,7 @@ import {
   ArrowUpRight,
   CalendarDays,
   Camera,
+  ImagePlus,
   Check,
   ChefHat,
   Clock,
@@ -91,8 +92,10 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [recognition,setRecognition]=useState(null);
   const [recognitionImage,setRecognitionImage]=useState('');
-  const fridgeCamera=useRef(null);
-  const openRecognition=(mode)=>{setRecognitionImage('');setRecognition(mode);setModal('');if(mode==='stock')fridgeCamera.current.click();};
+  const [recognitionAuto,setRecognitionAuto]=useState(false);
+  const fridgeCamera=useRef(null),fridgeAlbum=useRef(null);
+  const [readingStockImage,setReadingStockImage]=useState(false);
+  const openRecognition=(mode)=>{setRecognitionImage('');setRecognition(mode);setModal('');};
   const returnToPage = () => {
     if (showSettings) setShowSettings(false);
     else if(recognition)setRecognition(null);
@@ -102,6 +105,7 @@ function App() {
   const [saveStatus, setSaveStatus] = useState("正在加载");
   const [recipes, setRecipes] = useState(initialRecipes);
   const [fridge, setFridge] = useState([]);
+  const [purchased,setPurchased]=useState({});
   // 修改点单只更新 quantities；确认后才更新采购缺口与周菜单素材。
   const [quantities, setQuantities] = useState({});
   const [confirmedQuantities, setConfirmedQuantities] = useState({});
@@ -165,6 +169,7 @@ function App() {
   const fullState = {
     recipes,
     fridge,
+    purchased,
     qty: quantities,
     confirmed: confirmedQuantities,
     weeks,
@@ -177,6 +182,7 @@ function App() {
   const applyState = (state) => {
     setRecipes(state.recipes || initialRecipes);
     setFridge(state.fridge || []);
+    setPurchased(state.purchased || {});
     setQuantities(state.qty || {});
     setConfirmedQuantities(state.confirmed || {});
     setWeeks(state.weeks || {});
@@ -241,6 +247,7 @@ function App() {
   }, [
     recipes,
     fridge,
+    purchased,
     quantities,
     confirmedQuantities,
     weeks,
@@ -276,6 +283,16 @@ function App() {
     confirmedQuantities,
     fridge,
   );
+  const shoppingFingerprint=JSON.stringify(shoppingList.map(item=>[shoppingKey(item),item.qty]));
+  useEffect(()=>{if(hydrated)setPurchased(current=>{const next=reconcilePurchased(shoppingList,current);return JSON.stringify(next)===JSON.stringify(current)?current:next;});},[shoppingFingerprint,hydrated]);
+  const remainingShopping=shoppingList.filter(item=>!isPurchased(item,purchased)).length;
+  const manualStock=()=>{if(editingStock!==null)setIngredientDraft({...ingredient('',100),days:0,date:today()});setEditingStock(null);setStockError('');setModal('stock');};
+  async function selectStockImage(event){
+    const file=event.target.files?.[0];event.target.value='';if(!file)return;
+    if(file.size>10*1024*1024)return toast.error('请选择10MB以内图片');
+    setReadingStockImage(true);
+    try{const value=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reader.onabort=()=>reject(new Error('图片读取失败，请重新选择'));reader.readAsDataURL(file);});setRecognitionImage(value);setRecognitionAuto(true);setRecognition('stock');setModal('');}catch(error){toast.error(error.message);}finally{setReadingStockImage(false);}
+  }
   const changeQuantity = (recipeId, delta) =>
     setQuantities((currentQuantities) => ({
       ...currentQuantities,
@@ -525,7 +542,6 @@ function App() {
             </div>
             <div className="mobile-header-actions">
               {!showSettings && !recognition && !editingRecipe && page === 0 && <button className="mobile-icon" aria-label="设置与备份" onClick={() => setShowSettings(true)}><Settings2 size={22} /></button>}
-              {!showSettings && !recognition && !editingRecipe && page === 4 && <button onClick={() => {if(editingStock!==null)setIngredientDraft({...ingredient("",100),days:0,date:today()});setEditingStock(null);setStockError("");setModal("stock");}}><Plus size={18} />添加食材</button>}
               {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => setEditingRecipe(true)}><Plus size={18} />{recipeDraft.name ? "继续草稿" : "新建菜谱"}</button>}
               {!showSettings && page === 3 && <button onClick={() => setMealSlot(`${selectedDay}-早`)}><Plus size={18} />安排菜品</button>}
               {!showSettings && page === 2 && <button disabled={!shoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
@@ -561,14 +577,11 @@ function App() {
             />
           )}
 
-          {recognition&&!showSettings&&<RecognitionPanel key={recognition} mode={recognition} initialImage={recognitionImage} onSettings={()=>{setRecognitionImage('');setShowSettings(true);}}
+          {recognition&&!showSettings&&<RecognitionPanel key={recognition} mode={recognition} initialImage={recognitionImage} autoStart={recognitionAuto} onAutoStart={()=>setRecognitionAuto(false)} onSettings={()=>{setRecognitionImage('');setShowSettings(true);}}
             onImportRecipes={async items=>{const next=[...latestState.current.recipes,...items.map(item=>({...item,nutrition:calculateNutrition(item)}))];await saveState({...latestState.current,recipes:next});setRecipes(next);}}
             onImportStock={async items=>{const next=[...latestState.current.fridge,...items];await saveState({...latestState.current,fridge:next});setFridge(next);}}/>}
-          <input ref={fridgeCamera} type="file" accept="image/*" capture="environment" aria-label="冰箱拍摄图片" hidden onChange={async event=>{
-            const file=event.target.files?.[0];event.target.value='';if(!file)return;
-            if(file.size>10*1024*1024)return toast.error('请选择10MB以内图片');
-            try{const value=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reader.onabort=()=>reject(new Error('图片读取失败，请重新拍摄'));reader.readAsDataURL(file);});setRecognitionImage(value);}catch(error){toast.error(error.message);}
-          }}/>
+          <input ref={fridgeCamera} type="file" accept="image/*" capture="environment" aria-label="冰箱拍摄图片" hidden onChange={selectStockImage}/>
+          <input ref={fridgeAlbum} type="file" accept="image/*" aria-label="冰箱相册图片" hidden onChange={selectStockImage}/>
           {!showSettings && !recognition && <>
           <div className="page-heading">
             <div>
@@ -596,7 +609,7 @@ function App() {
                 }
               </p>
             </div>
-            <button
+            {page !== 4 && <button
               className="outline"
               onClick={() =>
                 page === 4
@@ -620,7 +633,7 @@ function App() {
                   : page === 1
                     ? "返回菜品库"
                     : "上传我的菜谱"}
-            </button>
+            </button>}
           </div>
           {page === 0 && (
             <>
@@ -835,7 +848,7 @@ function App() {
                 <h2>
                   {"还需要买 "}
                   <span>
-                    {shoppingList.length}
+                    {remainingShopping}
                     {" 种食材"}
                   </span>
                 </h2>
@@ -868,14 +881,14 @@ function App() {
                     (item) => category === "全部" || item.category === category,
                   )
                   .map((item) => (
-                    <article key={item.name + item.unit} className="stock-card">
-                      <ShoppingBasket />
+                    <article key={shoppingKey(item)} className={`stock-card shopping-card ${isPurchased(item,purchased)?'is-purchased':''}`}>
+                      <label className="shopping-check"><input type="checkbox" aria-label={`已买${item.name}（${item.unit}）`} checked={isPurchased(item,purchased)} onChange={event=>{const checked=event.target.checked;setPurchased(current=>{const next={...current};if(checked)next[shoppingKey(item)]=item.qty;else delete next[shoppingKey(item)];return next;});}}/><span className="sr-only">已买</span></label>
                       <h3>{item.name}</h3>
                       <strong>
                         {item.qty ?? "待确认"} <small>{item.unit}</small>
                       </strong>
                       <p className="missing">
-                        {"需要采购 · "}
+                        {isPurchased(item,purchased)?'已买 · ':'待买 · '}
                         {item.category}
                       </p>
                     </article>
@@ -1069,32 +1082,26 @@ function App() {
                 </div>
               </div>
               </>}
-              <div className="actions">
-                <button className="outline" onClick={() => setModal("clear")}>
+              <div className="week-footer-actions">
+                <button className="text-link" onClick={()=>setModal('history')}><CalendarDays size={16}/>历史</button>
+                <button className="text-link" onClick={() => setModal("clear")}>
                   <Trash2 size={16} />
                   清空本周
                 </button>
-                <span className="subtle">
-                  菜单修改自动保存 · 安排不会增加采购量
-                </span>
               </div>
             </>
           )}
           {page === 4 && (
             <>
-              <div className="welcome-banner">
-                <Camera size={36} />
-                <div>
-                  <strong>拍一拍，让新鲜有迹可循</strong>
-                  <p>拍照识别入口，支持确认后录入食材。</p>
-                </div>
-                <button onClick={() => openRecognition("stock")}>
-                  {"AI 识别食材 "}
-                  <ArrowUpRight size={17} />
-                </button>
-              </div>
               <label className="search mobile-search"><Search size={18}/><input aria-label="搜索冰箱食材" placeholder="搜索冰箱里的食材" value={search} onChange={event => setSearch(event.target.value)}/></label>
-              {compact && <><div className="stock-summary"><strong>新鲜有数，好好吃饭</strong><span>共 {fridge.length} 批食材</span></div><div className="stock-toolbar"><button className="text-link" onClick={() => openRecognition("stock")}><Camera size={18}/>拍照识别</button></div></>}
+              <div className="stock-summary"><strong>新鲜有数，好好吃饭</strong><span>共 {fridge.length} 批食材</span></div>
+              <div className="stock-add-actions">
+                <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeCamera.current.click()}><Camera size={18}/>拍摄</button>
+                <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeAlbum.current.click()}><ImagePlus size={18}/>相册选择</button>
+                <button type="button" className="outline" onClick={manualStock}><Plus size={18}/>手动添加</button>
+              </div>
+              <p className="stock-upload-note">选图后自动发送给已配置的 AI 识别，可能产生费用。</p>
+              {readingStockImage&&<p role="status">正在读取图片…</p>}
               <div className="stock-layout">
               <aside className="chip-row dashed stock-categories" aria-label="食材分类">
                 {stockCategories.map((categoryName) => (
@@ -1109,7 +1116,7 @@ function App() {
                 ))}
               </aside>
               <section className="stock-results">
-              <label className="stock-status-filter">期限筛选<AppSelect aria-label="期限筛选" value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期·勿食用</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></AppSelect></label>
+              <label className="stock-status-filter">期限筛选<AppSelect aria-label="期限筛选" value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></AppSelect></label>
               <div className="stock-grid stock-list">
                 {visibleStock.map(({stock,index,status})=>{
                   return <button key={stock.id||index} className={`stock-compact-row ${status.kind}`} onClick={()=>{setEditingStock(index);setIngredientDraft({...stock});setStockError('');setModal('stock');}}>
@@ -1118,45 +1125,12 @@ function App() {
                   </button>;
                 })}
               </div>
-              {!visibleStock.length && <div className="empty"><p>{fridge.length ? "没有符合当前搜索和筛选条件的食材。" : "冰箱里还没有食材。"}</p>{!!fridge.length && <button className="text-link" onClick={()=>{setSearch('');setCategory('全部');setStockFilter('all');}}>清除筛选</button>}<button className="text-link" onClick={() => {if(editingStock!==null)setIngredientDraft({...ingredient("",100),days:0,date:today()});setEditingStock(null);setStockError("");setModal("stock");}}>添加食材</button></div>}
-              {(expiredCount > 0 || soonCount > 0) && <p role="status" className="stock-risk-summary">⚠ {expiredCount > 0 && <strong>{expiredCount} 批已过期，请勿食用并及时清理。 </strong>}{soonCount > 0 && <span>{soonCount} 批临期，请尽快食用。</span>}</p>}
+              {!visibleStock.length && <div className="empty"><p>{fridge.length ? "没有符合当前搜索和筛选条件的食材。" : "冰箱里还没有食材。"}</p>{!!fridge.length && <button className="text-link" onClick={()=>{setSearch('');setCategory('全部');setStockFilter('all');}}>清除筛选</button>}</div>}
+              {(expiredCount > 0 || soonCount > 0) && <p role="status" className="stock-risk-summary">⚠ {expiredCount > 0 && <strong>{expiredCount} 批过期 </strong>}{soonCount > 0 && <span>{soonCount} 批临期</span>}</p>}
               <p className="data-note">
                 新鲜度按录入日期与自设保存天数估算，请结合实际状态判断。
               </p>
-              <section className="panel">
-                <h2>用这些食材，做点好吃的</h2>
-                <div className="chip-row">
-                  {fridge.map((stock, index) => (
-                    <button
-                      key={index}
-                      className={
-                        selectedIngredients.includes(stock.name) ? "active" : ""
-                      }
-                      onClick={() =>
-                        setSelectedIngredients((selected) =>
-                          selected.includes(stock.name)
-                            ? selected.filter((t) => t !== stock.name)
-                            : [...selected, stock.name],
-                        )
-                      }
-                    >
-                      {stock.name} <ArrowUpRight size={15} />
-                    </button>
-                  ))}
-                </div>
-                <button
-                  className="primary"
-                  disabled={!selectedIngredients.length}
-                  onClick={() => {
-                    setPage(0);
-                    setCategory("全部");
-                    setSearch("");
-                  }}
-                >
-                  {"看看能做什么 "}
-                  <ArrowRight size={17} />
-                </button>
-              </section>
+              <button className="primary stock-recommend-entry" disabled={!fridge.length} onClick={()=>setModal('fridge-recipes')}>看看能做什么<ArrowRight size={17}/></button>
               </section>
               </div>
             </>
@@ -1515,6 +1489,7 @@ function App() {
               clear: "清空本周安排？",
               history: "膳食日历",
               import: "导入菜谱",
+              "fridge-recipes":"看看能做什么",
             }[modal] || "食光"}
           </DialogTitle>
           <DialogDescription>
@@ -1522,8 +1497,13 @@ function App() {
               ? "食材与制作步骤"
               : modal === "clear"
                 ? "本周安排将被移除，已存档记录会保留。"
-                : "确认信息后再保存"}
+                : modal === "fridge-recipes" ? "选择菜品，查看做法与所需食材" : "确认信息后再保存"}
           </DialogDescription>
+          {modal === "fridge-recipes" && (()=>{
+            const available=new Set(fridge.filter(stock=>usableStock(stock)).map(stock=>trimName(stock.name)));
+            const matches=recipes.map(recipe=>({recipe,count:recipe.ingredients.filter(item=>available.has(trimName(item.name))).length})).filter(item=>item.count>0).sort((a,b)=>b.count-a.count);
+            return <><p className="subtle">按冰箱现有食材匹配，点开菜品查看做法与所需食材。</p><div className="fridge-recipe-picker">{matches.map(({recipe,count})=><button type="button" key={recipe.id} className="fridge-recipe-choice" onClick={()=>{setActiveRecipe(recipe);setModal('detail');}}><span><strong>{recipe.name}</strong><small>匹配 {count} 种食材</small></span><ArrowRight size={18}/></button>)}</div>{!matches.length&&<p>暂时没有匹配菜品，可以去菜谱库挑选。</p>}<button className="outline" onClick={()=>{setModal('');navigate(1);}}>浏览菜谱库</button></>;
+          })()}
           {modal === "detail" && activeRecipe && (
             <>
               {activeRecipe.image && (

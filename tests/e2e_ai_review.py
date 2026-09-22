@@ -64,9 +64,10 @@ with sync_playwright() as p:
     response.update(status=200,items=[]);send()
     expect(page.get_by_role('dialog',name='未识别到可保存内容',exact=True)).to_be_visible();click('返回补充')
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='冰箱',exact=True).click()
-    with page.expect_file_chooser() as chooser: click('拍照识别')
+    response['items']=[{'name':'牛奶','category':'奶制品','qty':2,'unit':'盒','days':3}]
+    with page.expect_file_chooser() as chooser: click('拍摄')
     chooser.value.set_files({'name':'test.png','mimeType':'image/png','buffer':base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')})
-    response['items']=[{'name':'牛奶','category':'奶制品','qty':2,'unit':'盒','days':3}];send()
+
     stock=page.get_by_role('dialog',name='核对并保存食材',exact=True);expect(stock).to_be_visible()
     for width in [320,390]:
         page.set_viewport_size({'width':width,'height':844})
@@ -85,7 +86,7 @@ with sync_playwright() as p:
     page.locator('.stock-review-details > summary').click()
     expect(page.locator('.stock-review-details > summary')).to_contain_text('3 盒')
     page.screenshot(path=str(ROOT/'.android-tools/layout-fix/stock-review.png'))
-    click('稍后处理');response['hold']=True;send(True);click('取消等待')
+    click('稍后处理');response['hold']=True;click('重新识别');click('取消等待')
     assert pending;pending[0].fulfill(status=200,content_type='application/json',body=json.dumps({'choices':[{'message':{'content':'{"items":[]}'}}]}))
     page.wait_for_load_state('networkidle');expect(stock).not_to_be_visible();reopen()
     expect(page.locator('.stock-review-details > summary')).to_contain_text('牛奶')

@@ -11,7 +11,7 @@ with sync_playwright() as p:
     page.on('pageerror', lambda error: errors.append(str(error)))
     page.goto(os.environ.get('E2E_URL', 'http://127.0.0.1:5173'), wait_until='networkidle')
     page.get_by_role('navigation', name='主导航').get_by_role('button', name='冰箱', exact=True).click()
-    page.locator('.topbar').get_by_role('button', name='添加食材', exact=True).click()
+    page.get_by_role('button', name='手动添加', exact=True).click()
     page.locator('.stock-dialog').evaluate('async e => {await Promise.all(e.getAnimations().map(a => a.finished))}')
     # 焦点轮廓留在边框内；整行和两列字段保持共同外边界。
     for width in [320, 390]:

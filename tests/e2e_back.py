@@ -77,11 +77,11 @@ with sync_playwright() as p:
 
     # 库存弹窗及从弹窗转入设置的返回。
     nav('冰箱')
-    page.locator('.topbar').get_by_role('button', name='添加食材', exact=True).click()
+    page.get_by_role('button', name='手动添加', exact=True).click()
     back()
     no_dialog()
-    with page.expect_file_chooser(): click('拍照识别')
-    back()
+    with page.expect_file_chooser() as chooser: click('拍摄')
+    chooser.value.set_files([])
     expect(page.get_by_role('heading', name='冰箱', exact=True)).to_be_visible()
     back(False)
 
