@@ -36,9 +36,18 @@ with sync_playwright() as p:
         cats=page.locator('.stock-categories')
         assert cats.bounding_box()['height'] <= 64, (width,cats.bounding_box())
         assert cats.evaluate('e=>getComputedStyle(e).flexDirection') == 'row'
+        search_box=page.locator('.fridge-search-row').bounding_box()
+        filter_box=page.get_by_label('期限筛选',exact=True).bounding_box()
+        actions=page.locator('.stock-add-actions').bounding_box()
+        assert filter_box['y']>=search_box['y'] and filter_box['y']+filter_box['height']<=search_box['y']+search_box['height']+1
+        assert cats.bounding_box()['y']>=search_box['y']+search_box['height']
+        assert actions['y']>=cats.bounding_box()['y']+cats.bounding_box()['height']
+        assert actions['height']<=50
         first=page.locator('.stock-compact-row').first.bounding_box()
         bottom=page.locator('.mobile-bottom-nav').bounding_box()['y']
-        if height>=640: assert first['y']+first['height'] < bottom-100, (width,first,bottom)
+        if height>=640:
+            assert first['y']<=215,(width,first)
+            assert first['y']+first['height'] < bottom-100, (width,first,bottom)
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
         assert page.locator('.workspace').evaluate('e=>e.scrollWidth<=e.clientWidth+1')
         if width in (360,390): page.screenshot(path=str(OUT/f'fridge-{width}.png'))

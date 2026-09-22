@@ -106,7 +106,7 @@ with sync_playwright() as p:
         test_state['recipeDraft']={'id':0,'name':'','category':'素菜','time':15,'weight':300,'ingredients':[{'name':'','qty':100,'unit':'g','category':'蔬菜'}],'steps':['']}
         page.evaluate('value => Capacitor.Plugins.LocalData.saveState({value})',json.dumps(test_state,ensure_ascii=False))
         page.reload();page.wait_for_function("!!document.querySelector('.topbar') && [...document.querySelectorAll('[role=\"status\"]')].some(e=>e.textContent==='已保存')")
-        nav('菜谱');click('新建菜谱')
+        nav('菜谱');click('导入菜谱');click('手动添加')
         page.get_by_placeholder('给这道菜起个名字').fill('V1.1验收临时菜')
         page.get_by_label('食材名称',exact=True).fill('V1.1验收食材')
         page.get_by_label('数量',exact=True).fill('100')

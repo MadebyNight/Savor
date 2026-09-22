@@ -2,7 +2,7 @@ import { AppSelect, DateTimePicker } from "./components/Pickers.jsx";
 import {getReminderStatus,consumeReminderLaunch,markWeekReviewed} from './reminders.js';
 import NutritionPanel, {RecipeNutrition,NutritionReviewButton} from './components/NutritionPanel.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
-﻿import { stockStatus, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, trimName, normalizeUnit } from "./domain.js";
+﻿import { stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import {businessState} from "./services.js";
 import SyncPanel from "./components/SyncPanel.jsx";
@@ -339,7 +339,7 @@ function App() {
       (recipe.name.includes(search.trim()) || recipe.ingredients.some(item => item.name.includes(search.trim()))) &&
       (!selectedIngredients.length ||
         selectedIngredients.every((ingredientName) =>
-          recipe.ingredients.some((item) => trimName(item.name) === trimName(ingredientName)),
+          recipe.ingredients.some((item) => ingredientKey(item.name) === ingredientKey(ingredientName)),
         )),
   );
   const saveRecipe = () => {
@@ -470,7 +470,7 @@ function App() {
             重新加载
           </button>
         )}
-        <Toaster richColors position="top-center" />
+        <Toaster richColors position="top-center" offset={compact ? "calc(60px + env(safe-area-inset-top))" : undefined} mobileOffset={{top:"calc(60px + env(safe-area-inset-top))"}} />
       </main>
     );
   return (
@@ -531,17 +531,19 @@ function App() {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <main className={`main ${compact ? "compact-app" : ""}`}>
+      <main className={`main ${compact ? "compact-app" : ""} ${page === 0 && !showSettings && !recognition ? "order-page" : ""}`}>
         <header className="topbar">
           {compact && <>
             <div className="mobile-title">
               {showSettings || editingRecipe || recognition ? <button className="mobile-icon" aria-label="返回" onClick={returnToPage}><ArrowLeft size={22} /></button> : <img className="brand-logo" src="/brand/mark.svg" alt=""/>}
               <h1>{showSettings ? "设置与数据" : recognition ? ({"recipe-import":"导入菜谱",stock:"拍照识别"}[recognition]) : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
+              {page === 1 && !showSettings && !recognition && !editingRecipe && <span className="library-total">{filteredRecipes.length} 道</span>}
+              {page === 4 && !showSettings && !recognition && <span className="fridge-total">{fridge.length} 批食材</span>}
               <span role="status" className={saveStatus.includes("失败") ? "mobile-save-error" : "sr-only"}>{saveStatus}</span>
             </div>
             <div className="mobile-header-actions">
               {!showSettings && !recognition && !editingRecipe && page === 0 && <button className="mobile-icon" aria-label="设置与备份" onClick={() => setShowSettings(true)}><Settings2 size={22} /></button>}
-              {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => setEditingRecipe(true)}><Plus size={18} />{recipeDraft.name ? "继续草稿" : "新建菜谱"}</button>}
+              {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => openRecognition("recipe-import")}><Upload size={18} />导入菜谱</button>}
               {!showSettings && page === 3 && <button onClick={() => setMealSlot(`${selectedDay}-早`)}><Plus size={18} />安排菜品</button>}
               {!showSettings && page === 2 && <button disabled={!shoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
             </div>
@@ -576,7 +578,7 @@ function App() {
             />
           )}
 
-          {recognition&&!showSettings&&<RecognitionPanel key={recognition} mode={recognition} initialImage={recognitionImage} autoStart={recognitionAuto} onAutoStart={()=>setRecognitionAuto(false)} onSettings={()=>{setRecognitionImage('');setShowSettings(true);}}
+          {recognition&&!showSettings&&<RecognitionPanel key={recognition} mode={recognition} initialImage={recognitionImage} autoStart={recognitionAuto} onAutoStart={()=>setRecognitionAuto(false)} onManual={()=>{setRecognition(null);setEditingRecipe(true);}} onSettings={()=>{setRecognitionImage('');setShowSettings(true);}}
             onImportRecipes={async items=>{const next=[...latestState.current.recipes,...items.map(item=>({...item,nutrition:calculateNutrition(item)}))];await saveState({...latestState.current,recipes:next});setRecipes(next);}}
             onImportStock={async items=>{const next=[...latestState.current.fridge,...items];await saveState({...latestState.current,fridge:next});setFridge(next);}}/>}
           <input ref={fridgeCamera} type="file" accept="image/*" capture="environment" aria-label="冰箱拍摄图片" hidden onChange={selectStockImage}/>
@@ -750,7 +752,7 @@ function App() {
                                     .filter(
                                       (stock) =>
                                         usableStock(stock) &&
-                                        trimName(stock.name) === trimName(item.name) &&
+                                        ingredientKey(stock.name) === ingredientKey(item.name) &&
                                         normalizeUnit(stock.unit) === normalizeUnit(item.unit),
                                     )
                                     .reduce(
@@ -1090,16 +1092,12 @@ function App() {
           )}
           {page === 4 && (
             <>
-              <label className="search mobile-search"><Search size={18}/><input aria-label="搜索冰箱食材" placeholder="搜索冰箱里的食材" value={search} onChange={event => setSearch(event.target.value)}/></label>
-              <div className="stock-summary"><strong>新鲜有数，好好吃饭</strong><span>共 {fridge.length} 批食材</span></div>
-              <div className="stock-add-actions">
-                <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeCamera.current.click()}><Camera size={18}/>拍摄</button>
-                <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeAlbum.current.click()}><ImagePlus size={18}/>相册选择</button>
-                <button type="button" className="outline" onClick={manualStock}><Plus size={18}/>手动添加</button>
+              <div className="search mobile-search fridge-search-row">
+                <Search size={18}/><input aria-label="搜索冰箱食材" placeholder="搜索食材" value={search} onChange={event => setSearch(event.target.value)}/>
+                <div className="stock-status-filter" data-active={stockFilter !== 'all'}>
+                  <AppSelect aria-label="期限筛选" icon={Settings2} displayValue={({all:'期限',expired:'过期',soon:'临期',unknown:'待补充',normal:'正常'})[stockFilter]} value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></AppSelect>
+                </div>
               </div>
-
-              {readingStockImage&&<p role="status">正在读取图片…</p>}
-              <div className="stock-layout">
               <aside className="chip-row dashed stock-categories" aria-label="食材分类">
                 {stockCategories.map((categoryName) => (
                   <button
@@ -1112,8 +1110,16 @@ function App() {
                   </button>
                 ))}
               </aside>
+              <div className="stock-add-actions">
+                <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeCamera.current.click()}><Camera size={18}/>拍摄</button>
+                <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeAlbum.current.click()}><ImagePlus size={18}/>相册选择</button>
+                <button type="button" className="outline" onClick={manualStock}><Plus size={18}/>手动添加</button>
+              </div>
+
+              {readingStockImage&&<p role="status">正在读取图片…</p>}
+              {!compact && <div className="stock-summary"><span>共 {fridge.length} 批食材</span></div>}
+              <div className="stock-layout">
               <section className="stock-results">
-              <label className="stock-status-filter">期限筛选<AppSelect aria-label="期限筛选" value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></AppSelect></label>
               <div className="stock-grid stock-list">
                 {visibleStock.map(({stock,index,status})=>{
                   return <button key={stock.id||index} className={`stock-compact-row ${status.kind}`} onClick={()=>{setEditingStock(index);setIngredientDraft({...stock});setStockError('');setModal('stock');}}>
@@ -1133,8 +1139,7 @@ function App() {
           {page === 1 && !editingRecipe && <section className="recipe-library">
             <div className="library-tools">
               <label className="search"><Search size={18}/><input aria-label="搜索我的菜谱" placeholder="搜索菜名或食材" value={search} onChange={event => setSearch(event.target.value)}/></label>
-              {!compact && <button className="primary" onClick={() => setEditingRecipe(true)}><Plus size={18}/>{recipeDraft.name ? "继续草稿" : "新建菜谱"}</button>}
-              <button className="outline" onClick={() => openRecognition("recipe-import")}><Upload size={18}/>导入菜谱</button>
+              {!compact && <button className="outline" onClick={() => openRecognition("recipe-import")}><Upload size={18}/>导入菜谱</button>}
             </div>
             <h2>我的菜谱 <small>{filteredRecipes.length} 道</small></h2>
             {filteredRecipes.map(recipe => <button key={recipe.id} className="library-recipe" onClick={() => {setActiveRecipe(recipe);setModal("detail");}}>
@@ -1492,9 +1497,8 @@ function App() {
                 : modal === "fridge-recipes" ? "选择菜品，查看做法与所需食材" : "确认信息后再保存"}
           </DialogDescription>
           {modal === "fridge-recipes" && (()=>{
-            const available=new Set(fridge.filter(stock=>usableStock(stock)).map(stock=>trimName(stock.name)));
-            const matches=recipes.map(recipe=>({recipe,count:recipe.ingredients.filter(item=>available.has(trimName(item.name))).length})).filter(item=>item.count>0).sort((a,b)=>b.count-a.count);
-            return <><div className="fridge-recipe-picker">{matches.map(({recipe,count})=><button type="button" key={recipe.id} className="fridge-recipe-choice" onClick={()=>{setActiveRecipe(recipe);setModal('detail');}}><span><strong>{recipe.name}</strong><small>匹配 {count} 种食材</small></span><ArrowRight size={18}/></button>)}</div>{!matches.length&&<p>暂时没有匹配菜品，可以去菜谱库挑选。</p>}<button className="outline" onClick={()=>{setModal('');navigate(1);}}>浏览菜谱库</button></>;
+            const matches=fridgeRecipes(recipes,fridge);
+            return <><div className="fridge-recipe-picker">{matches.map(({recipe,count})=><button type="button" key={recipe.id} className="fridge-recipe-choice" onClick={()=>{setActiveRecipe(recipe);setModal('detail');}}><span><strong>{recipe.name}</strong><small>已有 {count} 种食材</small></span><ArrowRight size={18}/></button>)}</div>{!matches.length&&<p>菜谱库中暂无匹配菜品。</p>}<button className="outline" onClick={()=>{setModal('');navigate(1);}}>浏览菜谱库</button></>;
           })()}
           {modal === "detail" && activeRecipe && (
             <>
@@ -1553,7 +1557,7 @@ function App() {
                   fridge
                     .filter(
                       (stock) =>
-                        trimName(stock.name) === trimName(item.name) &&
+                        ingredientKey(stock.name) === ingredientKey(item.name) &&
                         normalizeUnit(stock.unit) === normalizeUnit(item.unit) &&
                         usableStock(stock),
                     )
@@ -1775,7 +1779,7 @@ function App() {
         </DialogContent>
       </Dialog>
       {hydrated&&<SyncPanel state={fullState} onRestore={restoreState} target={syncTarget}/>}
-      <Toaster richColors position="top-center" />
+      <Toaster richColors position="top-center" offset={compact ? "calc(60px + env(safe-area-inset-top))" : undefined} mobileOffset={{top:"calc(60px + env(safe-area-inset-top))"}} />
     </SidebarProvider>
   );
 }

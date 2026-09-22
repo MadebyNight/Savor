@@ -1,5 +1,16 @@
 export const MEALS = [['早','早餐'],['中','午餐'],['下午茶','下午茶'],['晚','晚餐'],['夜宵','夜宵']];
 export const trimName = value => String(value ?? '').trim();
+// 仅合并明确同义名称，不把部位、品种或生熟状态当作同一种食材。
+const ingredientAliases = Object.fromEntries([
+  ['番茄','西红柿'], ['土豆','马铃薯'], ['卷心菜','包菜','圆白菜','洋白菜'],
+  ['花菜','菜花'], ['黄瓜','青瓜'], ['西兰花','绿花椰菜'], ['香菜','芫荽'],
+].flatMap(([name,...aliases])=>aliases.map(alias=>[alias,name])));
+export const ingredientKey = value => ingredientAliases[trimName(value)] || trimName(value);
+export function fridgeRecipes(recipes, fridge, date) {
+  const available=new Set(fridge.filter(stock=>usableStock(stock,date)).map(stock=>ingredientKey(stock.name)).filter(Boolean));
+  return recipes.map(recipe=>({recipe,count:new Set(recipe.ingredients.map(item=>ingredientKey(item.name)).filter(name=>available.has(name))).size}))
+    .filter(item=>item.count>0).sort((a,b)=>b.count-a.count);
+}
 export const normalizeUnit = value => ({'克':'g','毫升':'ml','千克':'kg','公斤':'kg','g':'g','ml':'ml','kg':'kg'}[trimName(value)] || trimName(value));
 export const dayAt = (value, offset) => {
   const date = new Date(value + "T12:00:00");
@@ -28,12 +39,12 @@ export function procurement(recipes, quantities, fridge, date) {
   for (const recipe of recipes) {
     if (!quantities[recipe.id]) continue;
     for (const item of recipe.ingredients) {
-      const name=trimName(item.name), unit=normalizeUnit(item.unit), key = name + "|" + unit;
+      const name=trimName(item.name), unit=normalizeUnit(item.unit), key = ingredientKey(name) + "|" + unit;
       const previous = requirements.get(key);
       const unknown =
         item.qty == null || item.qty === "" || previous?.qty === null;
       requirements.set(key, {
-        ...item,name,unit,
+        ...item,name:previous?.name || name,unit,
         qty: unknown
           ? null
           : (previous?.qty || 0) + item.qty * quantities[recipe.id],
@@ -53,7 +64,7 @@ export function procurement(recipes, quantities, fridge, date) {
                 fridge
                   .filter(
                     (stock) =>
-                      trimName(stock.name) === item.name &&
+                      ingredientKey(stock.name) === ingredientKey(item.name) &&
                       normalizeUnit(stock.unit) === item.unit &&
                       usableStock(stock, date),
                   )

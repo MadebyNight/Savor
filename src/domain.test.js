@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { stockStatus, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit, trimName } from "./domain.js";
+import { stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit, trimName } from "./domain.js";
 import {backup,validateBackup} from './services.js';
 test('五餐备份往返保留旧三餐、新餐次和独立快照，采购不随安排增加',()=>{
   assert.deepEqual(MEALS.map(([key])=>key),['早','中','下午茶','晚','夜宵']);
@@ -98,4 +98,21 @@ test('库存状态短文案，保留原来的到期边界',()=>{
  assert.equal(stockStatus(stock,'2026-09-04').label,'过期');
  assert.equal(stockStatus(stock,'2026-09-03').label,'剩余0天');
  assert.equal(stockStatus(stock,'2026-09-02').label,'剩余1天');
+});
+
+test('冰箱按全菜谱与同义名称推荐，排除过期且不混淆生熟部位',()=>{
+  const recipes=[{id:'a',ingredients:[{name:'番茄'},{name:'鸡蛋'}]},{id:'b',ingredients:[{name:'土豆'}]},{id:'c',ingredients:[{name:'鸡胸肉'}]}];
+  const fridge=[{name:'西红柿',days:0},{name:'马铃薯',days:1,date:'2020-01-01'},{name:'熟鸡胸肉',days:0}];
+  assert.deepEqual(fridgeRecipes(recipes,fridge,'2026-09-23').map(({recipe,count})=>[recipe.id,count]),[['a',1]]);
+  assert.equal(ingredientKey(' 西红柿 '),'番茄');
+  assert.notEqual(ingredientKey('鸡肉'),ingredientKey('鸡胸肉'));
+  assert.notEqual(ingredientKey('生鸡胸肉'),ingredientKey('熟鸡胸肉'));
+  assert.notEqual(ingredientKey('小番茄'),ingredientKey('番茄'));
+  assert.deepEqual(fridgeRecipes(recipes,[]),[]);
+});
+test('同义食材合并采购需求并统一扣减，不改食材展示名称',()=>{
+  const recipes=[{id:'a',ingredients:[{name:'西红柿',qty:200,unit:'g'},{name:'番茄',qty:100,unit:'g'}]}];
+  const result=procurement(recipes,{a:1},[{name:'番茄',qty:250,unit:'克',days:0}]);
+  assert.equal(result.length,1);assert.equal(result[0].name,'西红柿');assert.equal(result[0].qty,50);
+  assert.equal(recipes[0].ingredients[0].name,'西红柿');
 });

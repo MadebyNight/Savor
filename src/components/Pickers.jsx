@@ -40,7 +40,7 @@ function Picker({
   );
 }
 
-export function AppSelect({ value, onChange, children, disabled, ...props }) {
+export function AppSelect({ value, onChange, children, disabled, displayValue, ...props }) {
   const [open, setOpen] = useState(false);
   const id = useId();
   const options = Children.toArray(children)
@@ -56,7 +56,7 @@ export function AppSelect({ value, onChange, children, disabled, ...props }) {
       <Picker
         {...props}
         value={value}
-        display={selected?.label || "请选择"}
+        display={displayValue ?? (selected?.label || "请选择")}
         disabled={disabled}
         aria-expanded={open}
         aria-controls={open ? id : undefined}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus } from "lucide-react";
+import { Camera, ImagePlus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   getPreference,
@@ -24,6 +24,7 @@ export default function RecognitionPanel({
   autoStart = false,
   onAutoStart,
   onSettings,
+  onManual,
   onImportRecipes,
   onImportStock,
 }) {
@@ -260,6 +261,7 @@ export default function RecognitionPanel({
                   <Camera size={20} aria-hidden="true" />
                   拍摄
                 </button>
+                {kind === "recipes" && <button className="outline" disabled={busy || readingImage || fetching} onClick={onManual}><Plus size={20} aria-hidden="true"/>手动添加</button>}
                 <input
                   ref={albumInput}
                   hidden

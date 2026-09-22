@@ -15,7 +15,7 @@ with sync_playwright() as p:
  def wait_state(expr): page.wait_for_function('s => '+expr,arg=None)
  page.goto(os.environ.get('E2E_URL','http://127.0.0.1:5173'));page.wait_for_load_state('networkidle')
  expect(page.get_by_text('已保存',exact=True)).to_be_visible();assert '热量' not in page.locator('body').inner_text()
- nav('上传菜谱');page.get_by_role('button',name='新建菜谱',exact=True).click();page.get_by_placeholder('给这道菜起个名字').fill('E2E番茄菜');page.get_by_label('食材名称',exact=True).fill('测试番茄');page.get_by_label('数量',exact=True).fill('100');page.get_by_label('步骤1',exact=True).fill('洗净并炒熟');nav('确认保存到菜品库')
+ nav('上传菜谱');page.get_by_role('button',name='导入菜谱',exact=True).click();page.get_by_role('button',name='手动添加',exact=True).click();page.get_by_placeholder('给这道菜起个名字').fill('E2E番茄菜');page.get_by_label('食材名称',exact=True).fill('测试番茄');page.get_by_label('数量',exact=True).fill('100');page.get_by_label('步骤1',exact=True).fill('洗净并炒熟');nav('确认保存到菜品库')
  page.get_by_role('button',name='E2E番茄菜',exact=True).last.click();nav('编辑菜谱');page.get_by_placeholder('给这道菜起个名字').fill('E2E番茄菜修改');nav('确认保存到菜品库')
  page.get_by_role('button',name='添加E2E番茄菜修改',exact=True).click();page.get_by_role('button',name='添加E2E番茄菜修改',exact=True).click();nav('确认我的菜单');page.get_by_role('button',name='确认并同步',exact=False).click()
  page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).confirmedRecipes.some(r=>r.name==="E2E番茄菜修改")')

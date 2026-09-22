@@ -33,7 +33,7 @@ with sync_playwright() as p:
  def data(page):return page.evaluate('JSON.parse(localStorage.getItem("shiguang-v1"))')
  def add(page,name):
   page.get_by_role('button',name='设置与备份',exact=True).click();page.get_by_role('button',name='上传菜谱',exact=False).first.click()
-  page.get_by_role('button',name='新建菜谱',exact=True).click()
+  page.get_by_role('button',name='导入菜谱',exact=True).click();page.get_by_role('button',name='手动添加',exact=True).click()
   page.get_by_placeholder('给这道菜起个名字').fill(name);page.get_by_label('食材名称',exact=True).fill('米');page.get_by_label('数量',exact=True).fill('100');page.get_by_label('步骤1',exact=True).fill('煮熟');page.get_by_role('button',name='确认保存到菜品库',exact=True).click()
   page.wait_for_function('name=>JSON.parse(localStorage.getItem("shiguang-v1")).recipes.some(r=>r.name===name)',arg=name);page.get_by_role('button',name='设置与备份',exact=True).click()
  def upload(page):

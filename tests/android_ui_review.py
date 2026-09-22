@@ -85,6 +85,25 @@ with sync_playwright() as p:
         def nav(name):
             page.get_by_role('navigation', name='主导航').get_by_role('button', name=name, exact=True).click()
 
+        nav('点单')
+        order=page.evaluate("""()=>{const box=document.querySelector('.recipe-section').getBoundingClientRect();const cards=[...document.querySelectorAll('.recipe-card')];return {visible:cards.filter(e=>{const r=e.getBoundingClientRect();return r.top>=box.top&&r.bottom<=box.bottom}).length,total:cards.length,heights:cards.slice(0,5).map(e=>e.getBoundingClientRect().height)}}""")
+        assert order['visible']>=min(4,order['total']),order
+        assert page.locator('.recipe-section').evaluate('e=>e.scrollWidth<=e.clientWidth+1')
+        for button in page.locator('.recipe-card .counter button').all():
+            box=button.bounding_box();assert box['width']>=47.9 and box['height']>=47.9,box
+        report['order']=order
+        shot('order-density')
+        report['checks'].append('点单首屏密度、48px 加减区、卡片无横向溢出')
+        heights=[]
+        for name in ['点单','菜谱','菜篮子','周菜单','冰箱']:
+            nav(name)
+            heights.append([page.locator('.topbar').bounding_box()['height'],page.locator('.mobile-bottom-nav').bounding_box()['height']])
+            assert page.locator('.topbar').evaluate('e=>e.scrollWidth<=e.clientWidth+1'),name
+        assert all(abs(top-heights[0][0])<1 and abs(bottom-heights[0][1])<1 for top,bottom in heights),heights
+        report['navigationHeights']=heights
+        report['checks'].append('五个主页面顶栏和底部导航高度统一')
+        nav('点单')
+
         click('设置与备份')
         tabs = page.get_by_role('navigation', name='设置分页')
         boxes = [button.bounding_box() for button in tabs.get_by_role('button').all()]
@@ -134,12 +153,25 @@ with sync_playwright() as p:
         if page.locator('.shopping-card').count():
             card=page.locator('.shopping-card').first
             expect(card.get_by_role('checkbox')).to_be_visible()
+            report['basketRowHeight']=card.bounding_box()['height']
+            assert card.bounding_box()['height']<=70
             shot('basket-checkbox')
         nav('冰箱')
         expect(page.locator('.stock-add-actions button')).to_have_count(3)
         ys=page.locator('.stock-add-actions button').evaluate_all('els=>els.map(e=>e.getBoundingClientRect().y)')
         assert max(ys)-min(ys)<1
         expect(page.get_by_role('button',name='拍照识别',exact=True)).to_have_count(0)
+        search_box=page.locator('.fridge-search-row').bounding_box()
+        cats_box=page.locator('.stock-categories').bounding_box()
+        actions_box=page.locator('.stock-add-actions').bounding_box()
+        filter_box=page.get_by_label('期限筛选',exact=True).bounding_box()
+        assert cats_box['y']>=search_box['y']+search_box['height']-1
+        assert actions_box['y']>=cats_box['y']+cats_box['height']-1
+        assert actions_box['height']<=50
+        assert filter_box['y']>=search_box['y'] and filter_box['y']+filter_box['height']<=search_box['y']+search_box['height']+1
+        if page.locator('.stock-compact-row').count():
+            report['firstStockY']=page.locator('.stock-compact-row').first.bounding_box()['y']
+            assert report['firstStockY']<=215
         shot('fridge-three-actions')
         report['checks'].append('冰箱三项入口同一行、采购勾选入口')
         stock = page.locator('.stock-compact-row')
@@ -167,6 +199,15 @@ with sync_playwright() as p:
         back()
         expect(page.locator('.stock-dialog')).to_have_count(0)
         nav('菜谱')
+        report['libraryVisible']=page.locator('.library-recipe').evaluate_all("es=>es.filter(e=>e.getBoundingClientRect().bottom<=document.querySelector('.mobile-bottom-nav').getBoundingClientRect().top).length")
+        assert report['libraryVisible']>=min(7,page.locator('.library-recipe').count())
+        assert page.locator('.library-tools .search').bounding_box()['height']<=45
+        expect(page.get_by_role('button',name='新建菜谱',exact=True)).to_have_count(0)
+        shot('recipe-library')
+        click('导入菜谱')
+        click('手动添加')
+        expect(page.get_by_placeholder('给这道菜起个名字')).to_be_visible()
+        back()
         click('导入菜谱')
         expect(page.get_by_label('识别原文',exact=True)).to_be_visible()
         expect(page.locator('.recognition-panel textarea')).to_have_count(1)

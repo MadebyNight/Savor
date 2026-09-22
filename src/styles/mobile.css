@@ -973,3 +973,73 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* 移动端统一导航尺寸；点单收紧卡片，保留 48px 加减与确认点击区。 */
+@media (max-width:767px), (max-height:500px) and (max-width:1024px) {
+  .compact-app .topbar { min-height:52px; padding:max(2px,env(safe-area-inset-top)) 12px 2px; }
+  .compact-app .mobile-title h1 { font-size:18px; margin:0; }
+  .compact-app .mobile-title .brand-logo { width:28px; height:28px; }
+  .compact-app.order-page .mobile-search { min-height:44px; margin:0 12px 6px; border-radius:10px; }
+  .compact-app.order-page .mobile-search input { padding:6px 0; }
+  .mobile-bottom-nav { padding-top:2px; padding-bottom:max(3px,env(safe-area-inset-bottom)); }
+  .mobile-bottom-nav button { min-height:50px; gap:0; }
+  .mobile-bottom-nav button > span { height:26px; }
+  .mobile-bottom-nav svg { width:22px; height:22px; }
+  .compact-app.order-page .selection-bar { margin:4px 10px; padding:0 4px 0 10px; border-radius:12px; }
+  .compact-app.order-page .selection-bar .primary { padding:6px 8px; }
+  .compact-app.order-page .categories { width:60px; }
+  .compact-app.order-page .categories button { min-height:52px; padding:6px 2px; }
+  .compact-app.order-page .recipe-section { padding:0 8px 8px; }
+  .compact-app.order-page .recipe-section > .section-tools { padding:6px 0 2px; }
+  .compact-app.order-page .recipe-card { gap:8px; padding:4px 0; align-items:center; }
+  .compact-app.order-page .photo-button { width:48px; height:56px; flex-basis:48px; }
+  .compact-app.order-page .photo-button img, .compact-app.order-page .food-fallback { width:48px; height:56px; }
+  .compact-app.order-page .recipe-info { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; }
+  .compact-app.order-page .recipe-name { grid-column:1 / -1; min-height:28px; line-height:1.35; padding:0; }
+  .compact-app.order-page .recipe-info > p { grid-column:1; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .compact-app.order-page .card-bottom { grid-column:2; grid-row:2; min-height:48px; flex-wrap:nowrap; }
+  .compact-app.order-page .card-bottom > span { display:none; }
+}
+
+/* 库存工具合并为三行，采购条目保持紧凑。 */
+@media (max-width:767px), (max-height:500px) and (max-width:1024px) {
+  .fridge-total { color:#737c68; font-size:12px; white-space:nowrap; }
+  .compact-app .page-4:not(.show-settings) { padding-left:10px; padding-right:10px; }
+  .compact-app .page-4 .fridge-search-row { min-height:48px; padding:0 8px; gap:6px; margin-bottom:6px; }
+  .fridge-search-row > svg { flex-shrink:0; }
+  .compact-app .fridge-search-row > input { flex:1; width:0; padding:6px 0; }
+  .compact-app .fridge-search-row .stock-status-filter { display:block; flex:0 0 auto; margin:0; padding:0; border-left:1px solid #e5e7dc; }
+  .compact-app .stock-status-filter .picker-trigger { min-height:46px; width:auto; max-width:none; min-width:76px; padding:0 6px; gap:5px; border:0; border-radius:8px; box-shadow:none; background:transparent; font-size:13px; }
+  .compact-app .stock-status-filter[data-active="true"] .picker-trigger { color:#536347; background:#eef1e5; font-weight:600; }
+  .compact-app .page-4 .stock-categories { padding:0 2px; gap:2px; margin-bottom:4px; }
+  .compact-app .page-4 .stock-categories button { padding:4px 8px; min-height:44px; }
+  .compact-app .page-4 .stock-add-actions { margin:0 0 6px; gap:6px; }
+  .compact-app .page-4 .stock-add-actions button { flex-direction:row; gap:4px; min-height:48px; padding:4px 2px; font-size:12px; border-radius:10px; box-shadow:none; }
+  .compact-app .page-4 .stock-add-actions svg { width:16px; height:16px; }
+  .compact-app .page-2 > .section-tools { padding:2px 12px 6px; }
+  .compact-app .page-2 .stock-results { padding:0 8px 8px; }
+  .compact-app .page-2 .stock-card.shopping-card { padding:5px 0; gap:0 6px; grid-template-columns:40px minmax(0,1fr) auto; }
+  .compact-app .page-2 .shopping-check { min-width:40px; min-height:48px; }
+  .compact-app .page-2 .shopping-card strong { font-size:14px; }
+  .compact-app .page-2 .shopping-card p { font-size:11px; line-height:1.3; }
+}
+
+@media (max-width:767px), (max-height:500px) and (max-width:1024px) {
+  .library-total { color:#737c68; font-size:12px; white-space:nowrap; }
+  .compact-app .library-tools { flex-wrap:nowrap; gap:6px; margin-bottom:8px; }
+  .compact-app .library-tools .search { flex:1; min-width:0; min-height:44px; padding:0 8px; }
+  .compact-app .library-tools .search svg { flex-shrink:0; }
+  .compact-app .library-tools .search input { padding:6px 0; }
+  .compact-app .library-tools > button { width:auto; flex:0 0 auto; padding:6px 8px; gap:4px; border-style:solid; border-radius:10px; white-space:nowrap; }
+  .compact-app .recipe-library > h2 { display:none; }
+  .compact-app .library-recipe { min-height:64px; padding:8px 2px; gap:10px; margin:0; border:0; border-bottom:1px solid #e3e6dc; border-radius:0; background:transparent; box-shadow:none; }
+  .compact-app .library-recipe > img, .compact-app .library-placeholder { width:44px; height:44px; border-radius:8px; }
+  .compact-app .library-recipe strong { line-height:1.35; }
+  .compact-app .library-recipe small { margin-top:3px; font-size:12px; }
+}
+
+@media (max-width:767px), (max-height:500px) and (max-width:1024px) {
+  .recipe-import-panel .image-source-actions { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .recipe-import-panel .image-source-actions button { min-width:0; padding:4px 2px; font-size:12px; gap:4px; white-space:nowrap; }
+  .recipe-import-panel .image-source-actions svg { width:16px; height:16px; flex-shrink:0; }
+}

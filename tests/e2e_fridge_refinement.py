@@ -65,6 +65,7 @@ with sync_playwright() as p:
     expect(bought).not_to_be_checked()
     expect(page.locator('.shopping-card')).to_contain_text('200')
     card = page.locator('.shopping-card')
+    assert card.bounding_box()['height']<=64,card.bounding_box()
     check_box, name_box, qty_box = [card.locator(selector).bounding_box() for selector in ['.shopping-check','h3','strong']]
     assert check_box['x'] + check_box['width'] <= name_box['x']
     assert name_box['x'] + name_box['width'] <= qty_box['x']

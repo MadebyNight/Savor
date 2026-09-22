@@ -42,13 +42,13 @@ with sync_playwright() as p:
 
     # 新建/编辑返回保留草稿，反复打开关闭不残留监听器。
     nav('菜谱')
-    click('新建菜谱')
+    click('导入菜谱');click('手动添加')
     page.get_by_placeholder('给这道菜起个名字').fill('系统返回草稿')
     for _ in range(3):
         back()
         expect(page.get_by_placeholder('给这道菜起个名字')).not_to_be_visible()
         back(False)
-        click('继续草稿')
+        click('导入菜谱');click('手动添加')
         expect(page.get_by_placeholder('给这道菜起个名字')).to_have_value('系统返回草稿')
     # 编辑中的导入弹窗 -> 编辑页 -> 菜谱库。
     click('上传')
@@ -58,7 +58,7 @@ with sync_playwright() as p:
     back()
     back(False)
     # 页面内关闭按钮和系统返回混用不能留下旧层级。
-    click('继续草稿')
+    click('导入菜谱');click('手动添加')
     click('返回')
     back(False)
 
