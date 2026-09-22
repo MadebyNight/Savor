@@ -913,15 +913,6 @@ small {
   margin-right: 10px;
   display: inline-flex;
 }
-.import-options {
-  gap: 15px;
-  display: flex;
-}
-.import-options button {
-  flex-direction: column;
-  flex: 1;
-  padding: 25px 12px;
-}
 @media (min-width: 1600px) {
   .photo-button img,
   .food-fallback {
@@ -1807,3 +1798,9 @@ html [data-sonner-toaster][data-sonner-theme] {
 .page-2 .shopping-card.is-purchased { background:#f2f4ee; }
 .page-2 .shopping-card.is-purchased h3 { text-decoration:line-through; color:#7a8272; }
 @media(max-width:360px) { .stock-add-actions button { flex-direction:column; gap:4px; } }
+
+.recognition-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.recognition-heading h2 { margin:0; }
+.recognition-heading .text-link { margin-left:auto; }
+.compact-app .recipe-import-panel .recognition-heading h2 { display:none; }
+.recipe-import-panel .actions > .primary { flex:1; }

@@ -108,7 +108,7 @@ with sync_playwright() as p:
     back(False)
 
     # 识别内确认应取消请求并保留任务，第二次返回才回到菜谱。
-    nav('菜谱');click('导入菜谱');click('粘贴正文识别')
+    nav('菜谱');click('导入菜谱')
     page.get_by_label('识别原文', exact=True).fill('番茄炒鸡蛋')
     click('确认发送并识别')
     back()

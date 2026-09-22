@@ -16,7 +16,7 @@ with sync_playwright() as p:
     def click(name):page.get_by_role('button',name=name,exact=True).click()
     def data():return page.evaluate('localStorage.getItem("shiguang-v1")')
     def open_text():
-        page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱');click('粘贴正文识别')
+        page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱')
     def reopen():page.get_by_role('button',name='查看待保存草稿',exact=False).click()
     def back():page.evaluate("window.dispatchEvent(new Event('shiguang:back',{cancelable:true}))")
     click('设置与备份')

@@ -166,6 +166,33 @@ with sync_playwright() as p:
         expect(page.locator('.picker-dialog')).to_have_count(0)
         back()
         expect(page.locator('.stock-dialog')).to_have_count(0)
+        nav('菜谱')
+        click('导入菜谱')
+        expect(page.get_by_label('识别原文',exact=True)).to_be_visible()
+        expect(page.locator('.recognition-panel textarea')).to_have_count(1)
+        expect(page.get_by_role('button',name='图文识别',exact=True)).to_have_count(0)
+        assert page.locator('.recognition-panel').evaluate('e=>e.scrollWidth<=e.clientWidth+1')
+        before_image=page.locator('.recognition-image img').get_attribute('src') if page.locator('.recognition-image img').count() else None
+        before_text=page.get_by_label('识别原文',exact=True).input_value()
+        shot('recipe-import')
+        for label in ['拍摄','相册选择']:
+            click(label)
+            time.sleep(1)
+            focus=adb('shell','dumpsys','window').decode(errors='replace')
+            focused=next(line for line in focus.splitlines() if 'mCurrentFocus=' in line)
+            assert PACKAGE not in focused, '未打开系统图片入口'
+            for _ in range(5):
+                adb('shell','input','keyevent','4')
+                time.sleep(.5)
+                focus=adb('shell','dumpsys','window').decode(errors='replace')
+                focused=next(line for line in focus.splitlines() if 'mCurrentFocus=' in line)
+                if PACKAGE in focused: break
+            expect(page.locator('.recognition-panel')).to_be_visible()
+            expect(page.get_by_label('识别原文',exact=True)).to_have_value(before_text)
+            after_image=page.locator('.recognition-image img').get_attribute('src') if page.locator('.recognition-image img').count() else None
+            assert after_image==before_image
+        report['checks'].append('导入菜谱直接显示相册/拍摄/单输入框，系统入口打开取消保留原草稿')
+        back()
         assert digest(state(page)) == digest(baseline), '业务数据变化'
         assert not errors, 'WebView 页面异常'
         report['checks'].append('食材边界对齐、自定义分类和日期、原生返回、业务数据未改动')

@@ -29,3 +29,20 @@ test('旧混合草稿完整迁移、按任务隔离、失败后幂等恢复且�
   assert.equal((await loadRecognitionDraft('stock')).text,old.text);
   assert.deepEqual(await loadRecognitionDraft('recipe-image'),{});
 });
+
+test('统一导入合并两份旧草稿且保留原件，重开不重复迁移', async()=>{
+  const values=new Map();
+  globalThis.localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+  const image={kind:'recipes',image:'data:image/png;base64,AA==',text:'图片备注',draft:JSON.stringify([{name:'图片草稿'}])};
+  const text={kind:'recipes',text:'正文草稿',draft:JSON.stringify([{name:'正文结果'}])};
+  await saveRecognitionDraft('recipe-image',image);
+  await saveRecognitionDraft('recipe-text',text);
+  const merged=await loadRecognitionDraft('recipe-import');
+  assert.equal(merged.image,image.image);
+  assert.equal(merged.text,'图片备注\n\n正文草稿');
+  assert.deepEqual(JSON.parse(merged.draft),[{name:'图片草稿'},{name:'正文结果'}]);
+  assert.deepEqual(await loadRecognitionDraft('recipe-image'),image);
+  assert.deepEqual(await loadRecognitionDraft('recipe-text'),text);
+  await saveRecognitionDraft('recipe-import',{text:'新输入',draft:'[]'});
+  assert.deepEqual(await loadRecognitionDraft('recipe-import'),{text:'新输入',draft:'[]'});
+});

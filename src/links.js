@@ -1,5 +1,11 @@
 import {Readability} from '@mozilla/readability';
 import {request,isNative} from './storage.js';
+// 仅完整链接或分享口令走网页提取；含引用链接的菜谱正文仍直接识别。
+export function isRecipeLink(input) {
+  const value = input.trim();
+  return /^https?:\/\/[^\s<>]+$/.test(value) ||
+    (value.length <= 500 && /https?:\/\//.test(value) && /小红书|复制.*打开|打开.*查看|分享.*链接/.test(value));
+}
 export function extractArticle(html,url) {
   const document=new DOMParser().parseFromString(html,'text/html');
   const base=document.createElement('base');base.href=url;document.head.prepend(base);

@@ -16,7 +16,7 @@ with sync_playwright() as p:
     def click(name): page.get_by_role("button", name=name, exact=True).click()
     def style(locator, prop): return locator.evaluate("(e,k)=>getComputedStyle(e)[k]", prop)
     def finish(): page.evaluate("document.getAnimations().forEach(a=>{if(a.effect.getTiming().iterations!==Infinity)a.finish()})")
-    page.get_by_role("navigation",name="主导航").get_by_role("button",name="菜谱",exact=True).click();click("导入菜谱");click("图文识别")
+    page.get_by_role("navigation",name="主导航").get_by_role("button",name="菜谱",exact=True).click();click("导入菜谱")
     album = page.get_by_role("button", name="相册选择", exact=True)
     assert style(album,"outlineStyle") == "none"
     cdp = page.context.new_cdp_session(page)
@@ -40,7 +40,9 @@ with sync_playwright() as p:
     assert checkbox.locator("xpath=ancestor::label").bounding_box()["height"] >= 48
     page.screenshot(path=str(OUT / "sync-checkbox.png"))
     click("返回")
-    click("确认发送并识别")
+    expect(page.get_by_role("button",name="确认发送并识别",exact=True)).to_be_disabled()
+    page.get_by_label("识别原文",exact=True).fill("http://article.test/recipe")
+    click("获取正文")
     toast = page.locator('[data-sonner-toast][data-type="error"]').last
     expect(toast).to_be_visible()
     assert style(toast,"backgroundColor") == "rgb(255, 246, 243)"

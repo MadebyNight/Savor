@@ -21,7 +21,7 @@ with sync_playwright() as p:
     expect(page.get_by_label('导入备份',exact=True)).not_to_be_visible()
     expect(page.get_by_label('账号',exact=True)).not_to_be_visible()
     def open_image():
-        page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱');click('图文识别')
+        page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱')
     open_image()
     album=page.get_by_label('从相册选择图片',exact=True)
     camera=page.get_by_label('拍摄图片',exact=True)

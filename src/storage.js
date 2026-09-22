@@ -64,6 +64,22 @@ export async function loadRecognitionDraft(mode) {
     }
     await setPreference('ai-draft:migrated', true);
   }
+  if (mode === 'recipe-import' && await getPreference('ai-draft:recipe-import', null) === null) {
+    const imageDraft = await loadRecognitionDraft('recipe-image');
+    const textDraft = await loadRecognitionDraft('recipe-text');
+    const drafts = [imageDraft, textDraft];
+    const items = drafts.flatMap(value => {
+      const parsed = JSON.parse(value.draft || '[]');
+      if (!Array.isArray(parsed)) throw new Error('旧版识别草稿格式异常');
+      return parsed;
+    });
+    await saveRecognitionDraft(mode, {
+      kind: 'recipes',
+      image: imageDraft.image || textDraft.image || '',
+      text: [...new Set(drafts.map(value => value.text).filter(Boolean))].join('\n\n'),
+      draft: JSON.stringify(items),
+    });
+  }
   return decodeImages(await getPreference('ai-draft:' + mode, {}));
 }
 const webSecrets = new Map();

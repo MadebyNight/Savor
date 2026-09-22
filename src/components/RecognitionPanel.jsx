@@ -8,7 +8,7 @@ import {
 } from "../storage.js";
 import { getDeveloperConfig } from "../developer-ai.js";
 import { defaultAI, recognize } from "../services.js";
-import { fetchArticle } from "../links.js";
+import { fetchArticle, isRecipeLink } from "../links.js";
 import { normalizeAIDrafts } from "../validation.js";
 import DraftEditor from "./DraftEditor.jsx";
 import useConfirm from "./useConfirm.jsx";
@@ -37,10 +37,10 @@ export default function RecognitionPanel({
   const [ready, setReady] = useState(false),
     [loadError, setLoadError] = useState("");
   const [text, setText] = useState("");
-  const [link, setLink] = useState("");
   const [fetching, setFetching] = useState(false);
   const [image, setImage] = useState("");
   const kind = mode === "stock" ? "stock" : "recipes";
+  const linkInput = kind === "recipes" && isRecipeLink(text);
   const [draft, setDraft] = useState("");
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewError, setReviewError] = useState("");
@@ -129,6 +129,27 @@ export default function RecognitionPanel({
     onAutoStart?.();
     run({ automatic: true, selectedImage: initialImage });
   }, [autoStart, initialImage, ready, loadingConfig, loadError]);
+  async function readLink() {
+    if (running.current) return;
+    running.current = true;
+    const current = ++generation.current;
+    setFetching(true);
+    try {
+      const article = await fetchArticle(text);
+      if (current !== generation.current) return;
+      const content = article.title + "\n" + article.text;
+      await persist(draft, { text: content });
+      if (current !== generation.current) return;
+      setText(content);
+    } catch (error) {
+      if (current === generation.current) toast.error(error.message);
+    } finally {
+      if (current === generation.current) {
+        setFetching(false);
+        running.current = false;
+      }
+    }
+  }
   async function run({ automatic = false, selectedImage = image } = {}) {
     if (running.current) return;
     running.current = true;
@@ -203,14 +224,11 @@ export default function RecognitionPanel({
       );
   }
   return (
-    <div className="panel settings-panel recognition-panel">
+    <div className={`panel settings-panel recognition-panel ${kind === "recipes" ? "recipe-import-panel" : ""}`}>
       <section className="settings-page" aria-label="识别">
+        <div className="recognition-heading">
         <h2>
-          {mode === "stock"
-            ? "拍照识别食材"
-            : mode === "recipe-image"
-              ? "图文识别菜谱"
-              : "正文识别菜谱"}
+          {mode === "stock" ? "拍照识别食材" : "导入菜谱"}
         </h2>
         <button
           className="text-link"
@@ -219,16 +237,16 @@ export default function RecognitionPanel({
         >
           AI 配置
         </button>
+        </div>
         {loadError && (
           <p role="alert">{loadError}。请返回后重试，原草稿未修改。</p>
         )}
         <fieldset disabled={!ready || loadingConfig || !!loadError}>
-          {(mode !== "recipe-text" || image) && (
-            <>
+          <>
               <div className="image-source-actions">
                 <button
                   className="outline"
-                  disabled={busy || readingImage}
+                  disabled={busy || readingImage || fetching}
                   onClick={() => albumInput.current.click()}
                 >
                   <ImagePlus size={20} aria-hidden="true" />
@@ -236,7 +254,7 @@ export default function RecognitionPanel({
                 </button>
                 <button
                   className="outline"
-                  disabled={busy || readingImage}
+                  disabled={busy || readingImage || fetching}
                   onClick={() => cameraInput.current.click()}
                 >
                   <Camera size={20} aria-hidden="true" />
@@ -246,7 +264,7 @@ export default function RecognitionPanel({
                   ref={albumInput}
                   hidden
                   aria-label="从相册选择图片"
-                  disabled={busy || readingImage}
+                  disabled={busy || readingImage || fetching}
                   type="file"
                   accept="image/*"
                   onChange={selectImage}
@@ -255,7 +273,7 @@ export default function RecognitionPanel({
                   ref={cameraInput}
                   hidden
                   aria-label="拍摄图片"
-                  disabled={busy || readingImage}
+                  disabled={busy || readingImage || fetching}
                   type="file"
                   accept="image/*"
                   capture="environment"
@@ -269,7 +287,7 @@ export default function RecognitionPanel({
                   <img src={image} alt="待识别图片" />
                   <button
                     className="outline"
-                    disabled={busy || readingImage}
+                    disabled={busy || readingImage || fetching}
                     onClick={async () => {
                       setImage("");
                       try {
@@ -283,83 +301,38 @@ export default function RecognitionPanel({
                   </button>
                 </div>
               )}
-            </>
-          )}
-          {(mode === "recipe-text" || text) && (
-            <>
-              {mode === "recipe-text" && (
-                <>
-                  <label>
-                    公开链接（可粘贴小红书分享文字）
-                    <input
-                      disabled={busy || fetching || readingImage}
-                      value={link}
-                      onChange={(e) => setLink(e.target.value)}
-                    />
-                  </label>
-                  <button
-                    className="outline"
-                    disabled={busy || fetching || readingImage || !link.trim()}
-                    onClick={async () => {
-                      if (
-                        text &&
-                        !(await ask("取得正文后会替换当前输入文字。", {
-                          title: "替换输入正文？",
-                          label: "获取并替换",
-                        }))
-                      )
-                        return;
-                      setFetching(true);
-                      const current = generation.current;
-                      try {
-                        const article = await fetchArticle(link);
-                        if (current !== generation.current) return;
-                        const content = article.title + "\n" + article.text;
-                        setText(content);
-                        await persist(draft, { text: content });
-                        toast.success("已提取公开正文，请核对后再发送识别");
-                      } catch (e) {
-                        toast.error(e.message);
-                      } finally {
-                        setFetching(false);
-                      }
-                    }}
-                  >
-                    {fetching ? "正在获取正文…" : "获取公开正文"}
-                  </button>
-
-                </>
-              )}
-              <textarea
-                disabled={busy || readingImage}
-                aria-label="识别原文"
-                rows={5}
-                value={text}
-                onChange={(e) => {
-                  setText(e.target.value);
-                  persist(draft, { text: e.target.value }).catch(() =>
-                    toast.error("草稿保存失败，请重试"),
-                  );
-                }}
-                placeholder="粘贴菜谱正文，或先通过上方链接获取公开正文"
-              />
-            </>
+          </>
+          {(kind === "recipes" || text) && (
+            <textarea
+              disabled={busy || readingImage || fetching}
+              aria-label="识别原文"
+              rows={6}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                persist(draft, { text: e.target.value }).catch(() =>
+                  toast.error("草稿保存失败，请重试"),
+                );
+              }}
+              placeholder="粘贴菜谱链接或正文"
+            />
           )}
           <div className="actions">
             <button
               className="primary"
-              disabled={busy || readingImage || loadingConfig}
-              onClick={() => run()}
+              disabled={busy || readingImage || fetching || loadingConfig || (!text.trim() && !image)}
+              onClick={() => linkInput ? readLink() : run()}
             >
-              {busy ? "正在识别…" : mode === 'stock' ? '重新识别' : "确认发送并识别"}
+              {fetching ? "正在获取正文…" : busy ? "正在识别…" : linkInput ? "获取正文" : mode === 'stock' ? '重新识别' : "确认发送并识别"}
             </button>
-            {busy && (
+            {(busy || fetching) && (
               <button
                 className="outline"
                 onClick={() => {
                   generation.current++;
                   running.current = false;
                   setBusy(false);
+                  setFetching(false);
                   toast("已停止等待，服务端可能仍在处理");
                 }}
               >
@@ -368,7 +341,7 @@ export default function RecognitionPanel({
             )}
             <button
               className="outline"
-              disabled={readingImage}
+              disabled={busy || readingImage || fetching}
               onClick={() =>
                 persist()
                   .then(() => toast.success("草稿已保存"))
@@ -381,7 +354,7 @@ export default function RecognitionPanel({
           {draftItems.length > 0 && (
             <button
               className="outline"
-              disabled={busy}
+              disabled={busy || readingImage || fetching}
               onClick={() => {
                 setReviewError("");
                 setReviewOpen(true);
@@ -393,7 +366,7 @@ export default function RecognitionPanel({
           {draftResult.error && (
             <button
               className="outline"
-              disabled={busy}
+              disabled={busy || readingImage || fetching}
               onClick={() => {
                 setReviewError(
                   "已有草稿格式异常：" +

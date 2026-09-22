@@ -36,7 +36,6 @@ import {
   GripVertical,
   Heart,
   Leaf,
-  Link,
   Minus,
   Plus,
   Refrigerator,
@@ -537,7 +536,7 @@ function App() {
           {compact && <>
             <div className="mobile-title">
               {showSettings || editingRecipe || recognition ? <button className="mobile-icon" aria-label="返回" onClick={returnToPage}><ArrowLeft size={22} /></button> : <img className="brand-logo" src="/brand/mark.svg" alt=""/>}
-              <h1>{showSettings ? "设置与数据" : recognition ? ({"recipe-image":"图文识别","recipe-text":"正文识别",stock:"拍照识别"}[recognition]) : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
+              <h1>{showSettings ? "设置与数据" : recognition ? ({"recipe-import":"导入菜谱",stock:"拍照识别"}[recognition]) : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
               <span role="status" className={saveStatus.includes("失败") ? "mobile-save-error" : "sr-only"}>{saveStatus}</span>
             </div>
             <div className="mobile-header-actions">
@@ -1135,7 +1134,7 @@ function App() {
             <div className="library-tools">
               <label className="search"><Search size={18}/><input aria-label="搜索我的菜谱" placeholder="搜索菜名或食材" value={search} onChange={event => setSearch(event.target.value)}/></label>
               {!compact && <button className="primary" onClick={() => setEditingRecipe(true)}><Plus size={18}/>{recipeDraft.name ? "继续草稿" : "新建菜谱"}</button>}
-              <button className="outline" onClick={() => setModal("import")}><Upload size={18}/>导入菜谱</button>
+              <button className="outline" onClick={() => openRecognition("recipe-import")}><Upload size={18}/>导入菜谱</button>
             </div>
             <h2>我的菜谱 <small>{filteredRecipes.length} 道</small></h2>
             {filteredRecipes.map(recipe => <button key={recipe.id} className="library-recipe" onClick={() => {setActiveRecipe(recipe);setModal("detail");}}>
@@ -1152,7 +1151,7 @@ function App() {
                   <h2>{recipeDraft.id ? "编辑菜谱" : "新建菜谱"}</h2>
                   <button
                     className="outline"
-                    onClick={() => setModal("import")}
+                    onClick={() => openRecognition("recipe-import")}
                   >
                     <Upload size={16} />
                     上传
@@ -1482,7 +1481,6 @@ function App() {
               export: "采购清单预览",
               clear: "清空本周安排？",
               history: "膳食日历",
-              import: "导入菜谱",
               "fridge-recipes":"看看能做什么",
             }[modal] || "食光"}
           </DialogTitle>
@@ -1770,37 +1768,6 @@ function App() {
                 }}
               >
                 复制菜单
-              </button>
-            </>
-          )}
-          {modal === "import" && (
-            <>
-              <div className="import-options">
-                <button
-                  className="outline"
-                  onClick={() => {
-                    openRecognition("recipe-image");
-                  }}
-                >
-                  <Camera />
-                  图文识别
-                </button>
-                <button
-                  className="outline"
-                  onClick={() => {
-                    openRecognition("recipe-text");
-                  }}
-                >
-                  <Link />
-                  粘贴正文识别
-                </button>
-              </div>
-
-              <button
-                className="primary"
-                onClick={() => {navigate(1);setEditingRecipe(true);setModal("");}}
-              >
-                先手动编辑菜谱
               </button>
             </>
           )}

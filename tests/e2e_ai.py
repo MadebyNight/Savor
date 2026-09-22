@@ -8,7 +8,7 @@ with sync_playwright() as p:
  page=browser.new_page(viewport={'width':390,'height':844});errors=[];page.on('pageerror',lambda e:errors.append(str(e)));page.on('dialog',lambda d:(errors.append('Unexpected native dialog'),d.dismiss()))
  def open_text():
   page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click()
-  page.get_by_role('button',name='导入菜谱',exact=True).click();page.get_by_role('button',name='粘贴正文识别',exact=True).click()
+  page.get_by_role('button',name='导入菜谱',exact=True).click()
  def reopen():page.get_by_role('button',name='查看待保存草稿',exact=False).click()
  def defer():page.get_by_role('button',name='稍后处理',exact=True).click()
  def send(replace=False):
@@ -28,13 +28,25 @@ with sync_playwright() as p:
   route.fulfill(status=200,content_type='application/json',body='bad' if mode['value']=='bad' else response([recipe,{'name':'待补充菜','ingredients':[],'steps':[]}]))
  page.route('https://mock.invalid/**',handle)
  page.route('https://article.invalid/ok',lambda route:route.fulfill(status=200,content_type='text/html',body='<html><head><title>公开菜谱</title></head><body><article><h1>公开菜谱</h1><p>'+('番茄洗净切块，鸡蛋打散炒熟，加入番茄翻炒后调味。'*10)+'</p></article></body></html>'))
- page.get_by_label('公开链接',exact=False).fill('https://article.invalid/ok');page.get_by_role('button',name='获取公开正文',exact=True).click();
+ page.get_by_label('识别原文',exact=True).fill('https://article.invalid/ok');page.get_by_role('button',name='获取正文',exact=True).click();
  expect(page.get_by_label('识别原文',exact=True)).to_have_value(__import__('re').compile('公开菜谱'))
  assert page.get_by_label('草稿名称1',exact=True).count()==0
  prior=page.get_by_label('识别原文',exact=True).input_value()
  page.route('https://article.invalid/login',lambda route:route.fulfill(status=200,content_type='text/html',body='<html><body>登录</body></html>'))
- page.get_by_label('公开链接',exact=False).fill('https://article.invalid/login');page.get_by_role('button',name='获取公开正文',exact=True).click();page.get_by_role('button',name='获取并替换',exact=True).click();expect(page.get_by_text('没有取得可用正文，请粘贴原文或上传截图',exact=True)).to_be_visible();expect(page.get_by_label('识别原文',exact=True)).to_have_value(prior)
- page.get_by_label('公开链接',exact=False).fill('http://article.invalid/no');page.get_by_role('button',name='获取公开正文',exact=True).click();page.get_by_role('button',name='获取并替换',exact=True).click();expect(page.get_by_text('请使用 HTTPS 链接',exact=True)).to_be_visible()
+ page.get_by_label('识别原文',exact=True).fill('https://article.invalid/login');page.get_by_role('button',name='获取正文',exact=True).click();expect(page.get_by_text('没有取得可用正文，请粘贴原文或上传截图',exact=True)).to_be_visible();expect(page.get_by_label('识别原文',exact=True)).to_have_value('https://article.invalid/login')
+ page.get_by_label('识别原文',exact=True).fill('http://article.invalid/no');page.get_by_role('button',name='获取正文',exact=True).click();expect(page.get_by_text('请使用 HTTPS 链接',exact=True)).to_be_visible()
+ # 提取链接期间可取消；迟到正文不能覆盖后来粘贴的内容。
+ late_article=[]
+ page.route('https://article.invalid/late',lambda route:late_article.append(route))
+ page.get_by_label('识别原文',exact=True).fill('https://article.invalid/late')
+ page.get_by_role('button',name='获取正文',exact=True).click()
+ expect(page.get_by_label('识别原文',exact=True)).to_be_disabled()
+ page.get_by_role('button',name='取消等待',exact=True).click()
+ page.get_by_label('识别原文',exact=True).fill('取消后输入')
+ assert late_article
+ late_article[0].fulfill(status=200,content_type='text/html',body='<html><body><article>'+('迟到的菜谱正文不应覆盖新输入。'*20)+'</article></body></html>')
+ page.wait_for_load_state('networkidle')
+ expect(page.get_by_label('识别原文',exact=True)).to_have_value('取消后输入')
  page.get_by_label('识别原文',exact=True).fill('测试文字菜谱');send();expect(page.get_by_label('草稿名称1',exact=True)).to_have_value('AI测试菜')
  page.get_by_role('button',name='确认保存选中条目').click();expect(page.get_by_text('待补充菜：至少需要一种食材和一个步骤',exact=True)).to_be_visible()
  page.get_by_role('checkbox',name='保存第 2 项').uncheck();page.get_by_label('草稿名称1',exact=True).fill('AI已核对菜');page.get_by_role('button',name='确认保存选中条目').click()

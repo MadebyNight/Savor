@@ -76,7 +76,8 @@ with sync_playwright() as p:
     assert abs(history.bounding_box()['y']-clear.bounding_box()['y'])<1
     expect(page.get_by_text('菜单修改自动保存',exact=False)).to_have_count(0)
     nav('冰箱')
-    page.evaluate("async()=>{const {setSecret}=await import('/src/storage.js');await setSecret('ai','mock');}")
+    nav('点单');click('设置与备份')
+    page.get_by_label('API Key',exact=True).fill('mock');click('保存 AI 配置');back();nav('冰箱')
     mode={'hold':False,'status':200,'count':1}
 
     def respond(route):
