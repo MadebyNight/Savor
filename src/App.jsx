@@ -740,13 +740,6 @@ function App() {
                     >
                       {!compact && <span>{["✦", "☀", "❀", "♨", "◡", "≈", "♡"][index] || '◇'}</span>}
                       <span className="category-name">{categoryName}</span>
-                      <small>
-                        {categoryName === "全部"
-                          ? recipes.length
-                          : recipes.filter(
-                              (recipe) => (recipe.category?.trim() || '未分类') === categoryName,
-                            ).length}
-                      </small>
                     </button>
                   ))}
                   <button className="manage-categories" onClick={()=>setManagingCategories(true)}>管理分类</button>
