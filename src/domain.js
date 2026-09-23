@@ -52,26 +52,18 @@ export function procurement(recipes, quantities, fridge, date) {
     }
   }
   return [...requirements.values()]
-    .map((item) => ({
-      ...item,
-      qty:
-        item.qty == null
-          ? null
-          : Math.max(
-              0,
-              +(
-                item.qty -
-                fridge
-                  .filter(
-                    (stock) =>
-                      ingredientKey(stock.name) === ingredientKey(item.name) &&
-                      normalizeUnit(stock.unit) === item.unit &&
-                      usableStock(stock, date),
-                  )
-                  .reduce((total, stock) => total + Number(stock.qty), 0)
-              ).toFixed(3),
-            ),
-    }))
+    .map((item) => {
+      const availableQty = fridge
+        .filter(stock => ingredientKey(stock.name) === ingredientKey(item.name) &&
+          normalizeUnit(stock.unit) === item.unit && usableStock(stock, date))
+        .reduce((total, stock) => total + Number(stock.qty), 0);
+      return {
+        ...item,
+        requiredQty: item.qty == null ? null : +item.qty.toFixed(3),
+        availableQty: +availableQty.toFixed(3),
+        qty: item.qty == null ? null : Math.max(0, +(item.qty - availableQty).toFixed(3)),
+      };
+    })
     .filter((item) => item.qty == null || item.qty > 0);
 }
 

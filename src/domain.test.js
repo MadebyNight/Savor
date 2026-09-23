@@ -50,7 +50,7 @@ test("采购仅按确认份数并汇总未过期批次抵扣", () => {
       ],
       "2026-09-16",
     ),
-    [{ name: "米", unit: "g", qty: 170 }],
+    [{ name: "米", unit: "g", qty: 170, requiredQty: 200, availableQty: 30 }],
   );
 });
 test("未知数量保留待确认且不能被库存抵扣", () => {
@@ -62,6 +62,26 @@ test("未知数量保留待确认且不能被库存抵扣", () => {
     )[0].qty,
     null,
   );
+});
+
+test('采购说明与缺口共用库存口径，未知需求保留库存参考', () => {
+  const recipes=[{id:'r',ingredients:[{name:'番茄',qty:250,unit:'g'},{name:'盐',qty:null,unit:'g'}]}];
+  const fridge=[
+    {name:'西红柿',qty:100,unit:'克',days:0},
+    {name:'番茄',qty:100,unit:'g',days:0},
+    {name:'番茄',qty:900,unit:'g',date:'2020-01-01',days:1},
+    {name:'番茄',qty:1,unit:'kg',days:0},
+    {name:'盐',qty:50,unit:'g',days:0},
+  ];
+  const result=procurement(recipes,{r:2},fridge,'2026-09-23');
+  assert.deepEqual(result.map(({qty,requiredQty,availableQty})=>({qty,requiredQty,availableQty})),[
+    {qty:300,requiredQty:500,availableQty:200},
+    {qty:null,requiredQty:null,availableQty:50},
+  ]);
+  assert.equal(procurement(recipes,{r:2},[])[0].availableQty,0);
+  assert.deepEqual(procurement([recipes[0]],{r:2},[...fridge,{name:'番茄',qty:300,unit:'g',days:0}]).map(item=>item.name),['盐']);
+  const fractional=procurement([{id:'r',ingredients:[{name:'米',qty:0.1,unit:'kg'}]}],{r:3},[{name:'米',qty:0.1,unit:'kg',days:0}])[0];
+  assert.deepEqual([fractional.requiredQty,fractional.availableQty,fractional.qty],[0.3,0.1,0.2]);
 });
 test("不同单位不抵扣，空确认清单为空", () => {
   const recipes = [

@@ -884,12 +884,20 @@ function App() {
                       <label className="shopping-check"><input type="checkbox" aria-label={`已买${item.name}（${item.unit}）`} checked={isPurchased(item,purchased)} onChange={event=>{const checked=event.target.checked;setPurchased(current=>{const next={...current};if(checked)next[shoppingKey(item)]=item.qty;else delete next[shoppingKey(item)];return next;});}}/><span className="sr-only">已买</span></label>
                       <h3>{item.name}</h3>
                       <strong>
+                        {item.qty != null && <small>{isPurchased(item,purchased) ? '已买 ' : '还需买 '}</small>}
                         {item.qty ?? "待确认"} <small>{item.unit}</small>
                       </strong>
                       <p className="missing">
                         {isPurchased(item,purchased)?'已买 · ':'待买 · '}
                         {item.category}
                       </p>
+                      <p className="shopping-stock-note">
+                        {item.requiredQty == null ? '用量待确认' : `共需 ${item.requiredQty}${item.unit}`}
+                        {` · 冰箱可用 ${item.availableQty}${item.unit}`}
+                      </p>
+                      {(item.qty == null || item.availableQty > 0) && <p className="shopping-stock-reason"><span>
+                        {item.qty == null ? '请核对所需用量' : '库存不足，补买差额'}
+                      </span></p>}
                     </article>
                   ))}
               </div>

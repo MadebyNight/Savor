@@ -1797,6 +1797,9 @@ html [data-sonner-toaster][data-sonner-theme] {
 .page-2 .shopping-card p, .compact-app .page-2 .stock-card.shopping-card p { grid-column:2 / -1; margin:0; }
 .page-2 .shopping-card.is-purchased { background:#f2f4ee; }
 .page-2 .shopping-card.is-purchased h3 { text-decoration:line-through; color:#7a8272; }
+.page-2 .shopping-card strong { text-align:right; overflow-wrap:anywhere; }
+.page-2 .shopping-card .shopping-stock-note { color:#737c68; overflow-wrap:anywhere; line-height:1.7; }
+.page-2 .shopping-card .shopping-stock-reason span { display:inline-block; margin:3px 0; padding:2px 5px; border-radius:4px; background:#f5eddb; color:#866323; font-size:11px; }
 @media(max-width:360px) { .stock-add-actions button { flex-direction:column; gap:4px; } }
 
 .recognition-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }

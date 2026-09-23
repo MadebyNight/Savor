@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>食光 · 菜篮子库存提示预览</title>
+<style>
+:root{font-family:"Microsoft YaHei","PingFang SC",sans-serif;color:#30422e;background:#f0f1ec;font-synthesis:none}*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid #536747;outline-offset:3px}button{border:0;color:inherit;background:none}main{max-width:1040px;margin:0 auto;padding:44px 28px}header small{font-size:12px;letter-spacing:2px;color:#737c68}h1{font-size:28px;margin:12px 0}header p{font-size:14px;line-height:1.8;color:#6b7465;margin:0}.layout{display:grid;grid-template-columns:390px 1fr;gap:64px;align-items:start;margin-top:30px}.phone{background:#faf9f5;border:1px solid #d6dccf;border-radius:24px;overflow:hidden;box-shadow:0 16px 48px #30422e12}.screen{height:690px;position:relative;display:flex;flex-direction:column}.status{display:flex;justify-content:space-between;background:#eef1e7;padding:12px 20px 3px;font-size:11px}.topbar{display:flex;align-items:center;justify-content:space-between;background:#eef1e7;padding:12px 16px;border-bottom:1px solid #dce2d2}.topbar b{font-size:20px}.topbar span{font-size:13px;color:#536747}.body{flex:1;overflow:auto}.count{padding:16px 14px 12px;font-size:15px;font-weight:600}.stock-layout{display:grid;grid-template-columns:64px minmax(0,1fr)}.categories{display:flex;flex-direction:column;gap:3px;padding-right:5px}.categories span{padding:15px 0;text-align:center;font-size:12px;color:#747d6b}.categories .active{color:#435738;background:#eaf0df;border-radius:0 8px 8px 0;font-weight:600}.items{padding:0 12px 0 6px}.item{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:5px;border-bottom:1px solid #e3e6dc;padding:13px 0}.item input{margin:4px 0 0;width:18px;height:18px;accent-color:#60754e;cursor:pointer}.line{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px}.name{font-size:14px;font-weight:600}.quantity{font-size:13px;font-weight:600}.quantity small{font-size:11px;font-weight:400;color:#737c68}.reason{font-size:11px;color:#79816f;line-height:1.7;margin:5px 0 0}.badge{display:inline-block;font-size:10px;color:#866323;background:#f5eddb;border-radius:4px;padding:1px 5px;margin:6px 0 0}.item.bought .name{text-decoration:line-through;color:#89917f}.item.bought .quantity{color:#89917f}.footnote{margin:18px 12px 0 76px;font-size:11px;line-height:1.7;color:#7b8372}.nav{display:flex;justify-content:space-around;flex:none;padding:10px 4px 13px;background:#eef1e7;border-top:1px solid #dce2d2}.nav span{font-size:10px;display:flex;align-items:center;gap:4px;flex-direction:column;color:#7a8370;min-width:48px}.nav .active{color:#425833;font-weight:600}.nav svg{width:22px;height:22px}.toast{position:absolute;bottom:83px;left:14px;right:14px;padding:13px 15px;background:#fff;border:1px solid #dce2d2;border-radius:12px;box-shadow:0 6px 24px #30422e20;font-size:13px;line-height:1.7}.toast strong{display:block;color:#435d34}.toast p{margin:2px 0 0;color:#6b7465;font-size:12px}.toast button{position:absolute;right:5px;top:3px;min-width:38px;min-height:38px}.empty{text-align:center;padding:65px 18px}.empty svg{width:42px;height:42px;color:#6e8557}.empty h2{font-size:17px;margin:16px 0 9px}.empty p{font-size:12px;line-height:1.8;color:#737c68}.controls{padding-top:4px}.label{font-size:12px;color:#7b8472;margin:0 0 10px}.switch{display:flex;padding:4px;border:1px solid #d7decd;border-radius:12px;background:#e8ecdf;gap:4px}.switch button{flex:1;padding:12px 8px;font-size:13px;border-radius:8px}.switch button[aria-pressed=true]{background:#fff;box-shadow:0 2px 6px #30422e0d;font-weight:600}.notes{margin:26px 0}.notes h2{font-size:20px;line-height:1.6;margin:0 0 16px}.point{display:flex;gap:12px;margin:20px 0}.point b{flex:none;width:25px;height:25px;display:grid;place-items:center;border-radius:50%;background:#e2e9d7;color:#536747;font-size:12px}.point strong{font-size:14px}.point p{font-size:13px;line-height:1.9;color:#737c68;margin:5px 0 0}.actions{display:flex;flex-direction:column;gap:10px}.actions button{border:1px solid #cbd4bf;border-radius:10px;min-height:46px;padding:10px;font-size:13px}.actions .primary{background:#536747;color:white;border-color:#536747}.disclaimer{font-size:12px;color:#7b8472;line-height:1.9;margin:18px 0 0}[hidden]{display:none!important}.current .badge,.current .footnote{display:none}.current .item{padding:10px 0}
+@media(max-width:760px){main{padding:24px 14px}.layout{display:flex;flex-direction:column;gap:26px;align-items:center;margin-top:22px}.phone,.controls{width:100%;max-width:390px}h1{font-size:23px}.screen{height:680px}.controls{padding:0 4px}.reason{font-size:11px}}
+</style>
+</head>
+<body>
+<main>
+<header><small>食光 / 界面预览</small><h1>冰箱里有，为什么还要买？</h1><p>把库存抵扣过程写在食材旁边，让每一笔补购都有依据。</p></header>
+<div class="layout">
+<section class="phone" aria-label="菜篮子手机预览"><div class="screen">
+<div class="status"><span>9:41</span><span>▮▮▮ &nbsp; 100%</span></div>
+<div class="topbar"><b>菜篮子</b><span>导出</span></div>
+<div class="body">
+<div class="count" aria-live="polite">还需要买 <span id="count">3</span> 种食材</div>
+<div class="stock-layout" id="list"><aside class="categories" aria-label="分类示意"><span class="active">全部</span><span>蔬菜</span><span>肉蛋</span><span>调味</span></aside><div class="items" id="items"></div></div>
+<p class="footnote">仅抵扣单位一致、未过期的库存。<br>勾选“已买”仅记录进度，不会自动放入冰箱。</p>
+<div class="empty" id="empty" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/></svg><h2>所需食材已备齐</h2><p>冰箱可用库存已满足本次选菜需求，<br>暂时不需要补购。</p></div>
+</div>
+<div class="toast" role="status" hidden><button aria-label="关闭提示" onclick="hideToast()">×</button><strong>✓ 菜篮子已更新</strong><p>已扣除冰箱可用库存，<br>需补购或用量待确认的食材已列出。</p></div>
+<div class="nav" aria-label="导航示意"></div>
+</div></section>
+<aside class="controls">
+<p class="label">相同示例数据，对比提示效果</p>
+<div class="switch" role="group" aria-label="预览样式"><button aria-pressed="false" onclick="setMode(false)">当前样式示意</button><button aria-pressed="true" onclick="setMode(true)">建议方案</button></div>
+<div class="notes"><h2>数量不是重复同步，<br>而是还需要补多少。</h2>
+<div class="point"><b>1</b><div><strong>直接查看食材，不增加顶部提示框</strong><p>计算说明跟随每项食材展示，查看数量时就能理解为什么需要补买。</p></div></div>
+<div class="point"><b>2</b><div><strong>有库存的条目，展示抵扣依据</strong><p>番茄：共需 500g，冰箱可用 200g。<br>主数量明确显示“还需买 300g”。</p></div></div>
+<div class="point"><b>3</b><div><strong>不确定时，不给出假精确数量</strong><p>小葱用量未知时显示“待确认”，即使冰箱有库存，也请用户核对。</p></div></div>
+</div>
+<div class="actions"><button class="primary" onclick="showToast()">查看「确认选菜后」提示</button><button id="scenario" onclick="toggleScenario()">切换到「库存全部够用」</button></div>
+<p class="disclaimer">可点击食材勾选框体验“已买”。<br>本页仅为独立交互预览，使用示例数据，不连接真实库存。当前样式为结构示意，非运行中应用截图。</p>
+</aside>
+</div>
+</main>
+<script>
+const rows=[{name:'番茄',qty:'300 g',category:'蔬菜',detail:'共需 500g · 冰箱可用 200g',badge:'库存不足，补买差额'},{name:'鸡蛋',qty:'3 个',category:'肉蛋',detail:'共需 3 个 · 冰箱可用 0 个'},{name:'小葱',qty:'待确认',category:'蔬菜',detail:'用量待确认 · 冰箱可用 50g',badge:'请核对所需用量'}];
+let proposed=true,allStock=false,bought=new Set(),timer;
+const $=s=>document.querySelector(s);
+function render(){
+ $('.phone').classList.toggle('current',!proposed);
+ $('#list').hidden=allStock;$('#empty').hidden=!allStock;
+ $('.footnote').hidden=allStock;
+ $('#count').textContent=allStock?0:rows.length-bought.size;
+ $('#items').innerHTML=rows.map((r,i)=>`<article class="item ${bought.has(i)?'bought':''}"><input type="checkbox" aria-label="已买${r.name}" ${bought.has(i)?'checked':''} onchange="mark(${i},this.checked)"><div><div class="line"><span class="name">${r.name}</span><span class="quantity">${proposed&&i<2?`<small>${bought.has(i)?'已买':'还需买'} </small>`:''}${r.qty}</span></div><p class="reason">${proposed?r.detail:`${bought.has(i)?'已买':'待买'} · ${r.category}`}</p>${proposed&&r.badge?`<span class="badge">${r.badge}</span>`:''}</div></article>`).join('');
+ document.querySelectorAll('.switch button').forEach((b,i)=>b.setAttribute('aria-pressed',String(proposed===(i===1))));
+ $('#scenario').textContent=allStock?'返回「需要补购」':'切换到「库存全部够用」';
+}
+function mark(i,on){on?bought.add(i):bought.delete(i);render()}
+function setMode(value){proposed=value;hideToast();render()}
+function toggleScenario(){allStock=!allStock;bought.clear();hideToast();render()}
+function hideToast(){clearTimeout(timer);$('.toast').hidden=true}
+function showToast(){hideToast();$('.toast strong').textContent=proposed?'✓ 菜篮子已更新':'✓ 已同步周菜单素材与缺失食材清单';$('.toast p').hidden=!proposed;$('.toast p').innerHTML=allStock?'冰箱可用库存已满足需求，无需补购。':'已扣除冰箱可用库存，<br>需补购或用量待确认的食材已列出。';$('.toast').hidden=false;timer=setTimeout(hideToast,6000)}
+const icons=['<path d="M5 3v6m3-6v6M3 3v6c0 3 7 3 7 0V3M6.5 12v9M17 3v18m0-18c-4 3-4 9 0 9"/>','<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M5 10h14M8 5v2m0 6v3"/>','<path d="m3 9 2 12h14l2-12ZM8 9l4-7 4 7M9 13v4m6-4v4"/>','<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6m10-6v6M3 11h18"/>','<path d="M12 5C9 3 5 3 2 4v16c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1v16"/>'];
+$('.nav').innerHTML=['点单','冰箱','菜篮子','周菜单','菜谱'].map((n,i)=>`<span class="${i===2?'active':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${icons[i]}</svg>${n}</span>`).join('');
+render();
+</script>
+</body>
+</html>
