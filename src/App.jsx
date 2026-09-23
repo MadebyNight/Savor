@@ -1,3 +1,5 @@
+import StorageRules from './components/StorageRules.jsx';
+import {DEFAULT_STORAGE_RULES,suggestStorage,validateStorageRules} from './food-storage.js';
 import RecipeFilters from "./components/RecipeFilters.jsx";
 import CategoryManager from './components/CategoryManager.jsx';
 import {categoryNames, changeCategory} from './categories.js';
@@ -78,6 +80,7 @@ const navigationItems = [
 ];
 function App() {
   const [ask, confirmation] = useConfirm();
+  const [askClearFridge, clearFridgeConfirmation] = useConfirm();
   const [page, setPage] = useState(0);
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)").matches);
   const [editingRecipe, setEditingRecipe] = useState(false);
@@ -114,6 +117,8 @@ function App() {
     if(button){button.scrollIntoView({block:'nearest'});categoryScrollTarget.current=null;}
   }},[managingCategories]);
   const [fridge, setFridge] = useState([]);
+  const [storageRules,setStorageRules]=useState(DEFAULT_STORAGE_RULES);
+  const [showStorageRules,setShowStorageRules]=useState(false);
   const [purchased,setPurchased]=useState({});
   // 修改点单只更新 quantities；确认后才更新采购缺口与周菜单素材。
   const [quantities, setQuantities] = useState({});
@@ -189,6 +194,7 @@ function App() {
     recipes,
     recipeCategories:categoryNames(savedCategories,recipes),
     fridge,
+    storageRules,
     purchased,
     qty: quantities,
     confirmed: confirmedQuantities,
@@ -203,6 +209,7 @@ function App() {
     setRecipes(state.recipes || initialRecipes);
     setSavedCategories(state.recipeCategories ?? null);
     setFridge(state.fridge || []);
+    setStorageRules(state.storageRules ? validateStorageRules(state.storageRules) : DEFAULT_STORAGE_RULES);
     setPurchased(state.purchased || {});
     setQuantities(state.qty || {});
     setConfirmedQuantities(state.confirmed || {});
@@ -269,6 +276,7 @@ function App() {
     recipes,
     savedCategories,
     fridge,
+    storageRules,
     purchased,
     quantities,
     confirmedQuantities,
@@ -310,7 +318,7 @@ function App() {
   const shoppingFingerprint=JSON.stringify(shoppingList.map(item=>[shoppingKey(item),item.qty]));
   useEffect(()=>{if(hydrated)setPurchased(current=>{const next=reconcilePurchased(shoppingList,current);return JSON.stringify(next)===JSON.stringify(current)?current:next;});},[shoppingFingerprint,hydrated]);
   const remainingShopping=shoppingList.filter(item=>!isPurchased(item,purchased)).length;
-  const manualStock=()=>{if(editingStock!==null)setIngredientDraft({...ingredient('',100),days:0,date:today()});setEditingStock(null);setStockError('');setModal('stock');};
+  const manualStock=()=>{if(editingStock!==null)setIngredientDraft({...ingredient('',100),days:0,date:today()});setEditingStock(null);setIngredientDraft(current=>suggestStorage(current,storageRules));setStockError('');setModal('stock');};
   async function selectStockImage(event){
     const file=event.target.files?.[0];event.target.value='';if(!file)return;
     if(file.size>10*1024*1024)return toast.error('请选择10MB以内图片');
@@ -440,6 +448,20 @@ function App() {
       setIngredientDraft({...ingredient('',100),days:0,date:today()});
       toast.success('食材已保存');
     }catch(error){setStockError(error.message||'保存失败，输入已保留');}
+    finally{setStockSaving(false);}
+  };
+  const clearFridge = async () => {
+    if(stockSaving || !fridge.length)return;
+    const before=latestState.current;
+    if(!(await askClearFridge(`将删除冰箱内全部 ${before.fridge.length} 批库存，包括筛选后未显示的食材。采购缺口将重新计算；菜谱、已确认菜品和历史菜单保留。此操作无法撤销。`,{title:'清空整个冰箱？',label:'确认清空冰箱',danger:true})))return;
+    if(JSON.stringify(latestState.current)!==JSON.stringify(before)){toast.error('数据已变化，请重新确认清空');return;}
+    setStockSaving(true);
+    try {
+      await saveState({...before,fridge:[]});
+      if(JSON.stringify(latestState.current)!==JSON.stringify(before)){await saveState(latestState.current);throw new Error('数据已变化，已保留库存，请重试');}
+      setFridge([]);setSearch('');setCategory('全部');setStockFilter('all');
+      toast.success('冰箱已清空，采购缺口已更新');
+    }catch(error){toast.error('清空失败：'+error.message);}
     finally{setStockSaving(false);}
   };
   const exportShoppingList = async (format) => {
@@ -609,6 +631,7 @@ function App() {
             </div>
             <div className="mobile-header-actions">
               {!showSettings && !recognition && !editingRecipe && page === 0 && <button className="mobile-icon" aria-label="设置与备份" onClick={() => setShowSettings(true)}><Settings2 size={22} /></button>}
+              {!showSettings && !recognition && !editingRecipe && page === 4 && <button className="mobile-icon" aria-label="保质期规则" disabled={!hydrated} onClick={()=>setShowStorageRules(true)}><Settings2 size={22}/></button>}
               {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => openRecognition("recipe-import")}><Upload size={18} />导入菜谱</button>}
               {!showSettings && page === 3 && <button onClick={() => setMealSlot(`${selectedDay}-早`)}><Plus size={18} />安排菜品</button>}
               {!showSettings && page === 2 && <button disabled={!shoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
@@ -644,7 +667,7 @@ function App() {
             />
           )}
 
-          {recognition&&!showSettings&&<RecognitionPanel key={recognition} mode={recognition} initialImage={recognitionImage} autoStart={recognitionAuto} onAutoStart={()=>setRecognitionAuto(false)} onManual={()=>{setRecognition(null);setEditingRecipe(true);}} onSettings={()=>{setRecognitionImage('');setShowSettings(true);}}
+          {recognition&&!showSettings&&<RecognitionPanel storageRules={storageRules} key={recognition} mode={recognition} initialImage={recognitionImage} autoStart={recognitionAuto} onAutoStart={()=>setRecognitionAuto(false)} onManual={()=>{setRecognition(null);setEditingRecipe(true);}} onSettings={()=>{setRecognitionImage('');setShowSettings(true);}}
             onImportRecipes={async items=>{const next=[...latestState.current.recipes,...items.map(item=>({...item,nutrition:calculateNutrition(item)}))];await saveState({...latestState.current,recipes:next});setRecipes(next);}}
             onImportStock={async items=>{const next=[...latestState.current.fridge,...items];await saveState({...latestState.current,fridge:next});setFridge(next);}}/>}
           <input ref={fridgeCamera} type="file" accept="image/*" capture="environment" aria-label="冰箱拍摄图片" hidden onChange={selectStockImage}/>
@@ -1200,7 +1223,10 @@ function App() {
               {!visibleStock.length && <div className="empty"><p>{fridge.length ? "没有符合当前搜索和筛选条件的食材。" : "冰箱里还没有食材。"}</p>{!!fridge.length && <button className="text-link" onClick={()=>{setSearch('');setCategory('全部');setStockFilter('all');}}>清除筛选</button>}</div>}
               {(expiredCount > 0 || soonCount > 0) && <p role="status" className="stock-risk-summary">⚠ {expiredCount > 0 && <strong>{expiredCount} 批过期 </strong>}{soonCount > 0 && <span>{soonCount} 批临期</span>}</p>}
 
-              <button className="primary stock-recommend-entry" disabled={!fridge.length} onClick={()=>setModal('fridge-recipes')}>看看能做什么<ArrowRight size={17}/></button>
+              <div className="stock-bottom-actions">
+                <button className="primary stock-recommend-entry" disabled={!fridge.length || stockSaving} onClick={()=>setModal('fridge-recipes')}>看看能做什么<ArrowRight size={17}/></button>
+                <button className="outline stock-clear-entry" disabled={!fridge.length || stockSaving} onClick={clearFridge}>{stockSaving?'正在保存…':'一键清空'}</button>
+              </div>
               </section>
               </div>
             </>
@@ -1547,6 +1573,11 @@ function App() {
         }
         toast.success(action==='delete'?'分类已删除，菜谱已转移':action==='rename'?'分类已重命名':'分类已添加');
       }}/>}
+      {showStorageRules&&<StorageRules value={storageRules} onClose={()=>setShowStorageRules(false)} onSave={async rules=>{
+        validateStorageRules(rules);
+        await saveState({...latestState.current,storageRules:rules});
+        setStorageRules(rules);toast.success('保质期规则已保存');
+      }}/>}
       {compact && !editingRecipe && !recognition && !showSettings && <nav className="mobile-bottom-nav" aria-label="主导航">
         {[[0,"点单",Utensils],[4,"冰箱",Refrigerator],[2,"菜篮子",ShoppingBasket],[3,"周菜单",CalendarDays],[1,"菜谱",BookOpen]].map(([index,label,Icon]) => <button key={index} aria-current={page === index && !showSettings ? "page" : undefined} onClick={() => navigate(index)}><span><Icon size={22}/></span>{label}</button>)}
       </nav>}
@@ -1675,7 +1706,7 @@ function App() {
           )}
           {modal === "stock" && (
             <form id="stock-edit-form" className="editor stock-editor" onSubmit={event=>{event.preventDefault();saveIngredient();}}>
-              <fieldset disabled={stockSaving}><StockFields value={ingredientDraft} onChange={setIngredientDraft}/></fieldset>
+              <fieldset disabled={stockSaving}><StockFields rules={storageRules} autoFill={editingStock===null} value={ingredientDraft} onChange={setIngredientDraft}/></fieldset>
               {stockError&&<p role="alert">{stockError}</p>}
 
               {editingStock!==null&&<button className="text-link" disabled={stockSaving} type="button" onClick={async()=>{
@@ -1800,6 +1831,7 @@ function App() {
           {confirmation}
         </DialogContent>
       </Dialog>
+      {clearFridgeConfirmation}
       {hydrated&&<SyncPanel state={fullState} onRestore={restoreState} target={syncTarget}/>}
       <Toaster richColors position="top-center" offset={compact ? "calc(60px + env(safe-area-inset-top))" : undefined} mobileOffset={{top:"calc(60px + env(safe-area-inset-top))"}} />
     </SidebarProvider>

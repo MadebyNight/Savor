@@ -1,3 +1,4 @@
+import {estimateStorage} from '../food-storage.js';
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ import {
 } from "./Dialog.jsx";
 export default function RecognitionPanel({
   mode,
+  storageRules,
   initialImage,
   autoStart = false,
   onAutoStart,
@@ -187,7 +189,8 @@ export default function RecognitionPanel({
         const requestText = automatic ? '' : text;
         await persist(draft, {image:selectedImage, text:requestText});
         if (current !== generation.current) return;
-        const items = await recognize(effectiveConfig, requestText, selectedImage, kind);
+        const recognized = await recognize(effectiveConfig, requestText, selectedImage, kind);
+        const items = kind==='stock'?recognized.map(item=>({...item,...estimateStorage(item.name,item.category,storageRules)})):recognized;
         if (current !== generation.current) return;
         if (mode === 'stock' && draftItems.length + items.length > 100) {
           throw new Error('待保存食材超过 100 项，请先保存已有草稿后重试；已有草稿未替换。');
@@ -424,6 +427,7 @@ export default function RecognitionPanel({
               </>
             ) : draftItems.length ? (
               <DraftEditor
+                storageRules={storageRules}
                 items={draftItems}
                 kind={kind}
                 onSavingChange={setSavingDraft}

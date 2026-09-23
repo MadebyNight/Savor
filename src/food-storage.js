@@ -1,24 +1,23 @@
 export const STORAGE_METHODS = {unknown:'未确定',chilled:'冷藏（≤4°C）',frozen:'冷冻（≤−18°C）',ambient:'常温'};
-export const STORAGE_SOURCE = 'https://www.fda.gov/media/74435/download';
-// FDA 2018 chart: use the lower bound, only for the explicitly matched state.
-const rules = [
-  [['生鸡肉','鸡胸肉','生鸡胸肉','鸡腿','鸡翅','生火鸡肉'],1,'生禽肉'],
-  [['生猪肉末','猪肉馅','生牛肉末','牛肉馅'],1,'生绞肉'],
-  [['生牛排','生猪排','生羊排'],3,'生肉排'],
-  [['生鱼','生鱼片','生虾','鲜虾','生鱿鱼'],1,'生鱼与海鲜'],
-  [['熟鸡肉','熟肉','熟鱼','熟鸡胸肉'],3,'熟肉/禽/鱼'],
-  [['熟鸡蛋','水煮蛋'],7,'煮熟鸡蛋'],
-  [['带壳生鸡蛋','鸡蛋'],21,'新鲜带壳鸡蛋'],
-  [['生蛋清','生蛋黄'],2,'生蛋清/蛋黄'],
-  [['肉汤'],1,'肉汁与肉汤'],
-  [['熟蔬菜汤'],3,'汤与炖菜'],
-];
-export function estimateStorage(name, storageMethod) {
-  const rule=rules.find(([names])=>names.includes(String(name||'').trim()));
-  if(storageMethod!=='chilled'||!rule)return {days:0,shelfLifeSource:{kind:'unknown'}};
-  return {days:rule[1],shelfLifeSource:{kind:'reference',rule:rule[2],condition:'持续冷藏≤4°C；入库前未超出包装期限',url:STORAGE_SOURCE,version:'FDA-2018'}};
+export const DEFAULT_STORAGE_RULES = {categories:{蔬菜:3,水果:5,肉类:1,豆制品:2,奶制品:7,其他:3},items:[]};
+export function validateStorageRules(value) {
+  const validDays=n=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0;
+  if(!value || !value.categories || Array.isArray(value.categories) || !Array.isArray(value.items) ||
+    Object.keys(value.categories).length!==6 || Object.keys(DEFAULT_STORAGE_RULES.categories).some(key=>!validDays(value.categories[key])))throw new Error('分类默认天数应为正整数');
+  const names=new Set();
+  for(const item of value.items){
+    if(!item || typeof item.name!=='string' || !item.name.trim() || item.name!==item.name.trim() || !validDays(item.days))throw new Error('请填写食材名称和正整数天数');
+    if(names.has(item.name))throw new Error('食材名称重复，请修改已有规则');
+    names.add(item.name);
+  }
+  return value;
 }
-export function suggestStorage(stock) {
-  if(Number(stock.days)>0 || ['manual','package'].includes(stock.shelfLifeSource?.kind))return stock;
-  return {...stock,...estimateStorage(stock.name,stock.storageMethod)};
+export function estimateStorage(name, category, rules=DEFAULT_STORAGE_RULES) {
+  const match=rules.items.find(item=>item.name===String(name||'').trim());
+  const key=Object.hasOwn(rules.categories,category)?category:'其他';
+  return {days:match?match.days:rules.categories[key],shelfLifeSource:{kind:'reference',rule:match?`食材规则：${match.name}`:`分类默认：${key}`,condition:'按规则自动填写，仅供参考，请以包装及实际保存情况为准。',version:'category-v1'}};
+}
+export function suggestStorage(stock,rules=DEFAULT_STORAGE_RULES) {
+  if(['manual','package'].includes(stock.shelfLifeSource?.kind) || (Number(stock.days)>0&&stock.shelfLifeSource?.version!=='category-v1'))return stock;
+  return {...stock,...estimateStorage(stock.name,stock.category,rules)};
 }
