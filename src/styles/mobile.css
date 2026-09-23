@@ -1229,3 +1229,11 @@
 .category-management-list span { min-width:0; overflow-wrap:anywhere; }
 .category-management-list small { display:block; color:#737c68; }
 .category-management-list button { flex:none; min-height:48px; min-width:48px; }
+.category-add-field { display:flex; align-items:center; gap:6px; padding:4px; border:1px solid #dce2d2; border-radius:12px; background:white; }
+.category-manager .category-add-field input { min-width:0; flex:1; width:0; border:0; box-shadow:none; background:transparent; }
+.category-add-field button { flex:none; min-height:44px; padding:8px 14px; }
+.category-management-list { margin-top:12px; }
+.category-inline-editor { width:100%; min-width:0; display:grid; gap:8px; }
+.category-edit-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.category-edit-actions button { padding:8px 10px; }
+.category-edit-actions .text-link { color:#983b30; margin-left:auto; }

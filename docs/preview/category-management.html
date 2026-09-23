@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>食光 · 分类管理交互预览</title>
+<style>
+:root{font-family:"Microsoft YaHei","PingFang SC",sans-serif;color:#30422e;background:#f0f1ec;font-synthesis:none}*{box-sizing:border-box}body{margin:0}button,input{font:inherit;color:inherit}button{cursor:pointer;border:0;background:none;min-height:44px;border-radius:9px;padding:9px 12px}button:disabled{cursor:default;opacity:.45}button:focus-visible,input:focus-visible{outline:2px solid #687c50;outline-offset:2px}main{max-width:980px;margin:0 auto;padding:36px 24px}header small{font-size:12px;color:#737c68;letter-spacing:2px}h1{font-size:26px;margin:12px 0}header p{font-size:14px;line-height:1.8;color:#737c68;margin:0}.layout{display:grid;grid-template-columns:390px 1fr;gap:52px;margin-top:28px;align-items:start}.phone{border:1px solid #d6dccf;border-radius:24px;overflow:hidden;background:#faf9f5;box-shadow:0 16px 48px #30422e12}.screen{height:720px;display:flex;flex-direction:column;position:relative}.status{display:flex;justify-content:space-between;background:#eef1e7;padding:12px 18px 0;font-size:11px}.topbar{background:#eef1e7;display:flex;align-items:center;gap:10px;padding:4px 10px;border-bottom:1px solid #dce2d2;min-height:56px}.topbar strong{font-size:19px}.topbar button{font-size:25px;width:44px;padding:0}.body{padding:16px;overflow-y:auto;flex:1}.add-field{display:flex;border:1px solid #dce2d2;border-radius:12px;background:white;gap:4px;padding:4px}.add-field input{flex:1;width:0;min-width:0;border:0;background:transparent;padding:9px;min-height:44px;font-size:14px}.primary{background:#fbd34e;color:#293b27;font-weight:600}.add-field button{min-width:60px}.list{margin-top:12px}.row{padding:10px 0;border-bottom:1px solid #e2e6da;display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:67px}.name{font-size:16px;overflow-wrap:anywhere;min-width:0}.count{display:block;font-size:12px;color:#7c8474;margin-top:5px}.manage{font-size:13px;background:#fff;border:1px solid #e3e7dc;flex:none}.edit{width:100%;min-width:0}.edit input{width:100%;min-height:46px;border:1px solid #b8c5a8;border-radius:10px;padding:10px;background:white}.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:12px}.cancel{background:white;border:1px solid #e2e6da}.delete{margin-left:auto;color:#a14c3d}.error{font-size:12px;color:#a13d32;margin:7px 0 0;line-height:1.6}.toast{position:absolute;bottom:20px;left:20px;right:20px;background:#30422e;color:white;padding:12px 16px;border-radius:10px;font-size:13px;text-align:center;pointer-events:none}.controls h2{font-size:20px;margin:8px 0 16px}.controls p{font-size:14px;line-height:1.9;color:#6e7864}.steps{display:flex;flex-direction:column;gap:10px;margin:22px 0}.steps button{text-align:left;background:#faf9f5;border:1px solid #d6dccf}.controls small{display:block;color:#7b8472;font-size:12px;line-height:1.9}.controls .reset{margin-top:18px;text-decoration:underline}.overlay{position:absolute;inset:0;background:#27322255;display:flex;align-items:center;justify-content:center;padding:20px}.confirm{background:#faf9f5;border:1px solid #d6dccf;border-radius:18px;padding:20px;width:100%;box-shadow:0 12px 32px #0002}.confirm h2{font-size:19px;margin:0 0 12px}.confirm p{font-size:14px;line-height:1.8;margin:0 0 18px}.confirm .actions{justify-content:flex-end}.danger{background:#a94d3e;color:#fff}[hidden]{display:none!important}
+@media(max-width:760px){main{padding:22px 12px}.layout{display:flex;flex-direction:column;align-items:center;gap:24px}.phone,.controls{width:100%;max-width:390px}h1{font-size:23px}.screen{height:690px}.controls{padding:0 5px}}
+</style>
+</head>
+<body><main>
+<header><small>食光 / 交互预览</small><h1>分类管理，在当前行完成</h1><p>可点击体验。预览使用示例数据，不会修改应用中的分类或菜谱。</p></header>
+<div class="layout"><section class="phone" aria-label="手机交互预览"><div class="screen">
+<div class="status"><span>9:41</span><span>5G　▰</span></div>
+<div class="topbar"><button aria-label="返回预览初始状态" id="back">‹</button><strong>管理分类</strong></div>
+<div class="body"><form id="add"><div class="add-field"><input id="new-name" aria-label="新增分类名称" maxlength="20" placeholder="输入新分类名称"><button class="primary" type="submit" aria-label="添加分类" disabled>添加</button></div><p class="error" id="add-error" role="alert" hidden></p></form><div id="list" class="list"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<div class="overlay" id="overlay" hidden><section class="confirm" role="dialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-text"><h2 id="delete-title">删除分类？</h2><p id="delete-text"></p><div class="actions"><button class="cancel" id="keep">取消</button><button class="danger" id="confirm-delete">确认删除分类</button></div></section></div>
+</div></section>
+<aside class="controls"><h2>可以这样试</h2><p>上方仅负责新增分类。点击某行“管理”，就在该行修改名称，保存和取消按钮显示在输入框下方。</p><div class="steps"><button id="demo-edit">① 查看“早餐”的行内编辑</button><button id="demo-add">② 试着添加“夜宵”</button><button id="demo-delete">③ 查看删除确认</button></div><p>删除分类时，不再选择其他分类。原有菜谱统一归入“未分类”，并在确认框中说明。</p><small>应用页面已去掉原来的分类解释文字。此处右侧说明仅用于预览，不会出现在应用里。</small><button class="reset" id="reset">重置预览</button></aside>
+</div></main>
+<script>
+const initial=[['早餐',5],['素菜',12],['荤菜',9],['汤品',4],['面食',6],['小甜水',3],['未分类',0]];
+let categories=[],editing=null,timer,deleteSource=null;
+const $=s=>document.querySelector(s);
+function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node;}
+function toast(text){$('#toast').textContent=text;$('#toast').hidden=false;clearTimeout(timer);timer=setTimeout(()=>$('#toast').hidden=true,2200);}
+function invalid(name,source){return !name||name.length>20?'请输入 1–20 个字的分类名称':name==='全部'?'“全部”为固定入口，请使用其他名称':categories.some(c=>c.name===name&&c.name!==source)?'已存在同名分类，请换一个名称':'';}
+function start(name){editing=name;render();const input=$('.edit input');input.focus({preventScroll:true});input.select();}
+function render(){
+ const list=$('#list');list.replaceChildren();
+ for(const c of categories){
+  const row=el('div','row');row.dataset.name=c.name;
+  if(editing===c.name){
+   const form=el('form','edit'),input=el('input');input.value=c.name;input.maxLength=20;input.setAttribute('aria-label','修改'+c.name+'分类名称');form.append(input);
+   const actions=el('div','actions'),save=el('button','primary','保存名称'),cancel=el('button','cancel','取消编辑'),remove=el('button','delete','删除此分类'),error=el('p','error');error.hidden=true;error.setAttribute('role','alert');
+   save.type='submit';cancel.type=remove.type='button';cancel.onclick=()=>{editing=null;render();};remove.onclick=()=>confirm(c);actions.append(save,cancel,remove);form.append(actions,error);
+   form.onsubmit=e=>{e.preventDefault();const name=input.value.trim(),message=invalid(name,c.name);if(message){error.textContent=message;error.hidden=false;return;}c.name=name;editing=null;render();toast('分类名称已保存');};row.append(form);
+  }else{const name=el('span','name',c.name);name.append(el('small','count',c.count+' 道菜'));row.append(name);if(c.name!=='未分类'){const manage=el('button','manage','管理');manage.setAttribute('aria-label','管理'+c.name);manage.onclick=()=>start(c.name);row.append(manage);}}
+  list.append(row);
+ }
+}
+function confirm(c){deleteSource=c;$('#delete-text').textContent=`删除“${c.name}”后，${c.count} 道菜谱将归入“未分类”。菜谱内容和历史菜单会保留。`;$('#overlay').hidden=false;$('#keep').focus();}
+function closeConfirm(){$('#overlay').hidden=true;deleteSource=null;$('.edit .delete')?.focus();}
+$('#keep').onclick=closeConfirm;
+$('#overlay').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();closeConfirm();}if(e.key==='Tab'){e.preventDefault();(document.activeElement===$('#keep')?$('#confirm-delete'):$('#keep')).focus();}});
+$('#confirm-delete').onclick=()=>{categories.find(c=>c.name==='未分类').count+=deleteSource.count;categories=categories.filter(c=>c!==deleteSource);editing=null;$('#overlay').hidden=true;deleteSource=null;render();toast('分类已删除，菜谱已归入未分类');};
+$('#new-name').oninput=()=>{$('#add button').disabled=!$('#new-name').value.trim();$('#add-error').hidden=true;};
+$('#add').onsubmit=e=>{e.preventDefault();const name=$('#new-name').value.trim(),message=invalid(name);if(message){$('#add-error').textContent=message;$('#add-error').hidden=false;return;}categories.splice(categories.length-1,0,{name,count:0});$('#new-name').value='';$('#add button').disabled=true;$('#add-error').hidden=true;render();toast('分类已添加');};
+function reset(){categories=initial.map(([name,count])=>({name,count}));editing=null;deleteSource=null;$('#overlay').hidden=true;$('#new-name').value='';$('#add button').disabled=true;$('#add-error').hidden=true;$('#toast').hidden=true;render();$('.body').scrollTop=0;}
+$('#demo-edit').onclick=()=>{const c=categories.find(c=>c.name==='早餐')||categories.find(c=>c.name!=='未分类');if(c){start(c.name);$('.edit').scrollIntoView({block:'nearest'});}};
+$('#demo-add').onclick=()=>{$('#new-name').value='夜宵';$('#new-name').oninput();$('#new-name').focus();$('.body').scrollTop=0;};
+$('#demo-delete').onclick=()=>{const c=categories.find(c=>c.name==='早餐')||categories.find(c=>c.name!=='未分类');if(c){start(c.name);confirm(c);}};
+$('#reset').onclick=$('#back').onclick=reset;reset();
+</script></body></html>
