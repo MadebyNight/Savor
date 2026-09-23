@@ -1,7 +1,7 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { IconButton } from "./IconButton.jsx";
-import { createContext, useContext } from "react";
+import { Children, createContext, useContext } from "react";
 import useBackHandler from "../useBackHandler.js";
 
 const DialogDepth = createContext(0);
@@ -18,7 +18,11 @@ export function Dialog({ open, onOpenChange, children, ...props }) {
   );
 }
 
-export function DialogContent({ className = "", children, forceBackdrop = false, ...props }) {
+export function DialogContent({ className = "", children, forceBackdrop = false, layout, footer, ...props }) {
+  const page = layout === "page";
+  const nodes = Children.toArray(children);
+  const title = page && nodes.find(child => child.type === DialogTitle);
+  const body = page ? nodes.filter(child => child.type !== DialogTitle) : children;
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop
@@ -28,17 +32,24 @@ export function DialogContent({ className = "", children, forceBackdrop = false,
       />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
-        className={`fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm ${className}`}
+        className={`fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm ${className} ${page ? "dialog-page" : ""}`}
         {...props}
       >
-        {children}
-        <DialogPrimitive.Close
+        {page ? <>
+          <header className="dialog-page-header">
+            <DialogPrimitive.Close data-slot="dialog-close" aria-label="关闭弹窗" render={<IconButton />}><ArrowLeft /></DialogPrimitive.Close>
+            {title}
+          </header>
+          <div className="dialog-page-body">{body}</div>
+          {footer && <footer className="dialog-page-footer">{footer}</footer>}
+        </> : <>{children}{footer}</>}
+        {!page && <DialogPrimitive.Close
           data-slot="dialog-close"
           aria-label="关闭弹窗"
           render={<IconButton className="absolute top-2 right-2" />}
         >
           <X />
-        </DialogPrimitive.Close>
+        </DialogPrimitive.Close>}
       </DialogPrimitive.Popup>
     </DialogPrimitive.Portal>
   );

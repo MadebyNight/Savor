@@ -1,8 +1,11 @@
+import RecipeFilters from "./components/RecipeFilters.jsx";
+import CategoryManager from './components/CategoryManager.jsx';
+import {categoryNames, changeCategory} from './categories.js';
 import { AppSelect, DateTimePicker } from "./components/Pickers.jsx";
 import {getReminderStatus,consumeReminderLaunch,markWeekReviewed} from './reminders.js';
 import NutritionPanel, {RecipeNutrition,NutritionReviewButton} from './components/NutritionPanel.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
-﻿import { stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit } from "./domain.js";
+﻿import { matchesRecipeTime, stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative } from "./storage.js";
 import {businessState} from "./services.js";
 import SyncPanel from "./components/SyncPanel.jsx";
@@ -18,7 +21,6 @@ import useBackHandler from "./useBackHandler.js";
 import {
   ingredient,
   initialRecipes,
-  recipeCategories,
   stockCategories,
   today,
 } from "./data.js";
@@ -92,7 +94,7 @@ function App() {
   const [recognition,setRecognition]=useState(null);
   const [recognitionImage,setRecognitionImage]=useState('');
   const [recognitionAuto,setRecognitionAuto]=useState(false);
-  const fridgeCamera=useRef(null),fridgeAlbum=useRef(null);
+  const fridgeCamera=useRef(null),fridgeAlbum=useRef(null),recipePhotoInput=useRef(null);
   const [readingStockImage,setReadingStockImage]=useState(false);
   const openRecognition=(mode)=>{setRecognitionImage('');setRecognition(mode);setModal('');};
   const returnToPage = () => {
@@ -103,12 +105,24 @@ function App() {
   useBackHandler(showSettings || editingRecipe || !!recognition, returnToPage);
   const [saveStatus, setSaveStatus] = useState("正在加载");
   const [recipes, setRecipes] = useState(initialRecipes);
+  const [savedCategories,setSavedCategories]=useState(null);
+  const recipeCategories=['全部',...categoryNames(savedCategories,recipes)];
+  const [managingCategories,setManagingCategories]=useState(false);
+  const categoryScrollTarget=useRef(null);
+  useEffect(()=>{if(!managingCategories&&categoryScrollTarget.current){
+    const button=[...document.querySelectorAll('.categories [data-category]')].find(e=>e.dataset.category===categoryScrollTarget.current);
+    if(button){button.scrollIntoView({block:'nearest'});categoryScrollTarget.current=null;}
+  }},[managingCategories]);
   const [fridge, setFridge] = useState([]);
   const [purchased,setPurchased]=useState({});
   // 修改点单只更新 quantities；确认后才更新采购缺口与周菜单素材。
   const [quantities, setQuantities] = useState({});
   const [confirmedQuantities, setConfirmedQuantities] = useState({});
   const [hydrated, setHydrated] = useState(false);
+  useEffect(()=>{if(hydrated)setSavedCategories(current=>{
+    const names=categoryNames(current,recipes);
+    return JSON.stringify(current)===JSON.stringify(names)?current:names;
+  });},[recipes,hydrated]);
   const [weeks, setWeeks] = useState({});
   const [nutritionReports,setNutritionReports]=useState({});
   const [reviewWeek,setReviewWeek]=useState(null);
@@ -131,6 +145,11 @@ function App() {
   const [copyTarget, setCopyTarget] = useState(monday(today()));
   const [archives, setArchives] = useState({});
 
+  const [libraryFilter, setLibraryFilter] = useState({category:"全部",time:"all"});
+  const [archiveDay,setArchiveDay] = useState(0);
+  const fridgeScroll=useRef(0);
+  const [detailOrigin,setDetailOrigin] = useState("");
+  const [previewImage,setPreviewImage] = useState(false);
   const [category, setCategory] = useState("全部");
   const [search, setSearch] = useState("");
   const pageFilters = useRef({});
@@ -139,6 +158,7 @@ function App() {
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [selectedIngredients, setSelectedIngredients] = useState([]);
   const [archiveDate, setArchiveDate] = useState("");
+  useEffect(()=>{if(modal === "history" && !archiveDate){setArchiveDate(Object.keys({...archives,...weeks}).sort().at(-1) || monday(today()));}},[modal,archiveDate,archives,weeks]);
   const [recipeDraft, setRecipeDraft] = useState({
     id: 0,
     name: "",
@@ -167,6 +187,7 @@ function App() {
   const [draggedStep, setDraggedStep] = useState(0);
   const fullState = {
     recipes,
+    recipeCategories:categoryNames(savedCategories,recipes),
     fridge,
     purchased,
     qty: quantities,
@@ -180,6 +201,7 @@ function App() {
   const latestState=useRef(fullState);latestState.current=fullState;
   const applyState = (state) => {
     setRecipes(state.recipes || initialRecipes);
+    setSavedCategories(state.recipeCategories ?? null);
     setFridge(state.fridge || []);
     setPurchased(state.purchased || {});
     setQuantities(state.qty || {});
@@ -245,6 +267,7 @@ function App() {
     };
   }, [
     recipes,
+    savedCategories,
     fridge,
     purchased,
     quantities,
@@ -261,6 +284,8 @@ function App() {
     setShowSettings(false);
     setRecognition(null);
     setMealSlot(null);
+    setDetailOrigin("");
+    setPreviewImage(false);
     setPage(nextPage);
     setEditingRecipe(false);
     setCategory(pageFilters.current[nextPage]?.category || "全部");
@@ -335,7 +360,7 @@ function App() {
   };
   const filteredRecipes = recipes.filter(
     (recipe) =>
-      (category === "全部" || recipe.category === category) &&
+      (page === 1 ? (libraryFilter.category === "全部" || (recipe.category?.trim() || '未分类') === libraryFilter.category) && matchesRecipeTime(recipe.time, libraryFilter.time) : category === "全部" || (recipe.category?.trim() || '未分类') === category) &&
       (recipe.name.includes(search.trim()) || recipe.ingredients.some(item => item.name.includes(search.trim()))) &&
       (!selectedIngredients.length ||
         selectedIngredients.every((ingredientName) =>
@@ -366,6 +391,7 @@ function App() {
       toast("已有同名菜谱，本次仍独立保存");
     const savedRecipe = {
       ...recipeDraft,
+      category:recipeDraft.category?.trim() || '未分类',
       name: recipeDraft.name.trim(),
       id: recipeDraft.id || Date.now(),
       ingredients: recipeDraft.ingredients.map((item) => ({
@@ -391,7 +417,7 @@ function App() {
     setRecipeDraft({
       id: 0,
       name: "",
-      category: "素菜",
+      category: recipeCategories.includes('素菜') ? '素菜' : '未分类',
       time: 15,
       weight: 300,
       ingredients: [ingredient("", 100)],
@@ -473,6 +499,46 @@ function App() {
         <Toaster richColors position="top-center" offset={compact ? "calc(60px + env(safe-area-inset-top))" : undefined} mobileOffset={{top:"calc(60px + env(safe-area-inset-top))"}} />
       </main>
     );
+  const exportActions = <>
+              <div className="actions">
+                <button
+                  className="primary"
+                  onClick={() => exportShoppingList("image")}
+                >
+                  导出图片
+                </button>
+                <button
+                  className="outline"
+                  onClick={() => exportShoppingList("word")}
+                >
+                  导出 Word
+                </button>
+              </div>
+              <button
+                className="outline"
+                onClick={async () => {
+                  const e = shoppingList
+                    .map(
+                      (item) =>
+                        `${item.name} ${item.qty ?? "待确认"}${item.unit}`,
+                    )
+                    .join("\n");
+                  try {
+                    isNative() ? await exportBlob(new Blob([e], {type:"text/plain"}), "食光采购清单.txt", true) : navigator.share
+                      ? await navigator.share({
+                          title: "食光采购清单",
+                          text: e,
+                        })
+                      : (await navigator.clipboard.writeText(e),
+                        toast.success("已复制清单，可粘贴到微信分享"));
+                  } catch {
+                    toast("分享未完成，可先导出再分享");
+                  }
+                }}
+              >
+                分享采购清单
+              </button>
+  </>;
   return (
     <SidebarProvider
       style={{
@@ -669,19 +735,21 @@ function App() {
                       key={categoryName}
                       className={category === categoryName ? "active" : ""}
                       aria-pressed={category === categoryName}
-                      onClick={() => setCategory(categoryName)}
+                      data-category={categoryName}
+                      onClick={() => {setCategory(categoryName);document.querySelector('.recipe-section')?.scrollTo({top:0});}}
                     >
-                      {!compact && <span>{["✦", "☀", "❀", "♨", "◡", "≈", "♡"][index]}</span>}
+                      {!compact && <span>{["✦", "☀", "❀", "♨", "◡", "≈", "♡"][index] || '◇'}</span>}
                       <span className="category-name">{categoryName}</span>
                       <small>
                         {categoryName === "全部"
                           ? recipes.length
                           : recipes.filter(
-                              (recipe) => recipe.category === categoryName,
+                              (recipe) => (recipe.category?.trim() || '未分类') === categoryName,
                             ).length}
                       </small>
                     </button>
                   ))}
+                  <button className="manage-categories" onClick={()=>setManagingCategories(true)}>管理分类</button>
                 </aside>
                 <section className="recipe-section">
                   <div className="section-tools">
@@ -1146,7 +1214,7 @@ function App() {
           )}
           {page === 1 && !editingRecipe && <section className="recipe-library">
             <div className="library-tools">
-              <label className="search"><Search size={18}/><input aria-label="搜索我的菜谱" placeholder="搜索菜名或食材" value={search} onChange={event => setSearch(event.target.value)}/></label>
+              <div className="search library-search"><Search size={18}/><input aria-label="搜索我的菜谱" placeholder="搜索菜名或食材" value={search} onChange={event => setSearch(event.target.value)}/><RecipeFilters categories={["全部",...new Set([...recipeCategories.filter(c=>c!=="全部"),...recipes.map(r=>r.category).filter(Boolean)])]} value={libraryFilter} onChange={setLibraryFilter}/></div>
               {!compact && <button className="outline" onClick={() => openRecognition("recipe-import")}><Upload size={18}/>导入菜谱</button>}
             </div>
             <h2>我的菜谱 <small>{filteredRecipes.length} 道</small></h2>
@@ -1154,7 +1222,7 @@ function App() {
               {recipe.image ? <img src={recipe.image} alt=""/> : <span className="library-placeholder"><Utensils size={22}/></span>}
               <span><strong>{recipe.name}</strong><small>{recipe.category}{recipe.time ? ` · ${recipe.time} 分钟` : ""}</small></span><ArrowRight size={18}/>
             </button>)}
-            {!filteredRecipes.length && <div className="empty">没有找到菜谱，可以新建或导入。</div>}
+            {!filteredRecipes.length && <div className="empty">没有找到符合条件的菜谱。<button className="text-link" onClick={()=>{setSearch("");setLibraryFilter({category:"全部",time:"all"});}}>清除搜索与筛选</button></div>}
           </section>}
           {page === 1 && editingRecipe && (
             <div className="editor-layout">
@@ -1170,9 +1238,11 @@ function App() {
                     上传
                   </button>
                 </div>
-                <label>
-                  菜谱图片
+                <button type="button" className="photo-upload outline" onClick={()=>recipePhotoInput.current.click()}><ImagePlus size={18}/>选择菜谱图片</button>
                   <input
+                    ref={recipePhotoInput}
+                    hidden
+                    aria-label="菜谱图片"
                     type="file"
                     accept="image/*"
                     onChange={(event) => {
@@ -1188,7 +1258,6 @@ function App() {
                       reader.readAsDataURL(file);
                     }}
                   />
-                </label>
                 {recipeDraft.image && (
                   <img
                     className="detail-image"
@@ -1440,11 +1509,8 @@ function App() {
                 >
                   ＋ 添加步骤
                 </button>
-                <details className="recipe-nutrition-tools"><summary>整菜营养估算与可食克重</summary><RecipeNutrition recipe={recipeDraft} onChange={setRecipeDraft}/></details>
-                <button className="primary save-recipe" onClick={saveRecipe}>
-                  <Check size={17} />
-                  确认保存到菜品库
-                </button>
+                <details className="recipe-nutrition-tools"><summary>高级计算</summary><RecipeNutrition recipe={recipeDraft} onChange={setRecipeDraft}/></details>
+
               </section>
               <aside className="editor-tip">
                 <ChefHat size={38} />
@@ -1468,24 +1534,43 @@ function App() {
           )}
           </>}
         </div>
+        {page === 1 && editingRecipe && !recognition && !showSettings && <footer className="editor-save-bar"><button className="primary save-recipe" onClick={saveRecipe}><Check size={17}/>确认保存到菜品库</button></footer>}
         <footer className="site-footer">
           {"食光 SHIGUANG "}
           <span>一餐一饭，皆是生活。</span>
         </footer>
       </main>
-      {compact && <nav className="mobile-bottom-nav" aria-label="主导航">
+      {managingCategories && <CategoryManager names={recipeCategories.slice(1)} recipes={recipes} onClose={()=>setManagingCategories(false)} onChange={(action,source,target)=>{
+        const next=changeCategory(latestState.current,action,source,target);
+        setSavedCategories(next.recipeCategories);setRecipes(next.recipes);
+        if(next.recipeDraft)setRecipeDraft(next.recipeDraft);
+        const destination=target.trim();
+        if(action==='add'){setCategory(destination);categoryScrollTarget.current=destination;}
+        else {
+          if(category===source)setCategory(destination);
+          if(libraryFilter.category===source)setLibraryFilter(current=>({...current,category:destination}));
+          for(const filters of Object.values(pageFilters.current))if(filters.category===source)filters.category=destination;
+          categoryScrollTarget.current=destination;
+        }
+        toast.success(action==='delete'?'分类已删除，菜谱已转移':action==='rename'?'分类已重命名':'分类已添加');
+      }}/>}
+      {compact && !editingRecipe && !recognition && !showSettings && <nav className="mobile-bottom-nav" aria-label="主导航">
         {[[0,"点单",Utensils],[4,"冰箱",Refrigerator],[2,"菜篮子",ShoppingBasket],[3,"周菜单",CalendarDays],[1,"菜谱",BookOpen]].map(([index,label,Icon]) => <button key={index} aria-current={page === index && !showSettings ? "page" : undefined} onClick={() => navigate(index)}><span><Icon size={22}/></span>{label}</button>)}
       </nav>}
       {reminder?.settings.inApp&&reminder.pendingWeek&&<aside className="reminder-banner" role="status"><span>{reminder.pendingWeek} 起这一周的菜单营养待回顾</span><button className="text-link" onClick={()=>setReviewWeek(reminder.pendingWeek)}>查看营养回顾</button></aside>}
       <Dialog open={!!reviewWeek} onOpenChange={open=>!open&&setReviewWeek(null)}>
-        <DialogContent className="app-dialog nutrition-dialog"><DialogTitle>菜单营养回顾</DialogTitle><DialogDescription>按菜谱快照估算，支持离线查看。</DialogDescription>
+        <DialogContent layout="page" className="app-dialog nutrition-dialog"><DialogTitle>菜单营养回顾</DialogTitle><DialogDescription className="sr-only">当前所选一周的菜单预计营养</DialogDescription>
           {reviewWeek&&<NutritionPanel key={reviewWeek} week={reviewWeek} plan={weeks[reviewWeek]||{}} report={nutritionReports[reviewWeek]}
             onSavePlan={async(next,expected)=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==expected)throw new Error('菜单已改变，请重试');const before=structuredClone(latestState.current),updated={...before.weeks,[reviewWeek]:next};await saveState({...before,weeks:updated});if(JSON.stringify(latestState.current)!==JSON.stringify(before)){await saveState(latestState.current);throw new Error('保存期间数据已改变，请重试；本地修改保留');}setWeeks(updated);}}
             onSaveReport={async report=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==report.inputFingerprint)throw new Error('菜单已改变，请重新生成');const before=structuredClone(latestState.current),updated={...before.nutritionReports,[reviewWeek]:report};await saveState({...before,nutritionReports:updated});if(JSON.stringify(latestState.current)!==JSON.stringify(before)){await saveState(latestState.current);throw new Error('保存期间数据已改变，请重试；原报告保留');}setNutritionReports(updated);}}/>}
         </DialogContent>
       </Dialog>
-      <Dialog open={!!modal} onOpenChange={(open) => !open && !stockSaving && setModal("")}>
-        <DialogContent className={`app-dialog ${modal==='stock'?'stock-dialog':''}`} aria-busy={stockSaving} >
+      <Dialog open={!!modal} onOpenChange={(open) => {if(!open && !stockSaving){if(modal==="detail" && detailOrigin){setModal(detailOrigin);setDetailOrigin("");}else setModal("");}}}>
+        <DialogContent layout={modal === "clear" ? undefined : "page"} className={`app-dialog ${modal==='stock'?'stock-dialog':''} ${modal==='detail'?'recipe-detail-dialog':''} ${modal==='clear'?'confirm-dialog':''}`} aria-busy={stockSaving}
+          footer={modal === "detail" ? <button className="primary" onClick={()=>{changeQuantity(activeRecipe.id,1);toast.success("已加入点单清单");}}>＋ 加入菜单</button>
+            : modal === "selection" ? <button className="primary" onClick={confirmSelection}>确认并同步 · {selectedCount} 份菜品</button>
+            : modal === "export" ? exportActions
+            : modal === "stock" ? <button className="primary" disabled={stockSaving} type="submit" form="stock-edit-form">{stockSaving?'正在保存…':editingStock===null?'确认放入冰箱':'保存食材修改'}</button> : undefined} >
           <DialogTitle>
             {{
               detail: activeRecipe?.name,
@@ -1497,7 +1582,7 @@ function App() {
               "fridge-recipes":"看看能做什么",
             }[modal] || "食光"}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={modal === "clear" ? "" : "sr-only"}>
             {modal === "detail"
               ? "食材与制作步骤"
               : modal === "clear"
@@ -1506,25 +1591,14 @@ function App() {
           </DialogDescription>
           {modal === "fridge-recipes" && (()=>{
             const matches=fridgeRecipes(recipes,fridge);
-            return <><div className="fridge-recipe-picker">{matches.map(({recipe,count})=><button type="button" key={recipe.id} className="fridge-recipe-choice" onClick={()=>{setActiveRecipe(recipe);setModal('detail');}}><span><strong>{recipe.name}</strong><small>已有 {count} 种食材</small></span><ArrowRight size={18}/></button>)}</div>{!matches.length&&<p>菜谱库中暂无匹配菜品。</p>}<button className="outline" onClick={()=>{setModal('');navigate(1);}}>浏览菜谱库</button></>;
+            return <><div className="fridge-recipe-picker" ref={node=>{if(node)node.closest(".dialog-page-body").scrollTop=fridgeScroll.current;}}>{matches.map(({recipe,count})=><button type="button" key={recipe.id} className="fridge-recipe-choice" onClick={event=>{fridgeScroll.current=event.currentTarget.closest('.dialog-page-body').scrollTop;setActiveRecipe(recipe);setDetailOrigin('fridge-recipes');setModal('detail');}}><span><strong>{recipe.name}</strong><small>已有 {count} 种食材</small></span><ArrowRight size={18}/></button>)}</div>{!matches.length&&<p>菜谱库中暂无匹配菜品。</p>}<button className="outline" onClick={()=>{setModal('');navigate(1);}}>浏览菜谱库</button></>;
           })()}
           {modal === "detail" && activeRecipe && (
             <>
-              {activeRecipe.image && (
-                <img
-                  className="detail-image"
-                  src={activeRecipe.image}
-                  alt={activeRecipe.name}
-                />
-              )}
-              <div className="chip-row">
-                <span>
-                  {activeRecipe.time}
-                  {" 分钟 · 每份约 "}
-                  {activeRecipe.weight}g
-                </span>
-              </div>
-              <div className="actions">
+              <div className="detail-overview">
+                {activeRecipe.image && <button className="detail-photo" aria-label="查看菜谱大图" onClick={()=>setPreviewImage(true)}><img src={activeRecipe.image} alt={activeRecipe.name}/></button>}
+                <div><strong>{activeRecipe.category}</strong><p>{[activeRecipe.time > 0 && `${activeRecipe.time} 分钟`,activeRecipe.weight > 0 && `每份约 ${activeRecipe.weight} g`].filter(Boolean).join(" · ")}</p></div>
+              <details className="detail-more"><summary>更多操作</summary><div className="actions">
                 <button
                   className="outline"
                   onClick={() => {
@@ -1557,6 +1631,7 @@ function App() {
                 >
                   删除菜谱
                 </button>
+              </div></details>
               </div>
               <h3>所需食材</h3>
               {activeRecipe.ingredients.map((item) => {
@@ -1596,32 +1671,20 @@ function App() {
                   {step}
                 </p>
               ))}
-              <button
-                className="primary"
-                onClick={() => {
-                  changeQuantity(activeRecipe.id, 1);
-                  toast.success("已加入点单清单");
-                }}
-              >
-                ＋ 加入菜单
-              </button>
+
             </>
           )}
           {modal === "selection" && (
             <>
               <SelectionItems recipes={recipes} quantities={quantities} onChange={changeQuantity} />
-              <button className="primary" onClick={confirmSelection}>
-                {"确认并同步 · "}
-                {selectedCount}
-                {" 份菜品"}
-              </button>
+
             </>
           )}
           {modal === "stock" && (
-            <form className="editor stock-editor" onSubmit={event=>{event.preventDefault();saveIngredient();}}>
+            <form id="stock-edit-form" className="editor stock-editor" onSubmit={event=>{event.preventDefault();saveIngredient();}}>
               <fieldset disabled={stockSaving}><StockFields value={ingredientDraft} onChange={setIngredientDraft}/></fieldset>
               {stockError&&<p role="alert">{stockError}</p>}
-              <button className="primary" disabled={stockSaving} type="submit">{stockSaving?'正在保存…':editingStock===null?'确认放入冰箱':'保存食材修改'}</button>
+
               {editingStock!==null&&<button className="text-link" disabled={stockSaving} type="button" onClick={async()=>{
                 if(!(await ask('删除该批次后，采购缺口将重新计算。',{title:'删除食材？',label:'确认删除',danger:true})))return;
                 try{const next=fridge.filter((_,i)=>i!==editingStock);await saveState({...latestState.current,fridge:next});setFridge(next);setModal('');setEditingStock(null);setIngredientDraft({...ingredient('',100),days:0,date:today()});}catch(error){setStockError(error.message);}
@@ -1638,44 +1701,7 @@ function App() {
                   </b>
                 </div>
               ))}
-              <div className="actions">
-                <button
-                  className="primary"
-                  onClick={() => exportShoppingList("image")}
-                >
-                  导出图片
-                </button>
-                <button
-                  className="outline"
-                  onClick={() => exportShoppingList("word")}
-                >
-                  导出 Word
-                </button>
-              </div>
-              <button
-                className="outline"
-                onClick={async () => {
-                  const e = shoppingList
-                    .map(
-                      (item) =>
-                        `${item.name} ${item.qty ?? "待确认"}${item.unit}`,
-                    )
-                    .join("\n");
-                  try {
-                    isNative() ? await exportBlob(new Blob([e], {type:"text/plain"}), "食光采购清单.txt", true) : navigator.share
-                      ? await navigator.share({
-                          title: "食光采购清单",
-                          text: e,
-                        })
-                      : (await navigator.clipboard.writeText(e),
-                        toast.success("已复制清单，可粘贴到微信分享"));
-                  } catch {
-                    toast("分享未完成，可先导出再分享");
-                  }
-                }}
-              >
-                分享采购清单
-              </button>
+
 
             </>
           )}
@@ -1698,25 +1724,18 @@ function App() {
           )}
           {modal === "history" && (
             <>
-              <label>
-                {"选择存档日期 "}
+              <div className="history-week-tools"><label>
+                <span className="sr-only">选择存档日期</span>
                 <DateTimePicker aria-label="选择存档日期"
                   type="date"
                   value={archiveDate}
-                  onChange={(event) => setArchiveDate(event.target.value)}
+                  onChange={(event) => {setArchiveDate(monday(event.target.value));setArchiveDay(0);}}
                 />
               </label>
-              <div className="chip-row">
-                {Object.keys({ ...archives, ...weeks })
-                  .sort()
-                  .map((e) => (
-                    <button key={e} onClick={() => setArchiveDate(e)}>
-                      {e}
-                    </button>
-                  ))}
-              </div>
+              <AppSelect aria-label="已有菜单周" value={archiveDate} onChange={event=>{setArchiveDate(event.target.value);setArchiveDay(0);}}><option value="">选择一周</option>{Object.keys({...archives,...weeks}).sort().reverse().map(date=><option key={date} value={date}>{date} 起</option>)}</AppSelect></div>
+              {archiveDate && <div className="week-dates history-dates" aria-label="历史菜单日期">{[0,1,2,3,4,5,6].map(day=><button key={day} aria-pressed={archiveDay===day} onClick={()=>setArchiveDay(day)}><span>周{"一二三四五六日"[day]}</span><b>{Number(dayAt(archiveDate,day).slice(-2))}</b></button>)}</div>}
               {{ ...archives, ...weeks }[archiveDate] ? (
-                Object.entries({ ...archives, ...weeks }[archiveDate]).map(
+                Object.entries({ ...archives, ...weeks }[archiveDate]).filter(([key])=>Number(key.split("-")[0])===archiveDay).map(
                   ([e, t]) => (
                     <div key={e} className="list-row">
                       周{"一二三四五六日"[+e.split("-")[0]]} {e.split("-")[1]}餐
@@ -1734,7 +1753,8 @@ function App() {
                   ),
                 )
               ) : null}
-              <label>
+              {archiveDate && !Object.entries({...archives,...weeks}[archiveDate] || {}).some(([key,items])=>Number(key.split("-")[0])===archiveDay && items.length) && <p className="subtle">当天暂无菜单</p>}
+              <details className="history-copy"><summary>复制这一周菜单</summary><label>
                 复制到目标周{" "}
                 <DateTimePicker aria-label="复制到目标周"
                   type="date"
@@ -1780,9 +1800,10 @@ function App() {
                 }}
               >
                 复制菜单
-              </button>
+              </button></details>
             </>
           )}
+          <Dialog open={previewImage && modal === "detail"} onOpenChange={setPreviewImage}><DialogContent className="app-dialog image-preview-dialog"><DialogTitle>菜谱图片</DialogTitle><DialogDescription className="sr-only">{activeRecipe?.name}</DialogDescription><img src={activeRecipe?.image} alt={activeRecipe?.name}/></DialogContent></Dialog>
           {confirmation}
         </DialogContent>
       </Dialog>

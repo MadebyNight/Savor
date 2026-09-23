@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+// Local credentials stay outside Git. Pin the original certificate before building debug APKs.
+def legacyStore = rootProject.file('../.android-tools/android-home/legacy-debug.keystore')
+def signingPropertiesFile = rootProject.file('../.android-tools/signing.properties')
+def legacySigning = new Properties()
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { legacySigning.load(it) }
+}
+def expectedCertificate = '82822576f8ce89e9029d3246e5dee0f988af129389333426ebeae9253a0eae9e'
+
 android {
     namespace = "com.shiguang.mealplanner"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +16,8 @@ android {
         applicationId "com.shiguang.mealplanner"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.2.1"
+        versionCode 6
+        versionName "1.2.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,11 +25,40 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        debug {
+            storeFile legacyStore
+            storePassword legacySigning.getProperty('storePassword')
+            keyAlias legacySigning.getProperty('keyAlias')
+            keyPassword legacySigning.getProperty('keyPassword')
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+}
+
+tasks.register('verifyLegacyDebugCertificate') {
+    doLast {
+        if (!legacyStore.exists() || !signingPropertiesFile.exists() ||
+            !['storePassword', 'keyAlias', 'keyPassword'].every { legacySigning.getProperty(it) }) {
+            throw new GradleException('Original signing key or .android-tools/signing.properties missing; refusing debug build.')
+        }
+        def store = java.security.KeyStore.getInstance(legacyStore, legacySigning.getProperty('storePassword').toCharArray())
+        def certificate = store.getCertificate(legacySigning.getProperty('keyAlias'))
+        def actual = certificate == null ? '' : java.security.MessageDigest.getInstance('SHA-256').digest(certificate.encoded).encodeHex().toString()
+        if (actual != expectedCertificate) throw new GradleException('Original signing certificate mismatch; refusing debug build.')
+    }
+}
+tasks.configureEach { task ->
+    if (task.name == 'preDebugBuild' || task.name == 'validateSigningDebug' || task.name == 'validateSigningDebugAndroidTest') {
+        task.dependsOn('verifyLegacyDebugCertificate')
     }
 }
 

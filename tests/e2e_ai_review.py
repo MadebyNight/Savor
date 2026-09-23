@@ -16,6 +16,7 @@ with sync_playwright() as p:
     def click(name):page.get_by_role('button',name=name,exact=True).click()
     def data():return page.evaluate('localStorage.getItem("shiguang-v1")')
     def open_text():
+        while page.get_by_role('button',name='返回',exact=True).count(): click('返回')
         page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱')
     def reopen():page.get_by_role('button',name='查看待保存草稿',exact=False).click()
     def back():page.evaluate("window.dispatchEvent(new Event('shiguang:back',{cancelable:true}))")
@@ -45,6 +46,7 @@ with sync_playwright() as p:
     expect(page.locator('.settings-panel [aria-label="识别草稿编辑"]')).to_have_count(0)
     expect(page.locator('[data-sonner-toast]')).to_have_count(0,timeout=10000)
     page.screenshot(path=str(OUT/'recipe-review.png'))
+    page.locator('.recipe-review-details > summary').first.click()
     page.get_by_label('草稿名称1',exact=True).fill('已核对青椒酿肉')
     back();expect(dialog).not_to_be_visible();assert data()==before
     expect(page.locator('.settings-panel')).to_be_visible()
@@ -63,6 +65,7 @@ with sync_playwright() as p:
     expect(page.get_by_role('dialog',name='识别未完成',exact=True)).to_be_visible();click('返回检查')
     response.update(status=200,items=[]);send()
     expect(page.get_by_role('dialog',name='未识别到可保存内容',exact=True)).to_be_visible();click('返回补充')
+    while page.get_by_role('button',name='返回',exact=True).count(): click('返回')
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='冰箱',exact=True).click()
     response['items']=[{'name':'牛奶','category':'奶制品','qty':2,'unit':'盒','days':3}]
     with page.expect_file_chooser() as chooser: click('拍摄')

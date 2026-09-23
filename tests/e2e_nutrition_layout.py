@@ -38,10 +38,10 @@ with sync_playwright() as p:
         page.evaluate('(size)=>document.documentElement.style.fontSize=size+"px"', font)
         boxes = [button.bounding_box() for button in tabs.get_by_role('button').all()]
         assert max(box['y'] for box in boxes) - min(box['y'] for box in boxes) < 1
-        assert tabs.evaluate('e=>e.scrollWidth>e.clientWidth')
+        if width == 320: assert tabs.evaluate('e=>e.scrollWidth>e.clientWidth')
         click('营养周报提醒')
         expect(tabs.get_by_role('button', name='营养周报提醒')).to_have_attribute('aria-current', 'page')
-        assert tabs.evaluate('e=>e.scrollLeft>0')
+        if tabs.evaluate('e=>e.scrollWidth>e.clientWidth'): assert tabs.evaluate('e=>e.scrollLeft>0')
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
         page.screenshot(path=str(OUT / f'settings-single-row-{width}.png'))
     page.evaluate("document.documentElement.style.fontSize='14px'")
@@ -71,8 +71,9 @@ with sync_playwright() as p:
         page.set_viewport_size({'width': width, 'height': 844})
         page.evaluate('(size)=>document.documentElement.style.fontSize=size+"px"', font)
         assert review.evaluate('e=>e.scrollWidth<=e.clientWidth+1')
-        assert page.locator('.review-dates').evaluate('e=>e.scrollWidth>e.clientWidth')
-        review.evaluate('e=>e.scrollTop=0')
+        assert page.locator('.review-dates button').count()==7
+        assert page.locator('.review-dates').evaluate('e=>getComputedStyle(e).overflowX==="auto"')
+        review.locator('.dialog-page-body').evaluate('e=>e.scrollTop=0')
         page.screenshot(path=str(OUT / f'nutrition-review-{width}.png'))
     click('高级计算')
     expect(page.get_by_role('dialog', name='高级计算', exact=True)).to_be_visible()

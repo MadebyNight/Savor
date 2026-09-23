@@ -33,6 +33,7 @@ with sync_playwright() as p:
         click('确认选择');expect(page.locator('.picker-dialog')).to_have_count(0)
     def pref(key,value):page.evaluate('([k,v])=>localStorage.setItem("pref:"+k,JSON.stringify(v))',[key,value])
     def settings():
+        while page.get_by_role('button',name='返回',exact=True).count(): click('返回')
         page.get_by_role('navigation',name='主导航').get_by_role('button',name='点单',exact=True).click()
         click('设置与备份')
 
@@ -50,6 +51,7 @@ with sync_playwright() as p:
     # 覆盖已有周安排：嵌套应用弹窗，取消保留，确认仅替换目标周。
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='周菜单',exact=True).click()
     click('历史');choose_date('选择存档日期','2026-10-05')
+    page.locator('.history-copy > summary').click()
     choose_date('复制到目标周','2026-10-12')
     click('复制菜单');cancel('替换目标周安排？')
     click('复制菜单');accept('替换目标周安排？','确认替换')
@@ -60,6 +62,7 @@ with sync_playwright() as p:
     page.get_by_label('接口地址',exact=True).fill('https://confirm.test/chat')
     page.get_by_role('navigation',name='设置分页').get_by_role('button',name='AI 配置',exact=True).click()
     page.get_by_label('API Key',exact=True).fill('test');click('保存 AI 配置')
+    while page.get_by_role('button',name='返回',exact=True).count(): click('返回')
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱')
     click('确认发送并识别');cancel('发送给 AI 识别？')
     click('确认发送并识别');accept('发送给 AI 识别？','同意发送');cancel('替换识别草稿？')
@@ -68,17 +71,19 @@ with sync_playwright() as p:
     page.get_by_role('button',name='查看待保存草稿',exact=False).click()
     expect(page.get_by_label('草稿名称1',exact=True)).to_have_value(snapshot['name'])
     click('稍后处理')
+    while page.get_by_role('button',name='返回',exact=True).count(): click('返回')
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='冰箱',exact=True).click()
     with page.expect_file_chooser() as chooser: click('拍摄')
     chooser.value.set_files([])
     expect(page.get_by_role('button',name='查看待保存草稿',exact=False)).to_have_count(0)
+    while page.get_by_role('button',name='返回',exact=True).count(): click('返回')
     page.get_by_role('navigation',name='主导航').get_by_role('button',name='菜谱',exact=True).click();click('导入菜谱')
     expect(page.get_by_label('识别原文',exact=True)).to_have_value('保留原文')
     settings()
 
     file={'name':'test.json','mimeType':'application/json','buffer':json.dumps(backup,ensure_ascii=False).encode()}
     page.get_by_role('navigation',name='设置分页').get_by_role('button',name='备份恢复',exact=True).click()
-    page.get_by_label('导入备份',exact=True).set_input_files(file);cancel('恢复备份？')
+    page.get_by_label('备份文件',exact=True).set_input_files(file);cancel('恢复备份？')
     click('恢复上次导入前数据');cancel('恢复导入前数据？')
     click('恢复上次导入前数据');accept('恢复导入前数据？','确认恢复')
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).weeks["2026-10-12"]["1-晚"]?.length===1')

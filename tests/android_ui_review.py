@@ -47,6 +47,7 @@ def digest(value):
 
 
 def shot(name):
+    page.evaluate('async()=>{await Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})))}')
     (OUT / (name + '.png')).write_bytes(adb('exec-out', 'screencap', '-p'))
 
 
@@ -54,10 +55,10 @@ report = {'device': SERIAL, 'fontScale': adb('shell', 'settings', 'get', 'system
 with sync_playwright() as p:
     browser, page = connect(p)
     baseline = state(page)
-    if (OUT / 'business-before.json').exists():
-        assert digest(baseline) == digest((OUT / 'business-before.json').read_text(encoding='utf-8'))
+    if (OUT / 'business-before.sha256').exists():
+        assert digest(baseline) == (OUT / 'business-before.sha256').read_text(encoding='utf-8')
     else:
-        (OUT / 'business-before.json').write_text(baseline, encoding='utf-8')
+        (OUT / 'business-before.sha256').write_text(digest(baseline), encoding='utf-8')
     auto_sync = page.evaluate('Capacitor.Plugins.LocalData.getPreference({key:"dav-auto-sync"}).then(r=>r.value)')
     if (OUT / 'auto-sync-before.json').exists():
         auto_sync = json.loads((OUT / 'auto-sync-before.json').read_text(encoding='utf-8'))
@@ -137,7 +138,7 @@ with sync_playwright() as p:
             expect(page.locator('.review-day-content')).to_contain_text(date)
         assert dialog.evaluate('e=>e.scrollWidth<=e.clientWidth+1')
         expect(page.get_by_text('参考数据与估算限制', exact=True)).to_have_count(0)
-        dialog.evaluate('e=>e.scrollTop=0')
+        dialog.locator('.dialog-page-body').evaluate('e=>e.scrollTop=0')
         shot('nutrition-review')
         report['checks'].append('目标周七天切换、回顾分层、系统字体无横向溢出')
         click('高级计算')
@@ -186,6 +187,15 @@ with sync_playwright() as p:
             assert abs(boxes[index]['x']-boxes[0]['x']) < 1
             assert abs(boxes[index+1]['x']+boxes[index+1]['width']-boxes[0]['x']-boxes[0]['width']) < 1
         shot('stock-alignment')
+        fields.first.click()
+        page.wait_for_timeout(700)
+        keyboard = adb('shell','dumpsys','input_method').decode(errors='replace')
+        assert 'mInputShown=true' in keyboard or 'isInputViewShown=true' in keyboard, '软键盘未弹出'
+        expect(page.locator('.stock-dialog .dialog-page-footer')).to_be_in_viewport()
+        shot('stock-keyboard')
+        back()
+        expect(page.locator('.stock-dialog')).to_be_visible()
+        report['checks'].append('真实软键盘下保存栏可见，返回先收起键盘')
         click('食材分类')
         expect(page.locator('.picker-dialog')).to_be_visible()
         shot('stock-category')
@@ -204,9 +214,31 @@ with sync_playwright() as p:
         assert page.locator('.library-tools .search').bounding_box()['height']<=45
         expect(page.get_by_role('button',name='新建菜谱',exact=True)).to_have_count(0)
         shot('recipe-library')
+        all_count=page.locator('.library-recipe').count()
+        click('筛选菜谱')
+        click('15 分钟内')
+        shot('recipe-filter')
+        click('确定')
+        expected=sum(1 for recipe in json.loads(baseline)['recipes'] if isinstance(recipe.get('time'),(int,float)) and 0<recipe['time']<=15)
+        expect(page.locator('.library-recipe')).to_have_count(expected)
+        click('筛选菜谱');click('30 分钟以上');back()
+        expect(page.locator('.library-recipe')).to_have_count(expected)
+        click('筛选菜谱');click('重置');click('确定')
+        expect(page.locator('.library-recipe')).to_have_count(all_count)
+        if all_count:
+            page.locator('.library-recipe').first.click()
+            expect(page.locator('.recipe-detail-dialog .dialog-page-footer')).to_be_in_viewport()
+            shot('recipe-detail')
+            if page.get_by_role('button',name='查看菜谱大图',exact=True).count():
+                click('查看菜谱大图');back()
+                expect(page.locator('.recipe-detail-dialog')).to_be_visible()
+            back()
+        report['checks'].append('菜谱时长筛选、取消与重置、详情固定操作、大图返回')
         click('导入菜谱')
         click('手动添加')
         expect(page.get_by_placeholder('给这道菜起个名字')).to_be_visible()
+        expect(page.locator('.editor-save-bar')).to_be_in_viewport()
+        shot('recipe-editor')
         back()
         click('导入菜谱')
         expect(page.get_by_label('识别原文',exact=True)).to_be_visible()

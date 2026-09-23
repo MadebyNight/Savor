@@ -308,7 +308,7 @@ export default function RecognitionPanel({
             <textarea
               disabled={busy || readingImage || fetching}
               aria-label="识别原文"
-              rows={6}
+              rows={4}
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
@@ -342,7 +342,7 @@ export default function RecognitionPanel({
               </button>
             )}
             <button
-              className="outline"
+              className="text-link"
               disabled={busy || readingImage || fetching}
               onClick={() =>
                 persist()
@@ -391,6 +391,7 @@ export default function RecognitionPanel({
           }}
         >
           <DialogContent
+            layout={draftItems.length && !reviewError ? "page" : undefined}
             className="app-dialog ai-review-dialog"
             forceBackdrop
             aria-busy={savingDraft}
@@ -404,7 +405,7 @@ export default function RecognitionPanel({
                     : "核对并保存菜谱"
                   : "未识别到可保存内容"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className={draftItems.length && !reviewError ? "sr-only" : ""}>
               {reviewError
                 ? "原文和已有草稿保留，请检查后重试。"
                 : draftItems.length

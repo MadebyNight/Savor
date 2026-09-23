@@ -5,6 +5,7 @@ dist/
 *.log
 .android-tools/
 *.apk
+*.apk.sha256
 __pycache__/
 *.py[cod]
 

@@ -32,7 +32,7 @@ with sync_playwright() as p:
         route.fulfill(content_type='application/json',body=json.dumps({'choices':[{'message':{'content':'OK'}}]}))
     page.route('https://developer.test/**',handle);page.route('https://personal.test/**',handle)
     def click(name):page.get_by_role('button',name=name,exact=True).click()
-    click('设置与备份');click('AI 配置')
+    click('设置与备份');click('AI 配置');page.locator('.developer-config > summary').click()
     page.get_by_label('接口地址',exact=True).fill('https://personal.test/v1/chat/completions')
     page.get_by_label('模型',exact=True).fill('personal-model')
     page.get_by_label('API Key',exact=True).fill('fixture-personal-key');click('保存 AI 配置')
@@ -52,7 +52,7 @@ with sync_playwright() as p:
     assert page.evaluate('JSON.stringify(localStorage)')==before and not calls
     click('测试连接');click('开始测试');expect(page.get_by_role('dialog',name='连接成功',exact=True)).to_be_visible();click('知道了')
     assert len(calls)==1 and calls[0].startswith('https://developer.test/')
-    click('返回');click('设置与备份');click('AI 配置')
+    click('返回');click('设置与备份');click('AI 配置');page.locator('.developer-config > summary').click()
     expect(page.get_by_role('button',name='关闭开发者配置')).to_be_visible()
     for width in [320,390]:
         page.set_viewport_size({'width':width,'height':844})

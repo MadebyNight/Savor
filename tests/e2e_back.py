@@ -65,6 +65,7 @@ with sync_playwright() as p:
     # 菜谱详情上叠加危险确认：返回只取消确认，不删除菜谱。
     nav('点单')
     click('番茄炒鸡蛋')
+    page.locator(".detail-more > summary").click()
     click('删除菜谱')
     before = state()
     back()

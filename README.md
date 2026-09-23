@@ -2,7 +2,7 @@
 
 MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作。V1.2.1 已实现独立识别入口、紧凑布局、五餐、参考保存期、菜单预计营养及双渠道周回顾提醒；真机覆盖安装、拍照回传及通知交互已验证；OPPO 后台定时提醒发现系统延迟，尚未通过可靠性验收，进度见 [V1.2.1 清单](docs/V1.2.1-TODO.md)。
 
-当前开发版本 V1.2.1（npm / Android versionName 1.2.1，versionCode 4）：统一按钮、复选框、焦点、提示与弹窗交互，本地开发者版支持密码解锁 AI 配置；GitHub 公开版不含共享配置，需填写个人 AI Key。修复范围和验证记录见 [V1.1.2 交互修复](docs/V1.1.2交互修复.md)。
+当前本地交付版本 V1.2.3（npm / Android versionName 1.2.3，versionCode 6）：新增菜品分类管理、菜篮子库存抵扣说明，修复确认栏对齐并固定原签名；已验证从测试机 V1.2.2 保留数据覆盖升级。包含之前的统一灰绿导航与次级页面，菜谱搜索支持分类和时长筛选，整合紧凑布局及导入入口；详细范围见 [V1.2.2 界面整合](docs/V1.2.2-界面整合.md)。统一按钮、复选框、焦点、提示与弹窗交互，本地开发者版支持密码解锁 AI 配置；GitHub 公开版不含共享配置，需填写个人 AI Key。修复范围和验证记录见 [V1.1.2 交互修复](docs/V1.1.2交互修复.md)。
 
 需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
@@ -32,7 +32,9 @@ cd android
 
 APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工具放 `.android-tools/`，设置 `JAVA_HOME` 与 `GRADLE_USER_HOME` 到工作区相应路径后执行。构建不等于真机验收，详见进度文档。
 
-本工作区也可执行 `./scripts/android-build.ps1`，自动使用 `.android-tools/jdk21/` 下的 JDK 21 和 `.android-tools/sdk/`，依次构建前端、同步 Capacitor、构建 APK 并运行单元测试。连接设备或启动模拟器后加 `-ConnectedTests` 运行 Android 仪器测试；Gradle 缓存和 AVD 状态均限定在 `.android-tools/`。
+本工作区执行 `./scripts/android-build.ps1`：使用 `.android-tools/jdk21/`、`.android-tools/sdk/`、`.android-tools/gradle-dist/gradle-8.13/` 和 `.android-tools/gradle-home-ascii/` 缓存离线构建，先核验原签名，再依次构建前端、同步 Capacitor、构建 APK 和运行单元测试，最后验证 APK 证书。连接设备后加 `-ConnectedTests` 运行 Android 仪器测试。所需工具和依赖缓存须提前准备。
+
+debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在忽略文件 `.android-tools/signing.properties` 配置 `storePassword`、`keyAlias`、`keyPassword`，不得提交真实值。密钥、配置缺失或证书不符会阻止构建，不自动回退默认 debug 密钥。直接调用 Gradle 同样受证书校验约束；证书基准见 [AGENTS.md](AGENTS.md)。本地交付包为 `食光-V1.2.3.apk`，校验文件为 `食光-V1.2.3.apk.sha256`，两者均不纳入源码。
 
 ## 测试
 
@@ -97,4 +99,4 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 
 新增回归：`tests/e2e_recognition.py`、`tests/e2e_five_meals.py`、`tests/e2e_food_storage.py`、`tests/e2e_nutrition.py`、`tests/e2e_reminders.py`。后两者用开发入口注入隔离模拟数据，默认 Vite 5173；生产样式用 mobile/five_meals/interactions/food_storage 脚本，`E2E_URL` 指向 4173。测试先用 `Tee-Object` 保存输出至 `.android-tools/v1.2.1/`，真实设备操作先运行日志脚本。
 
-Windows 中文路径若出现 Gradle 转换目录重命名失败，可使用临时 `S:` 映射、本地 Gradle 8.13 和 `.android-tools/gradle-home-ascii` 缓存；`android-build.ps1` 尚不自动处理映射。APK 构建与设备验收状态见 [开发进度](docs/开发进度.md)，既有公开版仍为 V1.1.2，本轮没有推送或发布。
+Windows 中文路径若出现 Gradle 转换目录重命名失败，可使用临时 `S:` 映射、本地 Gradle 8.13 和 `.android-tools/gradle-home-ascii` 缓存；`android-build.ps1` 已使用本地 Gradle 与该缓存，但不自动创建盘符映射；本轮原路径构建通过。APK 构建与设备验收状态见 [开发进度](docs/开发进度.md)，既有公开版仍为 V1.1.2，本轮没有推送或发布。

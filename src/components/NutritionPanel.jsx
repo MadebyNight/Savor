@@ -14,7 +14,7 @@ import { nutritionRequest, defaultAI } from "../services.js";
 import { validateReport } from "../nutrition-report.js";
 import { getPreference } from "../storage.js";
 import { getDeveloperConfig } from "../developer-ai.js";
-import { dayAt } from "../domain.js";
+import { dayAt, MEALS } from "../domain.js";
 import useConfirm from "./useConfirm.jsx";
 import {
   ArrowUpRight,
@@ -379,13 +379,13 @@ export default function NutritionPanel({
   return (
     <div className="nutrition-panel">
       <header className="review-period">
-        <span>菜单营养估算</span>
+        <span className="sr-only">菜单营养估算</span>
         <strong>
           {week} — {dayAt(week, 6)}
         </strong>
 
       </header>
-      <section className="review-advice" aria-label="下周建议">
+      <section className={`review-advice ${report ? "" : "empty-advice"}`} aria-label="下周建议">
         <div className="review-section-heading">
           <h3>
             <Sparkles size={18} /> 下周怎么安排
@@ -415,13 +415,7 @@ export default function NutritionPanel({
                 ))}
             </div>
           </>
-        ) : (
-          <p>
-            {summary.recipes
-              ? "结合这一周的菜单，给下一周几条简单、可执行的安排建议。"
-              : "这一周还没有安排菜品，添加菜单后再来看看。"}
-          </p>
-        )}
+        ) : !summary.recipes ? <p>这一周暂无菜单</p> : null}
         <button
           className="primary"
           disabled={busy || !summary.recipes}
@@ -506,21 +500,13 @@ export default function NutritionPanel({
         <ArrowUpRight size={18} />
       </button>
       <Dialog open={advanced} onOpenChange={setAdvanced}>
-        <DialogContent className="app-dialog nutrition-dialog nutrition-advanced">
+        <DialogContent layout="page" className="app-dialog nutrition-dialog nutrition-advanced">
           <DialogTitle>高级计算</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             调整本周菜单的营养计算，返回即可查看更新结果。
           </DialogDescription>
-          <button
-            type="button"
-            className="text-link review-back"
-            onClick={() => setAdvanced(false)}
-          >
-            <ChevronLeft size={18} />
-            返回营养回顾
-          </button>
           <div className="nutrition-panel">
-            <NutritionSummary summary={summary} title="本周计算详情" detailed />
+            <details className="advanced-summary"><summary>本周计算详情</summary><NutritionSummary summary={summary} title="本周计算详情" detailed /></details>
             <button
               className="outline"
               disabled={busy || !summary.recipes}
@@ -547,11 +533,11 @@ export default function NutritionPanel({
             >
               重新计算本地营养
             </button>
-            <h3>逐道完善</h3>
-            {plannedItems(plan).map(({ slot, index, recipe }) => (
+            <h3>调整菜品</h3>
+            {plannedItems(plan).sort((a,b)=>missingNutrition(b.recipe).length-missingNutrition(a.recipe).length).map(({ slot, index, recipe }) => (
               <details key={`${slot}:${index}`}>
                 <summary>
-                  {recipe.name} · {slot} · {recipe.servings || 1}份
+                  <strong>{recipe.name}</strong><small>{dayAt(week,Number(slot.split("-")[0])).slice(5)} {MEALS.find(([key])=>key===slot.split("-").slice(1).join("-"))?.[1]} · {recipe.servings || 1}份</small>
                 </summary>
                 <RecipeNutrition
                   recipe={recipe}

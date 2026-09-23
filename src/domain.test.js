@@ -136,3 +136,16 @@ test('同义食材合并采购需求并统一扣减，不改食材展示名称',
   assert.equal(result.length,1);assert.equal(result[0].name,'西红柿');assert.equal(result[0].qty,50);
   assert.equal(recipes[0].ingredients[0].name,'西红柿');
 });
+
+
+test('菜谱时长筛选：未知值与区间边界互斥', async () => {
+  const {matchesRecipeTime} = await import('./domain.js');
+  for (const value of [null, undefined, '', 0, -1, 'invalid']) {
+    assert.equal(matchesRecipeTime(value,'unknown'),true);
+    assert.equal(matchesRecipeTime(value,'quick'),false);
+  }
+  for (const [value,expected] of [[1,'quick'],[15,'quick'],[15.5,'medium'],[30,'medium'],[31,'long']]) {
+    for (const filter of ['quick','medium','long','unknown']) assert.equal(matchesRecipeTime(value,filter),filter===expected);
+    assert.equal(matchesRecipeTime(value,'all'),true);
+  }
+});

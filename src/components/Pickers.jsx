@@ -67,7 +67,7 @@ export function AppSelect({ value, onChange, children, disabled, displayValue, .
           <DialogTitle>
             {props["aria-label"] ? `选择${props["aria-label"]}` : "选择分类"}
           </DialogTitle>
-          <DialogDescription>点击选项即可选择</DialogDescription>
+          <DialogDescription className="sr-only">点击选项即可选择</DialogDescription>
           <div className="picker-options">
             {options.map((option) => (
               <button

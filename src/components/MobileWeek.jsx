@@ -1,7 +1,7 @@
 import { AppSelect, DateTimePicker } from "./Pickers.jsx";
 import {NutritionSummary,NutritionReviewButton} from './NutritionPanel.jsx';
 import {summarizeNutrition} from '../nutrition.js';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useBackHandler from "../useBackHandler.js";
 import {
   ChevronLeft,
@@ -35,7 +35,9 @@ export default function MobileWeek({
   slot,
   setSlot,
 }) {
+  const [mealSearch,setMealSearch] = useState("");
   const [overview, setOverview] = useState(false);
+  useEffect(()=>setMealSearch(""),[slot]);
   useBackHandler(overview, () => setOverview(false));
   const days = overview ? weekdays.map((_, index) => index) : [day];
   const dishCount = days.reduce((count, dayIndex) => count + MEALS.reduce((sum, [key]) => sum + (plan[`${dayIndex}-${key}`]?.length || 0), 0), 0);
@@ -136,14 +138,14 @@ export default function MobileWeek({
         open={slot !== null}
         onOpenChange={(open) => !open && setSlot(null)}
       >
-        <DialogContent className="app-dialog meal-picker-dialog">
+        <DialogContent layout="page" className="app-dialog meal-picker-dialog">
           <DialogTitle>
             {MEALS.find(([key]) => slot?.endsWith("-" + key))?.[1]} · 管理菜品
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             选择要安排的菜品。
           </DialogDescription>
-          <label>餐次<AppSelect aria-label="安排餐次" value={slot?.split('-').slice(1).join('-') || '早'} onChange={event=>setSlot(`${slot.split('-')[0]}-${event.target.value}`)}>{MEALS.map(([key,name])=><option key={key} value={key}>{name}</option>)}</AppSelect></label>
+          <label className="meal-slot-control">餐次<AppSelect aria-label="安排餐次" value={slot?.split('-').slice(1).join('-') || '早'} onChange={event=>setSlot(`${slot.split('-')[0]}-${event.target.value}`)}>{MEALS.map(([key,name])=><option key={key} value={key}>{name}</option>)}</AppSelect></label>
           {(plan[slot] || []).map((item, index) => (
             <div className="mobile-planned" key={index}>
               <div className="planned-info">
@@ -188,7 +190,9 @@ export default function MobileWeek({
             </div>
           ))}
           <h3>添加已确认菜品</h3>
-          {recipes.map((recipe) => (
+          {recipes.length > 5 && <div className="search"><input aria-label="搜索已确认菜品" placeholder="搜索菜名" value={mealSearch} onChange={event=>setMealSearch(event.target.value)}/></div>}
+          {mealSearch && !recipes.some(recipe=>recipe.name.includes(mealSearch.trim())) && <p>没有找到相符的菜品</p>}
+          {recipes.filter(recipe=>recipe.name.includes(mealSearch.trim())).map((recipe) => (
             <button
               className="meal-picker-row"
               key={recipe.id}

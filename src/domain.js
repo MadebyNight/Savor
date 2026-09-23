@@ -72,3 +72,15 @@ export const isPurchased = (item, purchased) => Object.hasOwn(purchased,shopping
 export function reconcilePurchased(items,purchased){
  return Object.fromEntries(items.filter(item=>isPurchased(item,purchased)).map(item=>[shoppingKey(item),item.qty]));
 }
+
+// 空值和旧数据中的 0 都视为未填写；边界不重叠。
+export function matchesRecipeTime(value, filter = "all") {
+  const minutes = Number(value);
+  const known = Number.isFinite(minutes) && minutes > 0;
+  if (filter === "all") return true;
+  if (filter === "unknown") return !known;
+  if (!known) return false;
+  if (filter === "quick") return minutes <= 15;
+  if (filter === "medium") return minutes > 15 && minutes <= 30;
+  return filter === "long" && minutes > 30;
+}

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
 import { defaultAI,testAIConnection,backup,validateBackup } from '../services.js';
 export default function SettingsPanel({state,onRestore,onSyncTarget}) {
+  const backupInput=useRef(null);
   const [page,setPage] = useState('ai');
   const [ask, confirmation] = useConfirm();
   const [config,setConfig] = useState(defaultAI);
@@ -52,21 +53,20 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
     </nav>
     {page==='reminders'&&<ReminderSettings/>}
     <section id="settings-ai" className="settings-page" hidden={page!=='ai'} aria-label="AI 配置">
-    <h3>AI 服务</h3>
+
     <label>接口地址<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
 
     <label>模型<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.model} onChange={e=>setConfig({...config,model:e.target.value})}/></label>
     <label>API Key<input disabled={testing||!!developer||loadingConfig||unlocking} type="password" autoComplete="new-password" value={developer?'':key} onChange={e=>setKey(e.target.value)} placeholder={developer?'开发者 Key 已加密保管':'留空保留已保存的 Key'}/></label>
     <div className="actions"><button className="primary" disabled={testing||!!developer||loadingConfig||unlocking} onClick={async()=>{try{await setPreference('ai-config',config);if(key)await setSecret('ai',key);setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||loadingConfig||unlocking} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>
 
-    {developerAvailable&&<div className="developer-config">
-      <div><strong>开发者配置</strong></div>
+    {developerAvailable&&<details className="developer-config"><summary>开发者配置</summary>
       <button className={developer?'primary':'outline'} aria-pressed={!!developer} disabled={testing||loadingConfig||unlocking} onClick={async()=>{
         if(!developer){setUnlockPassword('');setUnlockError('');setUnlockOpen(true);return;}
         setUnlocking(true);
         try{await disableDeveloperConfig();setDeveloper(null);toast.success('已恢复个人 AI 配置');}catch{toast.error('关闭失败，请重试');}finally{setUnlocking(false);}
       }}>{developer?'关闭开发者配置':'启用开发者配置'}</button>
-    </div>}
+    </details>}
     </section>
     {unlockOpen&&<Dialog open onOpenChange={open=>{if(!open&&!unlocking){setUnlockOpen(false);setUnlockPassword('');setUnlockError('');}}}><DialogContent className="app-dialog developer-unlock-dialog" forceBackdrop aria-busy={unlocking}>
       <DialogTitle>启用开发者配置</DialogTitle>
@@ -88,7 +88,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
       <button className="primary" onClick={()=>setTestResult(null)}>知道了</button>
     </DialogContent></Dialog>}
     <section id="settings-backup" className="settings-page" hidden={page!=='backup'} aria-label="备份恢复">
-    <h3>备份与恢复</h3><button className="outline" onClick={downloadBackup}>导出完整备份</button><label>导入备份<input type="file" accept=".json,application/json" onChange={e=>restore(e.target.files?.[0])}/></label>
+    <button className="outline" onClick={downloadBackup}>导出完整备份</button><button className="outline" onClick={()=>backupInput.current.click()}>导入备份</button><input ref={backupInput} hidden aria-label="备份文件" type="file" accept=".json,application/json" onChange={e=>{restore(e.target.files?.[0]);e.target.value="";}}/>
     <button className="outline" onClick={async()=>{try{const previous=await getPreference('before-restore');if(!previous)return toast('没有恢复前备份');if(await ask('当前业务数据将替换为上次导入前保留的备份。',{title:'恢复导入前数据？',label:'确认恢复',danger:true}))await onRestore(validateBackup(previous));}catch(e){toast.error(e.message);}}}>恢复上次导入前数据</button>
     </section>
     <section id="settings-sync" className="settings-page" hidden={page!=='sync'} aria-label="坚果云同步"><div ref={onSyncTarget}/></section>
