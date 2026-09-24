@@ -3,12 +3,16 @@ export const LocalData = registerPlugin('LocalData');
 export const isNative = () => Capacitor.isNativePlatform();
 let pending = Promise.resolve();
 const imageCache = new Map();
+const missingImagePrefix = 'shiguang-missing-local-image:';
+export const isMissingLocalImage = value => typeof value === 'string' && value.startsWith(missingImagePrefix);
 async function encodeImages(value) {
   if (Array.isArray(value)) return Promise.all(value.map(encodeImages));
   if (value && typeof value === 'object') {
     const result = {};
     for (const [key, item] of Object.entries(value)) {
-      if (key === 'image' && typeof item === 'string' && item.startsWith('data:image/')) {
+      if (key === 'image' && isMissingLocalImage(item)) {
+        result[key] = {localImage: decodeURIComponent(item.slice(missingImagePrefix.length))};
+      } else if (key === 'image' && typeof item === 'string' && item.startsWith('data:image/')) {
         let path = imageCache.get(item);
         if (!path) { const [head, data] = item.split(','); path = (await LocalData.saveImage({data, mime: head.slice(5).split(';')[0]})).path; imageCache.set(item, path); }
         result[key] = {localImage: path};
@@ -21,7 +25,10 @@ async function encodeImages(value) {
 async function decodeImages(value) {
   if (Array.isArray(value)) return Promise.all(value.map(decodeImages));
   if (value && typeof value === 'object') {
-    if (value.localImage) { const image = await LocalData.readImage({path: value.localImage}); const data = `data:${image.mime};base64,${image.data}`; imageCache.set(data, value.localImage); return data; }
+    if (value.localImage) {
+      try { const image = await LocalData.readImage({path: value.localImage}); const data = `data:${image.mime};base64,${image.data}`; imageCache.set(data, value.localImage); return data; }
+      catch { return missingImagePrefix + encodeURIComponent(value.localImage); }
+    }
     return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([k,v]) => [k,await decodeImages(v)])));
   }
   return value;

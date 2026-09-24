@@ -4,6 +4,7 @@ import { Camera, ImagePlus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   getPreference,
+  isMissingLocalImage,
   loadRecognitionDraft,
   saveRecognitionDraft,
 } from "../storage.js";
@@ -158,6 +159,7 @@ export default function RecognitionPanel({
     running.current = true;
     const current = ++generation.current;
     try {
+      if (isMissingLocalImage(selectedImage)) return toast.error("图片暂时无法读取，请重新选择或移除；文字草稿已保留");
       if (!text.trim() && !selectedImage) return toast.error("请粘贴文字或选择图片");
       if (mode === 'stock' && draftResult.error) {
         setReviewError('已有草稿格式异常，请先处理已有草稿后重试，原草稿未替换。');
@@ -289,7 +291,7 @@ export default function RecognitionPanel({
               {readingImage && <p role="status">正在读取图片…</p>}
               {image && (
                 <div className="recognition-image">
-                  <img src={image} alt="待识别图片" />
+                  {isMissingLocalImage(image) ? <p role="alert">图片暂时无法读取，请重新选择或移除；文字草稿已保留。</p> : <img src={image} alt="待识别图片" />}
                   <button
                     className="outline"
                     disabled={busy || readingImage || fetching}
@@ -325,7 +327,7 @@ export default function RecognitionPanel({
           <div className="actions">
             <button
               className="primary"
-              disabled={busy || readingImage || fetching || loadingConfig || (!text.trim() && !image)}
+              disabled={busy || readingImage || fetching || loadingConfig || (!text.trim() && !image) || (!linkInput && isMissingLocalImage(image))}
               onClick={() => linkInput ? readLink() : run()}
             >
               {fetching ? "正在获取正文…" : busy ? "正在识别…" : linkInput ? "获取正文" : mode === 'stock' ? '重新识别' : "确认发送并识别"}

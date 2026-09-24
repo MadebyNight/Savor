@@ -1,6 +1,6 @@
 import {validateStorageRules} from './food-storage.js';
 import {getAIKey} from './developer-ai.js';
-import { request } from './storage.js';
+import { request, isMissingLocalImage } from './storage.js';
 import {normalizeAIDrafts, validateRecipe, validateStock, uniqueIds} from './validation.js';
 import {validateReport} from './nutrition-report.js';
 export const defaultAI = {url:'https://api.deepseek.com/chat/completions',model:'deepseek-flash'};
@@ -45,6 +45,7 @@ export async function testAIConnection(config, enteredKey='') {
   return {requestedModel:model,returnedModel,elapsedMs:Date.now()-started};
 }
 export async function recognize(config, text, image, kind) {
+  if (isMissingLocalImage(image)) throw new Error('图片暂时无法读取，请重新选择或移除；文字草稿已保留');
   const url=resolveAIEndpoint(config.url);
   const key = await getAIKey(config);
   if (!key) throw new Error('请先保存 AI Key');
@@ -72,6 +73,7 @@ export async function recognize(config, text, image, kind) {
   return normalizeAIDrafts(parsed.items,kind).map(item => ({...item,id:crypto.randomUUID()}));
 }
 export function validateBackup(value) {
+  assertReadableImages(value);
   if(value?.format && (value.format!=='shiguang' || value.version!==2))throw new Error('不支持的备份格式或版本');
   const state = value?.state || value;
   if(state?.storageRules!=null)validateStorageRules(state.storageRules);
@@ -106,7 +108,14 @@ export function validateBackup(value) {
   return {...state,qty:state.qty || {},weeks:state.weeks || {},archives,confirmedRecipes:state.confirmedRecipes || state.recipes.filter(r => state.confirmed[r.id])};
 }
 export const businessState = state => ({recipes:state.recipes,...(state.storageRules!=null?{storageRules:state.storageRules}:{}),...(state.recipeCategories!=null?{recipeCategories:state.recipeCategories}:{}),fridge:state.fridge,confirmed:state.confirmed,confirmedRecipes:state.confirmedRecipes,weeks:state.weeks,archives:state.archives,...(state.purchased&&Object.keys(state.purchased).length?{purchased:state.purchased}:{}),...(state.nutritionReports&&Object.keys(state.nutritionReports).length?{nutritionReports:state.nutritionReports}:{})});
-export function backup(state) { return {format:'shiguang',version:2,createdAt:new Date().toISOString(),state:businessState(state)}; }
+export function assertReadableImages(value) {
+  if (Array.isArray(value)) for (const item of value) assertReadableImages(item);
+  else if (value && typeof value === 'object') for (const [key,item] of Object.entries(value)) {
+    if (key === 'image' && isMissingLocalImage(item)) throw new Error('本地图片暂时无法读取，原文件引用已保留；请恢复图片或移除该图片后再备份或同步');
+    assertReadableImages(item);
+  }
+}
+export function backup(state) { const data=businessState(state);assertReadableImages(data);return {format:'shiguang',version:2,createdAt:new Date().toISOString(),state:data}; }
 export async function nutritionRequest(config,payload,task){
  const key=await getAIKey(config);if(!key)throw new Error('请先在设置保存 AI Key');
  const url=resolveAIEndpoint(config.url);let timer;

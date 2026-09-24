@@ -20,7 +20,7 @@ with sync_playwright() as p:
       localStorage.setItem('shiguang-v1',JSON.stringify(s));
     }''')
     page.reload(wait_until='networkidle')
-    def open_selection(): page.get_by_role('button', name='确认我的菜单', exact=False).click()
+    def open_selection(): page.get_by_role('button', name='确认选菜', exact=False).click()
     def click(name): page.get_by_role('button', name=name, exact=True).click()
     def saved(): page.wait_for_function("JSON.parse(localStorage.getItem('shiguang-v1')).qty['selection-0']===2")
     open_selection()

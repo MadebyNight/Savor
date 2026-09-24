@@ -82,6 +82,22 @@
   width: 18px;
   flex-shrink: 0;
 }
+.settings-panel .settings-home[hidden],
+.settings-panel .settings-home-heading[hidden],
+.settings-panel .settings-detail-header[hidden] { display:none; }
+.settings-home { display:grid; gap:8px; max-width:720px; }
+.settings-group-title { margin:8px 0 2px; color:#536347; font-size:12px; font-weight:700; letter-spacing:.04em; }
+.settings-entry { display:flex; align-items:center; gap:12px; width:100%; min-height:68px; padding:11px 14px; border:1px solid #dce2d2; border-radius:12px; background:#fff; text-align:left; color:#2d342e; }
+.settings-entry:hover { border-color:#b4c09f; background:#fcfdf9; }
+.settings-entry:focus-visible { outline:2px solid #536347; outline-offset:2px; }
+.settings-entry-icon { display:grid; place-items:center; width:36px; height:36px; flex:none; border-radius:10px; background:#eef1e5; color:#536347; }
+.settings-entry-copy { display:block; flex:1; min-width:0; }
+.settings-entry-copy strong { display:block; font-size:14px; }
+.settings-entry-copy small { display:block; margin-top:4px; color:#66745f; font-size:12px; line-height:1.4; }
+.settings-entry-arrow { flex:none; color:#61715b; }
+.settings-detail-header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.settings-detail-header button { display:inline-flex; align-items:center; gap:6px; min-height:48px; }
+.settings-detail-header h2 { margin:0; }
 
 @media (max-width: 767px), (max-height: 500px) and (max-width: 1024px) {
   :root {
@@ -427,9 +443,10 @@
     padding: 0;
   }
   .compact-app .counter .plus {
-    background: radial-gradient(circle, #f4c64e 14px, transparent 15px);
+    background: radial-gradient(circle, #eff1e8 14px, transparent 15px);
     color: #33402a;
   }
+  .compact-app .counter .plus.is-selected { background: radial-gradient(circle, #f4c64e 14px, transparent 15px); }
   .compact-app .counter b {
     font-size: 12px;
     min-width: 10px;
@@ -720,6 +737,7 @@
   .compact-app .settings-panel > h2 {
     display: none;
   }
+  .compact-app .settings-detail-header { display:none; }
   .compact-app .settings-panel input:not([type="checkbox"]),
   .compact-app .settings-panel select,
   .compact-app .settings-panel textarea {
@@ -1138,8 +1156,6 @@
   .compact-app .page-1:not(.is-editing):not(.show-settings) { padding-top:0; }
   .compact-app .settings-panel { gap:10px; margin-bottom:0; }
   .compact-app .settings-panel .settings-page { gap:10px; padding-top:8px; }
-  .compact-app .settings-pages { margin:0 -14px; padding:4px 8px; border-radius:0; background:var(--chrome); }
-  .compact-app .settings-pages button { padding:6px 12px; }
   .compact-app .settings-panel fieldset { padding:10px; }
   .compact-app .recognition-panel fieldset { padding:0; border:0; }
   .compact-app .recognition-heading { min-height:0; justify-content:flex-end; }

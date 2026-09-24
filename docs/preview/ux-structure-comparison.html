@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>食光 · 营养回顾与设置结构对比</title>
+  <style>
+    :root { font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif; color:#292c26; background:#e9ebe5; font-size:14px; }
+    * { box-sizing:border-box; }
+    body { margin:0; }
+    button { font:inherit; color:inherit; cursor:pointer; touch-action:manipulation; }
+    button:focus-visible { outline:3px solid #856b27; outline-offset:2px; }
+    button:disabled { opacity:.52; cursor:not-allowed; }
+    button:active { filter:brightness(.94); }
+    h1,h2,h3,p { margin:0; }
+    .board { max-width:1190px; margin:auto; padding:30px 24px 52px; }
+    .eyebrow { color:#536347; font-weight:750; font-size:12px; letter-spacing:.1em; }
+    .intro { display:flex; justify-content:space-between; align-items:end; gap:24px; }
+    .intro h1 { font-size:clamp(24px,3vw,34px); line-height:1.2; margin:8px 0 12px; letter-spacing:-.03em; }
+    .intro p { max-width:750px; line-height:1.65; color:#5e665a; }
+    .stamp { background:#fbf7e9; border:1px solid #dfd5af; color:#6b6041; border-radius:100px; padding:10px 14px; white-space:nowrap; font-size:12px; }
+    .controls { margin:25px 0 22px; padding:12px; background:#fcfcf9; border:1px solid #dce2d5; border-radius:18px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; }
+    .segmented { display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+    .segmented button { border:0; border-radius:11px; background:transparent; min-height:44px; padding:0 15px; font-weight:650; }
+    .segmented button[aria-pressed="true"] { background:#667956; color:white; }
+    .segmented.secondary button { font-size:12px; color:#5d6958; }
+    .segmented.secondary button[aria-pressed="true"] { color:#292c26; background:#fff2bf; }
+    .compare { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; }
+    .variant { min-width:0; background:#fcfcf9; border:1px solid #dce2d5; border-radius:22px; padding:19px; box-shadow:0 13px 30px #3647350b; }
+    .variant.is-new { border-color:#c6cfba; }
+    .variant-heading { display:flex; gap:10px; align-items:center; margin-bottom:6px; }
+    .variant-heading .tag { font-size:11px; letter-spacing:.06em; font-weight:750; color:#5e6957; border:1px solid #c9d0c0; border-radius:7px; padding:4px 7px; }
+    .variant.is-new .tag { background:#e8eddf; color:#45603b; border-color:#e8eddf; }
+    .variant-heading h2 { font-size:19px; }
+    .variant-subtitle { color:#657063; font-size:12px; line-height:1.5; min-height:36px; }
+    .phone { max-width:390px; height:720px; margin:16px auto 0; border:1px solid #cfd5c9; border-radius:27px; background:#fff; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 15px 24px #283b2816; }
+    .phone-status { height:26px; flex:none; display:flex; justify-content:space-between; padding:5px 17px 0; background:#f2f4ed; color:#4f5e4e; font-size:10px; font-weight:750; }
+    .app-header { min-height:56px; flex:none; display:flex; align-items:center; gap:8px; padding:0 11px; border-bottom:1px solid #e4e9df; background:#f2f4ed; }
+    .app-header .back { width:44px; height:44px; border:0; background:transparent; font-size:25px; color:#536347; border-radius:10px; }
+    .app-header strong { font-size:19px; color:#31452f; letter-spacing:.02em; }
+    .app-header small { margin-left:auto; font-size:10px; color:#63725a; }
+    .phone-content { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; padding:17px 16px 30px; scrollbar-width:thin; }
+    .period { font-size:15px; font-weight:650; font-variant-numeric:tabular-nums; margin-bottom:16px; }
+    .section-title { font-size:15px; font-weight:700; margin-bottom:10px; }
+    .muted { color:#657063; font-size:12px; line-height:1.6; }
+    .advice { padding:17px; border:1px solid #e5d7a8; background:#faf5e5; border-radius:16px; margin-bottom:20px; }
+    .advice h3 { font-size:16px; margin-bottom:13px; }
+    .advice .primary { width:100%; }
+    .advice p { margin-bottom:12px; line-height:1.6; font-size:13px; }
+    .primary { min-height:48px; border:0; border-radius:11px; padding:10px 13px; background:#f8cb4a; font-weight:700; }
+    .days { display:flex; gap:5px; overflow-x:auto; padding:2px 0 8px; margin-bottom:9px; }
+    .days button { flex:1 0 40px; min-width:40px; min-height:59px; border:0; border-radius:10px; background:#f0f1eb; color:#596453; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:11px; }
+    .days button[aria-pressed="true"] { background:#667956; color:white; }
+    .days b { font-size:17px; }
+    .value-card { background:#f3f4ec; border-radius:15px; padding:14px; margin-bottom:16px; }
+    .value-card .card-head { display:flex; justify-content:space-between; gap:8px; align-items:start; }
+    .value-card .card-head strong { font-size:13px; }
+    .value-card .card-head small { color:#66745c; font-size:11px; white-space:nowrap; }
+    .energy { margin:15px 0 13px; display:flex; align-items:baseline; gap:5px; color:#3f5134; }
+    .energy b { font-size:32px; line-height:1.1; font-weight:650; }
+    .energy span { font-size:12px; }
+    .macros { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; border-top:1px solid #dce3d5; padding-top:12px; font-size:12px; }
+    .macros div { display:grid; gap:5px; }
+    .macros b { font-size:16px; font-weight:600; }
+    .sample-note { margin:0 0 18px; color:#687465; font-size:12px; line-height:1.6; }
+    .compact-overview { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:19px; }
+    .compact-overview div { background:#eef1e5; border-radius:11px; padding:11px; }
+    .compact-overview small { display:block; color:#60715b; margin-bottom:5px; }
+    .compact-overview b { font-size:17px; }
+    .line-entry { width:100%; min-height:52px; display:flex; justify-content:space-between; align-items:center; gap:12px; border:1px solid #e1e6dc; border-radius:12px; padding:10px 13px; background:#fff; text-align:left; font-weight:650; margin:8px 0; }
+    .line-entry small { display:block; margin-top:4px; color:#6b7469; font-size:11px; font-weight:400; }
+    .line-entry .arrow { font-size:20px; color:#64745b; }
+    .week-total { padding:12px 14px; border:1px solid #e4e9df; border-radius:13px; margin-bottom:16px; }
+    .week-total summary { cursor:pointer; min-height:32px; font-weight:650; }
+    .week-total p { padding-top:9px; color:#5e695a; font-size:12px; line-height:1.6; }
+    .settings-tabs { display:flex; gap:3px; overflow-x:auto; margin:-17px -16px 17px; padding:4px 8px; background:#f2f4ed; scrollbar-width:thin; }
+    .settings-tabs button { flex:none; border:0; background:transparent; min-height:48px; padding:7px 10px; border-radius:10px; color:#5e6959; white-space:nowrap; }
+    .settings-tabs button[aria-current="page"] { background:#ffdf86; color:#3f4636; font-weight:700; }
+    .settings-group-title { margin:5px 0 11px; color:#697566; font-size:11px; letter-spacing:.08em; font-weight:750; }
+    .settings-row { width:100%; min-height:69px; background:#fff; border:1px solid #e0e6dc; border-radius:12px; padding:11px 14px; margin-bottom:8px; text-align:left; display:flex; align-items:center; gap:12px; }
+    .settings-row .symbol { width:34px; height:34px; flex:none; border-radius:10px; background:#eef1e5; display:grid; place-items:center; color:#536347; font-size:17px; font-weight:700; }
+    .settings-row span:nth-child(2) { flex:1; min-width:0; }
+    .settings-row b { display:block; font-size:14px; }
+    .settings-row small { display:block; font-size:11px; color:#687466; margin-top:5px; }
+    .settings-row .arrow { color:#61715b; font-size:22px; }
+    .setting-form { display:grid; gap:13px; }
+    .setting-form h3 { font-size:17px; margin-bottom:2px; }
+    .setting-form label { display:grid; gap:5px; color:#52604f; font-size:12px; }
+    .setting-form input { width:100%; min-height:44px; border:1px solid #d9d3b9; border-radius:9px; padding:8px 10px; background:white; color:#292c26; }
+    .toggle { display:flex; justify-content:space-between; align-items:center; min-height:48px; border-bottom:1px solid #e6e9e1; font-size:14px; }
+    .toggle i { width:39px; height:23px; border-radius:20px; background:#bdc5b5; position:relative; }
+    .toggle i:after { content:""; display:block; width:17px; height:17px; border-radius:50%; background:white; position:absolute; top:3px; left:3px; }
+    .toggle.on i { background:#667956; }
+    .toggle.on i:after { left:19px; }
+    .setting-form .primary { margin-top:5px; }
+    .card-notes { margin:15px auto 1px; max-width:390px; display:grid; gap:7px; font-size:12px; line-height:1.55; color:#596557; }
+    .card-notes div { display:flex; gap:8px; }
+    .card-notes b { flex:none; color:#3f5134; }
+    .decision { margin-top:24px; padding:20px 22px; background:#fcfcf9; border:1px solid #dce2d5; border-radius:18px; }
+    .decision h2 { font-size:19px; margin-bottom:12px; }
+    .decision-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; }
+    .decision-grid p { font-size:13px; line-height:1.7; color:#596557; }
+    .decision-grid strong { color:#354b34; }
+    .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#344634; color:white; padding:10px 16px; border-radius:10px; box-shadow:0 9px 22px #1d2e1d33; font-size:12px; z-index:4; }
+    [hidden] { display:none !important; }
+    @media (max-width:800px) { .compare { grid-template-columns:1fr; } .variant { padding:15px; } .intro { display:block; } .stamp { display:inline-block; margin-top:15px; } .decision-grid { grid-template-columns:1fr; gap:10px; } }
+    @media (max-width:430px) { .board { padding:20px 10px 36px; } .controls { margin-top:20px; } .segmented { width:100%; } .segmented button { flex:1; padding:0 8px; } .variant-heading h2 { font-size:17px; } .phone { height:min(720px,82dvh); min-height:540px; } }
+    @media (prefers-reduced-motion:reduce) { *,*:before,*:after { scroll-behavior:auto !important; animation:none !important; transition:none !important; } }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header class="intro">
+      <div><span class="eyebrow">食光 · 交互方案对比</span><h1>先看信息顺序，再决定是否改版</h1><p>同一组示例数据、同一手机宽度，对比现行规格与整合评估建议。这里演示页面结构和点击路径；不连接 AI、通知、备份或真实食谱。</p></div>
+      <span class="stamp">2026-09-24 · 决策预览</span>
+    </header>
+    <div class="controls">
+      <div class="segmented" role="group" aria-label="对比页面"><button type="button" data-module="nutrition" aria-pressed="true">营养回顾</button><button type="button" data-module="settings" aria-pressed="false">设置入口</button></div>
+      <div class="segmented secondary" role="group" aria-label="示例状态" id="state-controls"><button type="button" data-state="partial" aria-pressed="true">部分估算</button><button type="button" data-state="report" aria-pressed="false">已有建议</button><button type="button" data-state="empty" aria-pressed="false">空周</button></div>
+    </div>
+    <div class="compare" id="compare"></div>
+    <section class="decision" id="decision"></section>
+  </main>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script>
+    const view = {module:'nutrition', state:'partial', day:3, currentTab:'reminders', proposedPage:'home'};
+    const weekday = ['一','二','三','四','五','六','日'];
+    const entries = [null,{energy:520,protein:24,fat:17,carbs:61,fiber:null},null,{energy:1640,protein:68,fat:49,carbs:210,fiber:null},null,null,null];
+    const settings = [['ai','AI 配置','模型、接口与凭据','✦'],['backup','备份恢复','导出与导入本地数据','⇣'],['sync','坚果云同步','手动同步与冲突处理','⇄'],['reminders','营养周报提醒','应用内与系统通知','◷']];
+    const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const button = (text, action, extra='') => `<button type="button" ${action} ${extra}>${text}</button>`;
+    function days() { return `<div class="days" role="group" aria-label="选择回顾日期">${weekday.map((name,index)=>button(`<span>周${name}</span><b>${21+index}</b>`,`data-day="${index}"`,`aria-pressed="${view.day===index}" aria-label="2026-09-${21+index}"`)).join('')}</div>`; }
+    function values() {
+      const item = view.state==='empty' ? null : entries[view.day];
+      const number = (value,unit) => `${value==null?'—':value}<small>${unit}</small>`;
+      return `<div class="value-card"><div class="card-head"><strong>9 月 ${21+view.day} 日预计营养</strong><small>${item?'部分估算':'暂无菜单'}</small></div><div class="energy"><b>${item?.energy ?? '—'}</b><span>kcal</span></div><div class="macros"><div><span>蛋白质</span><b>${number(item?.protein,'g')}</b></div><div><span>脂肪</span><b>${number(item?.fat,'g')}</b></div><div><span>碳水化合物</span><b>${number(item?.carbs,'g')}</b></div><div><span>膳食纤维</span><b>${number(item?.fiber,'g')}</b></div></div></div><p class="sample-note">${item?'当天菜单：番茄炒鸡蛋 · 西兰花炒鸡胸肉。未知营养项保持“—”。':'这一天还没有安排菜品，数值不按 0 处理。'}</p>`;
+    }
+    function advice(kind) {
+      if(kind==='current') return `<section class="advice"><h3>✧ 下周怎么安排</h3>${view.state==='report'?'<p>建议：安排不同颜色的蔬菜，并核对缺失食材的用量。</p>':view.state==='empty'?'<p>这一周暂无菜单</p>':''}<button class="primary" type="button" ${view.state==='empty'?'disabled':''}>${view.state==='report'?'更新下周建议':'生成下周建议'} ↗</button></section>`;
+      return `<section><h3 class="section-title">下周建议</h3>${view.state==='report'?'<p class="muted">已有建议可离线阅读：安排不同颜色的蔬菜，并核对缺失食材的用量。</p>':view.state==='empty'?'<p class="muted">先安排菜单，再按需生成建议。</p>':'<p class="muted">尚未生成；每日预计营养已可离线查看。</p>'}<button class="line-entry" type="button" ${view.state==='empty'?'disabled':''}><span>${view.state==='report'?'查看或更新建议':'生成下周建议'}<small>发送前仍会确认</small></span><span class="arrow">›</span></button></section>`;
+    }
+    function nutrition(kind) {
+      const header = `<div class="period">2026-09-21 — 2026-09-27</div>`;
+      const daily = `<section><h3 class="section-title">每日营养</h3>${days()}${values()}</section>`;
+      const total = `<details class="week-total"><summary>查看这一周的营养合计</summary><p>${view.state==='empty'?'暂无可汇总的菜单':'预计能量 2,160 kcal；部分食材营养未知，合计仍是估算。'}</p></details>`;
+      const advanced = `<button type="button" class="line-entry"><span>高级计算<small>补全食材、克重与来源</small></span><span class="arrow">›</span></button>`;
+      return `<div class="phone-status"><span>9:41</span><span>◖◖◖　100%</span></div><header class="app-header"><button type="button" class="back" data-back="nutrition" aria-label="返回周菜单">←</button><strong>菜单营养回顾</strong><small>${kind==='current'?'全屏弹窗':'独立二级页'}</small></header><div class="phone-content">${header}${kind==='current'?advice(kind)+daily+total+advanced:`<div class="compact-overview"><div><small>已安排</small><b>${view.state==='empty'?'0':'2'} 天</b></div><div><small>估算状态</small><b>${view.state==='empty'?'暂无':'部分'}</b></div></div>${daily}${total}${advice(kind)}${advanced}`}</div>`;
+    }
+    function settingForm(id) {
+      if(id==='reminders') return `<div class="setting-form"><h3>营养周报提醒</h3><p class="muted">开关、权限和实际投递状态分别呈现。</p><div class="toggle"><span>应用内提醒</span><i></i></div><div class="toggle"><span>系统通知</span><i></i></div><label>每周几<input value="周日" readonly></label><label>提醒时间<input value="20:00" readonly></label><button class="primary" type="button">保存提醒设置</button><p class="muted">系统通知未开启 · 可打开系统通知设置</p></div>`;
+      if(id==='ai') return `<div class="setting-form"><h3>AI 配置</h3><label>模型<input value="deepseek-flash" readonly></label><label>接口地址<input value="https://api.deepseek.com" readonly></label><label>API Key<input value="••••••••" readonly></label><button class="primary" type="button">保存 AI 配置</button><p class="muted">发送图片或文字前仍会单独确认。</p></div>`;
+      if(id==='backup') return `<div class="setting-form"><h3>备份恢复</h3><p class="muted">导出本地完整备份，或核对文件后恢复。</p>${button('导出完整备份','class="line-entry"')}${button('导入备份','class="line-entry"')}${button('恢复上次导入前数据','class="line-entry"')}</div>`;
+      return `<div class="setting-form"><h3>坚果云同步</h3><p class="muted">同步仅在用户主动触发时进行，冲突需要明确选择。</p><label>WebDAV 用户名<input value="个人账号" readonly></label>${button('检查云端版本','class="line-entry"')}${button('立即同步','class="primary"')}</div>`;
+    }
+    function settingsView(kind) {
+      const current = kind==='current';
+      const home = !current && view.proposedPage==='home';
+      const heading = home?'设置与数据':current?'设置与数据':settings.find(item=>item[0]===view.proposedPage)?.[1];
+      const tabs = `<nav class="settings-tabs" aria-label="设置分页">${settings.map(([id,name])=>button(name,`data-setting="${id}"`,view.currentTab===id?'aria-current="page"':'')).join('')}</nav>`;
+      const groups = `<p class="settings-group-title">账户与数据</p>${settings.slice(0,3).map(([id,name,detail,symbol])=>button(`<span class="symbol">${symbol}</span><span><b>${name}</b><small>${detail}</small></span><span class="arrow">›</span>`,`data-setting="${id}"`,'class="settings-row"')).join('')}<p class="settings-group-title">提醒</p>${settings.slice(3).map(([id,name,detail,symbol])=>button(`<span class="symbol">${symbol}</span><span><b>${name}</b><small>${detail}</small></span><span class="arrow">›</span>`,`data-setting="${id}"`,'class="settings-row"')).join('')}`;
+      return `<div class="phone-status"><span>9:41</span><span>◖◖◖　100%</span></div><header class="app-header"><button type="button" class="back" data-back="settings-${kind}" aria-label="返回">←</button><strong>${heading}</strong><small>${current?'横向分页':home?'分组首页':'配置页'}</small></header><div class="phone-content">${current?tabs+settingForm(view.currentTab):home?groups:settingForm(view.proposedPage)}</div>`;
+    }
+    function notes(kind) {
+      if(view.module==='nutrition') return kind==='current'?'<div><b>优点</b>AI 生成入口位于首屏，容易发现。</div><div><b>代价</b>离线已有营养数据需要越过建议区；空周首屏仍由 AI 卡片占据。</div>':'<div><b>优点</b>先见日期与已有数据，空周和离线场景更直接。</div><div><b>代价</b>AI 入口下移；若频繁生成建议，需要多滚动。</div>';
+      return kind==='current'?'<div><b>优点</b>当前分类可一步切换到另一配置页。</div><div><b>代价</b>四类功能挤在横向标签，首屏可能看不到全部。</div>':'<div><b>优点</b>四类功能在首页一眼可见，名称和说明可完整显示。</div><div><b>代价</b>打开具体配置需要多点一次；返回层级增加一层。</div>';
+    }
+    function decision() {
+      const nutrition = view.module==='nutrition';
+      return `<h2>${nutrition?'如何选择营养回顾方案':'如何选择设置方案'}</h2><div class="decision-grid"><p><strong>${nutrition?'推荐：数据优先':'推荐：分组首页'}。</strong>${nutrition?'食光的核心流程必须离线可用，已有的预计营养应先出现；AI 建议继续保留，但作为按需入口。':'首次找功能时，四项入口同时可见比横向猜测更稳。具体配置页沿用现有字段、保存和错误处理。'}</p><p><strong>保留的约束。</strong>${nutrition?'两版都必须区分未知与 0，保留 7 天切换、AI 发送确认、过时提示及目标周。手机上现有弹窗已经全屏；“独立二级页”主要改变返回状态管理，不会自然带来更多可视空间。':'两版都不改变 AI 凭据保护、备份确认、同步冲突和提醒权限语义。从识别进入 AI 配置后仍返回原任务；从回顾进入提醒设置后仍返回原周。'}</p></div>`;
+    }
+    function render() {
+      document.querySelectorAll('[data-module]').forEach(node=>node.setAttribute('aria-pressed',String(node.dataset.module===view.module)));
+      document.getElementById('state-controls').hidden=view.module!=='nutrition';
+      document.querySelectorAll('[data-state]').forEach(node=>node.setAttribute('aria-pressed',String(node.dataset.state===view.state)));
+      document.getElementById('compare').innerHTML=['current','proposed'].map(kind=>`<section class="variant ${kind==='proposed'?'is-new':''}"><div class="variant-heading"><span class="tag">${kind==='current'?'现行规格':'评估建议'}</span><h2>${kind==='current'?'目前的路径':'建议的路径'}</h2></div><p class="variant-subtitle">${view.module==='nutrition'?(kind==='current'?'AI 建议先于每日预计营养 · 全屏弹窗':'已有数据先于 AI 建议 · 独立二级页'):(kind==='current'?'横向分页 · 切换后显示配置':'分组首页 · 点进对应配置')}</p><div class="phone">${view.module==='nutrition'?nutrition(kind):settingsView(kind)}</div><div class="card-notes">${notes(kind)}</div></section>`).join('');
+      document.getElementById('decision').innerHTML=decision();
+    }
+    let toastTimer;
+    function announce(message) { const node=document.getElementById('toast'); node.textContent=message; node.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>node.hidden=true,3200); }
+    document.addEventListener('click', event=>{
+      const target=event.target.closest('button'); if(!target) return;
+      if(target.dataset.module) { view.module=target.dataset.module; render(); return; }
+      if(target.dataset.state) { view.state=target.dataset.state; render(); return; }
+      if(target.dataset.day) { view.day=Number(target.dataset.day); render(); return; }
+      if(target.dataset.setting) { if(target.closest('.is-new'))view.proposedPage=target.dataset.setting; else view.currentTab=target.dataset.setting; render(); return; }
+      if(target.dataset.back==='settings-proposed' && view.proposedPage!=='home') { view.proposedPage='home'; render(); return; }
+      if(target.dataset.back) { announce('预览：返回来源页面，保留原任务与日期。'); return; }
+      if(target.closest('.phone')) announce('此页仅预览布局和路径，不保存数据或调用服务。');
+    });
+    render();
+  </script>
+</body>
+</html>

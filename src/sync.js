@@ -1,5 +1,5 @@
 import {getPreference,setPreference,getSecret,request} from './storage.js';
-import {businessState,validateBackup} from './services.js';
+import {businessState,validateBackup,assertReadableImages} from './services.js';
 export const defaultDAV={url:'https://dav.jianguoyun.com/dav/',username:''};
 export async function fingerprint(value) { const bytes=new TextEncoder().encode(JSON.stringify(value));return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join(''); }
 async function splitImages(value,images) {
@@ -44,6 +44,7 @@ export async function downloadVersion(context,version=context.remote) {
   return validateBackup(state);
 }
 export async function uploadVersion(context,state) {
+  assertReadableImages(businessState(state));
   for(const path of ['versions/','images/']){const r=await context.call(path,'MKCOL');if(![201,405].includes(r.status))assertResponse(r);}
   const images={};const packedState=await splitImages(businessState(state),images);
   for(const [id,data] of Object.entries(images)){

@@ -8,7 +8,7 @@ import {getReminderStatus,consumeReminderLaunch,markWeekReviewed} from './remind
 import NutritionPanel, {RecipeNutrition,NutritionReviewButton} from './components/NutritionPanel.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
 ﻿import { matchesRecipeTime, stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit } from "./domain.js";
-import { loadState, saveState, exportBlob, isNative } from "./storage.js";
+import { loadState, saveState, exportBlob, isNative, isMissingLocalImage } from "./storage.js";
 import {businessState} from "./services.js";
 import SyncPanel from "./components/SyncPanel.jsx";
 import StockFields from "./components/StockFields.jsx";
@@ -78,6 +78,13 @@ const navigationItems = [
   ["周菜单", CalendarDays],
   ["我的冰箱", Refrigerator],
 ];
+const hasUsableImage = image => !!image && !isMissingLocalImage(image);
+function unavailableImageCount(value) {
+  if (isMissingLocalImage(value)) return 1;
+  if (Array.isArray(value)) return value.reduce((count,item)=>count+unavailableImageCount(item),0);
+  if (value && typeof value === 'object') return Object.values(value).reduce((count,item)=>count+unavailableImageCount(item),0);
+  return 0;
+}
 function App() {
   const [ask, confirmation] = useConfirm();
   const [askClearFridge, clearFridgeConfirmation] = useConfirm();
@@ -94,6 +101,8 @@ function App() {
   }, []);
   const [syncTarget,setSyncTarget]=useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsPage, setSettingsPage] = useState('home');
+  useEffect(()=>{if(!showSettings)setSettingsPage('home');},[showSettings]);
   const [recognition,setRecognition]=useState(null);
   const [recognitionImage,setRecognitionImage]=useState('');
   const [recognitionAuto,setRecognitionAuto]=useState(false);
@@ -101,7 +110,10 @@ function App() {
   const [readingStockImage,setReadingStockImage]=useState(false);
   const openRecognition=(mode)=>{setRecognitionImage('');setRecognition(mode);setModal('');};
   const returnToPage = () => {
-    if (showSettings) setShowSettings(false);
+    if (showSettings) {
+      if (settingsPage !== 'home') setSettingsPage('home');
+      else setShowSettings(false);
+    }
     else if(recognition)setRecognition(null);
     else setEditingRecipe(false);
   };
@@ -131,6 +143,14 @@ function App() {
   const [weeks, setWeeks] = useState({});
   const [nutritionReports,setNutritionReports]=useState({});
   const [reviewWeek,setReviewWeek]=useState(null);
+  const reviewHeading=useRef(null);
+  useBackHandler(!!reviewWeek,()=>setReviewWeek(null),1);
+  useEffect(()=>{
+    if(!reviewWeek)return;
+    const origin=document.activeElement;
+    reviewHeading.current?.focus();
+    return()=>origin?.focus?.();
+  },[reviewWeek]);
   const [reminder,setReminder]=useState(null);
   useEffect(()=>{if(!hydrated)return;let active=true,busy=false;
     const refresh=async()=>{if(busy||document.visibilityState!=='visible')return;busy=true;try{const status=await getReminderStatus();if(active)setReminder(status);const target=await consumeReminderLaunch();if(active&&target&&/^\d{4}-\d{2}-\d{2}$/.test(target)&&monday(target)===target)setReviewWeek(target);}catch{if(active)setReminder(null);}finally{busy=false;}};
@@ -173,6 +193,7 @@ function App() {
     ingredients: [ingredient("", 100)],
     steps: [""],
   });
+  const [recipeSaving, setRecipeSaving] = useState(false);
   const [editingStock,setEditingStock]=useState(null);
   const [stockFilter,setStockFilter]=useState("all");
   const stockRows = fridge.map((stock, index) => ({stock, index, status: stockStatus(stock)}));
@@ -243,7 +264,11 @@ function App() {
     loadState()
       .then((state) => {
         if (active) {
-          if (state) applyState(state);
+          if (state) {
+            applyState(state);
+            const missing=unavailableImageCount(state);
+            if(missing)toast.warning(`${missing} 张图片暂时无法读取，其他数据已加载；替换或移除失效图片后可继续备份与同步`);
+          }
           setHydrated(true);
         }
       })
@@ -375,7 +400,8 @@ function App() {
           recipe.ingredients.some((item) => ingredientKey(item.name) === ingredientKey(ingredientName)),
         )),
   );
-  const saveRecipe = () => {
+  const saveRecipe = async () => {
+    if (recipeSaving) return;
     if (
       !recipeDraft.name.trim() ||
       !recipeDraft.ingredients.length ||
@@ -410,19 +436,13 @@ function App() {
       })),
     };
     savedRecipe.nutrition=calculateNutrition(savedRecipe);
-    setRecipes((current) =>
+    const nextRecipes =
       recipeDraft.id
-        ? current.map((item) =>
+        ? recipes.map((item) =>
             item.id === recipeDraft.id ? savedRecipe : item,
           )
-        : [...current, savedRecipe],
-    );
-    toast.success(
-      recipeDraft.id
-        ? "菜谱已更新，已确认采购与菜单快照保留"
-        : "菜谱已保存到点单选菜",
-    );
-    setRecipeDraft({
+        : [...recipes, savedRecipe];
+    const emptyDraft = {
       id: 0,
       name: "",
       category: recipeCategories.includes('素菜') ? '素菜' : '未分类',
@@ -430,9 +450,40 @@ function App() {
       weight: 300,
       ingredients: [ingredient("", 100)],
       steps: [""],
-    });
-    pageFilters.current[0] = { category: "全部", search: "" };
-    navigate(0);
+    };
+    setRecipeSaving(true);
+    try {
+      await saveState({...latestState.current, recipes: nextRecipes, recipeDraft: emptyDraft});
+      setRecipes(nextRecipes);
+      if (JSON.stringify(latestState.current.recipeDraft) === JSON.stringify(recipeDraft)) {
+        setRecipeDraft(emptyDraft);
+        pageFilters.current[0] = { category: "全部", search: "" };
+        navigate(0);
+        toast.success(recipeDraft.id ? "菜谱已更新，已确认采购与菜单快照保留" : "菜谱已保存到点单选菜");
+      } else {
+        toast.success("菜谱已保存，保存期间的后续修改仍在草稿中");
+      }
+    } catch (error) {
+      toast.error("菜谱保存失败，草稿已保留：" + error.message);
+    } finally {
+      setRecipeSaving(false);
+    }
+  };
+  const editRecipe = async (recipe) => {
+    if (recipeSaving) return;
+    const draft = latestState.current.recipeDraft;
+    if (draft.id !== recipe.id) {
+      const original = draft.id ? recipes.find(item => item.id === draft.id) : {
+        id: 0, name: "", category: recipeCategories.includes('素菜') ? '素菜' : '未分类',
+        time: 15, weight: 300, ingredients: [ingredient("", 100)], steps: [""],
+      };
+      if (JSON.stringify(draft) !== JSON.stringify(original) &&
+          !(await ask("当前编辑草稿尚未保存，切换菜谱会放弃这份草稿。", {title: "放弃当前草稿？", label: "放弃并编辑"}))) return;
+      setRecipeDraft(structuredClone(recipe));
+    }
+    setModal("");
+    navigate(1);
+    setEditingRecipe(true);
   };
   const saveIngredient = async () => {
     if(stockSaving)return;
@@ -619,12 +670,12 @@ function App() {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <main className={`main ${compact ? "compact-app" : ""} ${page === 0 && !showSettings && !recognition ? "order-page" : ""}`}>
+      <main inert={!!reviewWeek} className={`main ${compact ? "compact-app" : ""} ${page === 0 && !showSettings && !recognition ? "order-page" : ""}`}>
         <header className="topbar">
           {compact && <>
             <div className="mobile-title">
               {showSettings || editingRecipe || recognition ? <button className="mobile-icon" aria-label="返回" onClick={returnToPage}><ArrowLeft size={22} /></button> : <img className="brand-logo" src="/brand/mark.svg" alt=""/>}
-              <h1>{showSettings ? "设置与数据" : recognition ? ({"recipe-import":"导入菜谱",stock:"拍照识别"}[recognition]) : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
+              <h1>{showSettings ? ({ai:'AI 配置',backup:'备份恢复',sync:'坚果云同步',reminders:'营养周报提醒'}[settingsPage]||"设置与数据") : recognition ? ({"recipe-import":"导入菜谱",stock:"拍照识别"}[recognition]) : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
               {page === 1 && !showSettings && !recognition && !editingRecipe && <span className="library-total">{filteredRecipes.length} 道</span>}
               {page === 4 && !showSettings && !recognition && <span className="fridge-total">{fridge.length} 批食材</span>}
               <span role="status" className={saveStatus.includes("失败") ? "mobile-save-error" : "sr-only"}>{saveStatus}</span>
@@ -660,6 +711,8 @@ function App() {
         <div className={`workspace page-${page} ${showSettings ? "show-settings" : ""} ${editingRecipe ? "is-editing" : ""}`}>
           {showSettings && (
             <SettingsPanel
+              page={settingsPage}
+              onPageChange={setSettingsPage}
               onSyncTarget={setSyncTarget}
               state={fullState}
               onRestore={restoreState}
@@ -667,7 +720,7 @@ function App() {
             />
           )}
 
-          {recognition&&!showSettings&&<RecognitionPanel storageRules={storageRules} key={recognition} mode={recognition} initialImage={recognitionImage} autoStart={recognitionAuto} onAutoStart={()=>setRecognitionAuto(false)} onManual={()=>{setRecognition(null);setEditingRecipe(true);}} onSettings={()=>{setRecognitionImage('');setShowSettings(true);}}
+          {recognition&&!showSettings&&<RecognitionPanel storageRules={storageRules} key={recognition} mode={recognition} initialImage={recognitionImage} autoStart={recognitionAuto} onAutoStart={()=>setRecognitionAuto(false)} onManual={()=>{setRecognition(null);setEditingRecipe(true);}} onSettings={()=>{setRecognitionImage('');setSettingsPage('ai');setShowSettings(true);}}
             onImportRecipes={async items=>{const next=[...latestState.current.recipes,...items.map(item=>({...item,nutrition:calculateNutrition(item)}))];await saveState({...latestState.current,recipes:next});setRecipes(next);}}
             onImportStock={async items=>{const next=[...latestState.current.fridge,...items];await saveState({...latestState.current,fridge:next});setFridge(next);}}/>}
           <input ref={fridgeCamera} type="file" accept="image/*" capture="environment" aria-label="冰箱拍摄图片" hidden onChange={selectStockImage}/>
@@ -802,7 +855,7 @@ function App() {
                             setModal("detail");
                           }}
                         >
-                          {recipe.image ? (
+                          {hasUsableImage(recipe.image) ? (
                             <img src={recipe.image} alt={recipe.name} />
                           ) : (
                             <div className="food-fallback">
@@ -877,7 +930,7 @@ function App() {
                                 </>
                               )}
                               <button
-                                className="plus"
+                                className={`plus ${quantities[recipe.id] ? 'is-selected' : ''}`}
                                 aria-label={"添加" + recipe.name}
                                 onClick={() => changeQuantity(recipe.id, 1)}
                               >
@@ -908,7 +961,7 @@ function App() {
                       {selectedCount}
                       {" 份菜品"}
                     </b>
-                    <small>点开查看清单，确认后同步到周菜单</small>
+                    <small>查看清单，确认后可安排进周菜单</small>
                   </div>
                 </button>
                 <button
@@ -919,7 +972,7 @@ function App() {
                     !Object.values(confirmedQuantities).some(Boolean)
                   }
                 >
-                  {"确认我的菜单 "}
+                  {"确认选菜 "}
                   <ArrowRight size={18} />
                 </button>
               </div>}
@@ -929,10 +982,10 @@ function App() {
             <>
               <div className="section-tools">
                 <h2>
-                  {"还需要买 "}
+                  {"还需买 "}
                   <span>
                     {remainingShopping}
-                    {" 种食材"}
+                    {` / ${shoppingList.length} 项`}
                   </span>
                 </h2>
                 <button
@@ -971,10 +1024,7 @@ function App() {
                         {item.qty != null && <small>{isPurchased(item,purchased) ? '已买 ' : '还需买 '}</small>}
                         {item.qty ?? "待确认"} <small>{item.unit}</small>
                       </strong>
-                      <p className="missing">
-                        {isPurchased(item,purchased)?'已买 · ':'待买 · '}
-                        {item.category}
-                      </p>
+                      <p className="shopping-category">{item.category}</p>
                       <p className="shopping-stock-note">
                         {item.requiredQty == null ? '用量待确认' : `共需 ${item.requiredQty}${item.unit}`}
                         {` · 冰箱可用 ${item.availableQty}${item.unit}`}
@@ -1238,14 +1288,14 @@ function App() {
             </div>
             <h2>我的菜谱 <small>{filteredRecipes.length} 道</small></h2>
             {filteredRecipes.map(recipe => <button key={recipe.id} className="library-recipe" onClick={() => {setActiveRecipe(recipe);setModal("detail");}}>
-              {recipe.image ? <img src={recipe.image} alt=""/> : <span className="library-placeholder"><Utensils size={22}/></span>}
+              {hasUsableImage(recipe.image) ? <img src={recipe.image} alt=""/> : <span className="library-placeholder"><Utensils size={22}/></span>}
               <span><strong>{recipe.name}</strong><small>{recipe.category}{recipe.time ? ` · ${recipe.time} 分钟` : ""}</small></span><ArrowRight size={18}/>
             </button>)}
             {!filteredRecipes.length && <div className="empty">没有找到符合条件的菜谱。<button className="text-link" onClick={()=>{setSearch("");setLibraryFilter({category:"全部",time:"all"});}}>清除搜索与筛选</button></div>}
           </section>}
           {page === 1 && editingRecipe && (
             <div className="editor-layout">
-              <section className="panel editor">
+              <section className="panel editor" aria-busy={recipeSaving} inert={recipeSaving}>
                 {!compact && <button className="text-link" onClick={() => setEditingRecipe(false)}><ArrowLeft size={18}/>返回我的菜谱（保留草稿）</button>}
                 <div className="section-tools">
                   <h2>{recipeDraft.id ? "编辑菜谱" : "新建菜谱"}</h2>
@@ -1277,13 +1327,14 @@ function App() {
                       reader.readAsDataURL(file);
                     }}
                   />
-                {recipeDraft.image && (
+                {hasUsableImage(recipeDraft.image) && (
                   <img
                     className="detail-image"
                     src={recipeDraft.image}
                     alt="菜谱图片预览"
                   />
                 )}
+                {isMissingLocalImage(recipeDraft.image)&&<p role="status">原图片暂时无法读取；可重新选择图片替换，文字草稿已保留。</p>}
                 <label>
                   菜品名称
                   <input
@@ -1553,7 +1604,7 @@ function App() {
           )}
           </>}
         </div>
-        {page === 1 && editingRecipe && !recognition && !showSettings && <footer className="editor-save-bar"><button className="primary save-recipe" onClick={saveRecipe}><Check size={17}/>确认保存到菜品库</button></footer>}
+        {page === 1 && editingRecipe && !recognition && !showSettings && <footer className="editor-save-bar"><button className="primary save-recipe" disabled={recipeSaving} onClick={saveRecipe}><Check size={17}/>{recipeSaving ? "正在保存…" : "确认保存到菜品库"}</button></footer>}
         <footer className="site-footer">
           {"食光 SHIGUANG "}
           <span>一餐一饭，皆是生活。</span>
@@ -1578,17 +1629,20 @@ function App() {
         await saveState({...latestState.current,storageRules:rules});
         setStorageRules(rules);toast.success('保质期规则已保存');
       }}/>}
-      {compact && !editingRecipe && !recognition && !showSettings && <nav className="mobile-bottom-nav" aria-label="主导航">
+      {compact && !editingRecipe && !recognition && !showSettings && !reviewWeek && <nav className="mobile-bottom-nav" aria-label="主导航">
         {[[0,"点单",Utensils],[4,"冰箱",Refrigerator],[2,"菜篮子",ShoppingBasket],[3,"周菜单",CalendarDays],[1,"菜谱",BookOpen]].map(([index,label,Icon]) => <button key={index} aria-current={page === index && !showSettings ? "page" : undefined} onClick={() => navigate(index)}><span><Icon size={22}/></span>{label}</button>)}
       </nav>}
-      {reminder?.settings.inApp&&reminder.pendingWeek&&<aside className="reminder-banner" role="status"><span>{reminder.pendingWeek} 起这一周的菜单营养待回顾</span><button className="text-link" onClick={()=>setReviewWeek(reminder.pendingWeek)}>查看营养回顾</button></aside>}
-      <Dialog open={!!reviewWeek} onOpenChange={open=>!open&&setReviewWeek(null)}>
-        <DialogContent layout="page" className="app-dialog nutrition-dialog"><DialogTitle>菜单营养回顾</DialogTitle><DialogDescription className="sr-only">当前所选一周的菜单预计营养</DialogDescription>
+      {!reviewWeek&&reminder?.settings.inApp&&reminder.pendingWeek&&<aside className="reminder-banner" role="status"><span>{reminder.pendingWeek} 起这一周的菜单营养待回顾</span><button className="text-link" onClick={()=>setReviewWeek(reminder.pendingWeek)}>查看营养回顾</button></aside>}
+      {reviewWeek&&<section className="nutrition-page" aria-label="菜单营养回顾">
+        <div className="nutrition-page-shell">
+          <header className="nutrition-page-header"><button type="button" className="mobile-icon" aria-label="返回周菜单" onClick={()=>setReviewWeek(null)}><ArrowLeft size={22}/></button><h1 ref={reviewHeading} tabIndex={-1}>菜单营养回顾</h1></header>
+          <div className="nutrition-page-body">
           {reviewWeek&&<NutritionPanel key={reviewWeek} week={reviewWeek} plan={weeks[reviewWeek]||{}} report={nutritionReports[reviewWeek]}
             onSavePlan={async(next,expected)=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==expected)throw new Error('菜单已改变，请重试');const before=structuredClone(latestState.current),updated={...before.weeks,[reviewWeek]:next};await saveState({...before,weeks:updated});if(JSON.stringify(latestState.current)!==JSON.stringify(before)){await saveState(latestState.current);throw new Error('保存期间数据已改变，请重试；本地修改保留');}setWeeks(updated);}}
             onSaveReport={async report=>{if(weekNutritionInput(latestState.current.weeks[reviewWeek]||{})!==report.inputFingerprint)throw new Error('菜单已改变，请重新生成');const before=structuredClone(latestState.current),updated={...before.nutritionReports,[reviewWeek]:report};await saveState({...before,nutritionReports:updated});if(JSON.stringify(latestState.current)!==JSON.stringify(before)){await saveState(latestState.current);throw new Error('保存期间数据已改变，请重试；原报告保留');}setNutritionReports(updated);}}/>}
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      </section>}
       <Dialog open={!!modal} onOpenChange={(open) => {if(!open && !stockSaving){if(modal==="detail" && detailOrigin){setModal(detailOrigin);setDetailOrigin("");}else setModal("");}}}>
         <DialogContent layout={modal === "clear" ? undefined : "page"} className={`app-dialog ${modal==='stock'?'stock-dialog':''} ${modal==='detail'?'recipe-detail-dialog':''} ${modal==='clear'?'confirm-dialog':''}`} aria-busy={stockSaving}
           footer={modal === "detail" ? <button className="primary" onClick={()=>{changeQuantity(activeRecipe.id,1);toast.success("已加入点单清单");}}>＋ 加入菜单</button>
@@ -1620,17 +1674,13 @@ function App() {
           {modal === "detail" && activeRecipe && (
             <>
               <div className="detail-overview">
-                {activeRecipe.image && <button className="detail-photo" aria-label="查看菜谱大图" onClick={()=>setPreviewImage(true)}><img src={activeRecipe.image} alt={activeRecipe.name}/></button>}
+                {hasUsableImage(activeRecipe.image) && <button className="detail-photo" aria-label="查看菜谱大图" onClick={()=>setPreviewImage(true)}><img src={activeRecipe.image} alt={activeRecipe.name}/></button>}
+                {isMissingLocalImage(activeRecipe.image)&&<p role="status">原图片暂时无法读取，菜谱文字仍可查看。</p>}
                 <div><strong>{activeRecipe.category}</strong><p>{[activeRecipe.time > 0 && `${activeRecipe.time} 分钟`,activeRecipe.weight > 0 && `每份约 ${activeRecipe.weight} g`].filter(Boolean).join(" · ")}</p></div>
               <details className="detail-more"><summary>更多操作</summary><div className="actions">
                 <button
                   className="outline"
-                  onClick={() => {
-                    setRecipeDraft(structuredClone(activeRecipe));
-                    setModal("");
-                    navigate(1);
-                    setEditingRecipe(true);
-                  }}
+                  onClick={() => editRecipe(activeRecipe)}
                 >
                   编辑菜谱
                 </button>
@@ -1827,7 +1877,7 @@ function App() {
               </button></details>
             </>
           )}
-          <Dialog open={previewImage && modal === "detail"} onOpenChange={setPreviewImage}><DialogContent className="app-dialog image-preview-dialog"><DialogTitle>菜谱图片</DialogTitle><DialogDescription className="sr-only">{activeRecipe?.name}</DialogDescription><img src={activeRecipe?.image} alt={activeRecipe?.name}/></DialogContent></Dialog>
+          <Dialog open={previewImage && modal === "detail" && hasUsableImage(activeRecipe?.image)} onOpenChange={setPreviewImage}><DialogContent className="app-dialog image-preview-dialog"><DialogTitle>菜谱图片</DialogTitle><DialogDescription className="sr-only">{activeRecipe?.name}</DialogDescription><img src={hasUsableImage(activeRecipe?.image)?activeRecipe.image:undefined} alt={activeRecipe?.name}/></DialogContent></Dialog>
           {confirmation}
         </DialogContent>
       </Dialog>

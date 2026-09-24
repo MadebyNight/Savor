@@ -1,10 +1,11 @@
-"""设置单行导航与目标周营养回顾的视觉、日期及返回回归。"""
+"""设置分组首页与目标周营养回顾二级页的布局、日期及返回回归。"""
 import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / '.android-tools/device-logs'
+OUT.mkdir(parents=True, exist_ok=True)
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True, executable_path=str(ROOT / '.android-tools/playwright/chromium-1223/chrome-win64/chrome.exe'))
     page = browser.new_page(viewport={'width': 390, 'height': 844})
@@ -32,18 +33,17 @@ with sync_playwright() as p:
         page.get_by_role('button', name=name, exact=True).click()
 
     click('设置与备份')
-    tabs = page.get_by_role('navigation', name='设置分页')
     for width, font in [(390, 14), (320, 20)]:
         page.set_viewport_size({'width': width, 'height': 844})
         page.evaluate('(size)=>document.documentElement.style.fontSize=size+"px"', font)
-        boxes = [button.bounding_box() for button in tabs.get_by_role('button').all()]
-        assert max(box['y'] for box in boxes) - min(box['y'] for box in boxes) < 1
-        if width == 320: assert tabs.evaluate('e=>e.scrollWidth>e.clientWidth')
+        for label in ['AI 配置', '备份恢复', '坚果云同步', '营养周报提醒']:
+            expect(page.get_by_role('button', name=label, exact=True)).to_be_visible()
         click('营养周报提醒')
-        expect(tabs.get_by_role('button', name='营养周报提醒')).to_have_attribute('aria-current', 'page')
-        if tabs.evaluate('e=>e.scrollWidth>e.clientWidth'): assert tabs.evaluate('e=>e.scrollLeft>0')
+        expect(page.get_by_role('button', name='返回', exact=True)).to_be_visible()
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
-        page.screenshot(path=str(OUT / f'settings-single-row-{width}.png'))
+        page.screenshot(path=str(OUT / f'settings-detail-{width}.png'))
+        page.evaluate("window.dispatchEvent(new Event('shiguang:back',{cancelable:true}))")
+        expect(page.get_by_role('button', name='AI 配置', exact=True)).to_be_visible()
     page.evaluate("document.documentElement.style.fontSize='14px'")
     page.set_viewport_size({'width': 390, 'height': 844})
     page.evaluate("window.dispatchEvent(new Event('shiguang:back',{cancelable:true}))")
@@ -54,13 +54,15 @@ with sync_playwright() as p:
     page.locator('.nutrition-review-entry').scroll_into_view_if_needed()
     page.screenshot(path=str(OUT / 'nutrition-entry.png'))
     click('本周菜单营养回顾')
-    review = page.locator('.nutrition-dialog').first
-    review.evaluate('async e=>{await Promise.all(e.getAnimations().map(a=>a.finished))}')
+    review = page.locator('.nutrition-page')
+    expect(review).to_be_visible()
+    expect(review.get_by_role('heading', name='菜单营养回顾')).to_be_focused()
     expect(page.locator('.review-period')).to_contain_text(target['week'])
     expect(page.locator('.review-advice-date')).to_contain_text(target['next'])
     expect(page.locator('.review-dates button')).to_have_count(7)
     expect(page.get_by_text('参考数据与估算限制', exact=True)).to_have_count(0)
     expect(page.get_by_text('尚未计入的食材', exact=False)).to_have_count(0)
+    assert review.evaluate("e=>!!(e.querySelector('.review-daily').compareDocumentPosition(e.querySelector('.review-advice')) & Node.DOCUMENT_POSITION_FOLLOWING)")
     for day, date in enumerate(target['dates']):
         click(date)
         expect(page.get_by_role('button', name=date, exact=True)).to_have_attribute('aria-pressed', 'true')
@@ -73,14 +75,15 @@ with sync_playwright() as p:
         assert review.evaluate('e=>e.scrollWidth<=e.clientWidth+1')
         assert page.locator('.review-dates button').count()==7
         assert page.locator('.review-dates').evaluate('e=>getComputedStyle(e).overflowX==="auto"')
-        review.locator('.dialog-page-body').evaluate('e=>e.scrollTop=0')
+        review.locator('.nutrition-page-body').evaluate('e=>e.scrollTop=0')
         page.screenshot(path=str(OUT / f'nutrition-review-{width}.png'))
     click('高级计算')
     expect(page.get_by_role('dialog', name='高级计算', exact=True)).to_be_visible()
     page.evaluate("window.dispatchEvent(new Event('shiguang:back',{cancelable:true}))")
     expect(page.locator('.nutrition-advanced')).to_have_count(0)
     expect(page.get_by_role('button', name=target['dates'][-1], exact=True)).to_have_attribute('aria-pressed', 'true')
-    click('关闭弹窗')
+    click('返回周菜单')
+    expect(review).to_have_count(0)
     page.locator('.week-picker summary').click()
     click('下一周')
     page.locator('.week-picker summary').click()
@@ -91,4 +94,4 @@ with sync_playwright() as p:
     expect(page.locator('.review-day-content')).to_contain_text('暂无菜单')
     assert not errors, errors
     browser.close()
-print('PASS review layout: single-row settings, seven target dates, daily totals, historical week, advanced back, empty week, large font')
+print('PASS review layout: grouped settings, seven target dates, daily totals, historical week, advanced back, empty week, large font')

@@ -27,12 +27,12 @@ with sync_playwright() as p:
  assert 'weekEnd' in requests[0]['messages'][1]['content']
  assert '未知数据不能当零' in requests[0]['messages'][0]['content']
  assert '不要罗列全部营养指标' in requests[0]['messages'][0]['content']
- click('关闭弹窗');page.reload(wait_until='domcontentloaded');page.get_by_role('navigation',name='主导航').get_by_role('button',name='周菜单',exact=True).click();click('本周菜单营养回顾')
+ click('返回周菜单');page.reload(wait_until='domcontentloaded');page.get_by_role('navigation',name='主导航').get_by_role('button',name='周菜单',exact=True).click();click('本周菜单营养回顾')
  expect(page.get_by_text('测试周报：部分估算，下周可补齐食材。',exact=True)).to_be_visible()
- click('高级计算');page.get_by_text('番茄测试 · 6-夜宵 · 2份',exact=True).click();page.get_by_label('番茄可食克重',exact=True).fill('200');click('返回营养回顾');expect(page.locator('.nutrition-advanced')).to_have_count(0);expect(page.get_by_text('菜单已改变，以下建议待更新',exact=True)).to_be_visible()
+ click('高级计算');page.locator('.nutrition-advanced details > summary').filter(has_text='番茄测试').click();page.get_by_label('番茄可食克重',exact=True).fill('200');click('关闭弹窗');expect(page.locator('.nutrition-advanced')).to_have_count(0);expect(page.get_by_text('菜单已改变，以下建议待更新',exact=True)).to_be_visible()
  click('更新下周建议');click('同意生成');expect(page.get_by_role('alert')).to_contain_text('请先在设置保存 AI Key')
  expect(page.get_by_text('测试周报：部分估算，下周可补齐食材。',exact=True)).to_be_visible()
- click('高级计算');page.get_by_text('番茄测试 · 6-夜宵 · 2份',exact=True).click()
+ click('高级计算');page.locator('.nutrition-advanced details > summary').filter(has_text='番茄测试').click()
  # Supplement has a separate consent boundary, preserves local values and ignores late replies.
  page.evaluate("async()=>{const {setSecret}=await import('/src/storage.js');await setSecret('ai','test-only');}")
  page.unroute('**/chat/completions');pending=[]
@@ -48,8 +48,8 @@ with sync_playwright() as p:
  click('AI 补充缺失项');click('同意估算');page.get_by_role('button',name='取消估算',exact=True).wait_for()
  route=pending.pop();payload=route.request.post_data_json;assert len(__import__('json').loads(payload['messages'][1]['content'])['items'])==1
  route.fulfill(json={'choices':[{'message':{'content':'{"items":[{"index":1,"values":{"energyKcal":100,"proteinG":0}}]}'},'finish_reason':'stop'}]})
- expect(page.get_by_role('region',name='本周计算详情')).to_contain_text('AI 补充估算')
- click('返回营养回顾');expect(page.locator('.nutrition-advanced')).to_have_count(0)
+ page.locator('.nutrition-advanced .advanced-summary summary').click();expect(page.locator('.nutrition-advanced .advanced-summary')).to_contain_text('AI 补充估算')
+ click('关闭弹窗');expect(page.locator('.nutrition-advanced')).to_have_count(0)
  # A cancelled or failed replacement never removes the saved report.
  click('更新下周建议');click('同意生成');page.get_by_role('button',name='取消生成',exact=True).wait_for();click('取消生成')
  pending.pop().fulfill(json={'choices':[{'message':{'content':'{"reportText":"不应写入的迟到报告"}'},'finish_reason':'stop'}]})

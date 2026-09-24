@@ -486,11 +486,12 @@ small {
   height: 25px;
 }
 .counter .plus {
-  background: #f9cf52;
-  border: 0;
+  background: #eff1e8;
+  border: 1px solid #dce2d2;
   width: 29px;
   height: 29px;
 }
+.counter .plus.is-selected { background:#f9cf52; border-color:#f9cf52; }
 .data-note {
   color: #a3a896;
   margin: 18px 0;
@@ -1525,9 +1526,6 @@ small {
   }
 }
 .settings-panel { min-width:0; display: grid; gap: 14px; margin-bottom: 24px; }
-.settings-panel .settings-pages { display:flex; flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; min-width:0; scrollbar-width:thin; gap: 4px; padding: 4px; background: #eeeee6; border-radius: 14px; }
-.settings-pages button { flex:0 0 auto; white-space:nowrap; min-width: 0; min-height: 48px; padding: 10px 18px; border: 0; border-radius: 10px; background: transparent; color: #626456; font-size: 13px; line-height: 1.4; }
-.settings-pages button[aria-current=page] { background: #ffdb79; color: #3a3322; font-weight: 700; }
 
 .settings-panel .settings-page { min-width: 0; }
 .settings-panel .settings-page[hidden],.settings-panel input[hidden] { display: none; }
@@ -1723,25 +1721,42 @@ html [data-sonner-toaster][data-sonner-theme] {
 .category-suggestions button { padding:6px 10px; min-height:36px; border:0; border-radius:12px; background:#f3f4ef; color:#59664d; }
 .stock-status-filter .picker-trigger { width:auto; max-width:70%; }
 
-/* 营养回顾：首页保留建议和单日概览，计算细节进入次级页面。 */
+/* 营养回顾：已有估算先于按需生成的 AI 建议。 */
 .nutrition-review-entry { width:100%; min-height:82px; display:flex; justify-content:flex-start; gap:14px; padding:16px; margin:12px 0; border:1px solid #d9dfcc; border-radius:18px; background:linear-gradient(110deg,#edf1e6,#f9f5e7); color:#35472c; text-align:left; }
 .nutrition-review-entry .review-entry-icon { display:grid; place-items:center; width:44px; height:44px; flex-shrink:0; border-radius:14px; background:#fffaf0; }
 .nutrition-review-entry > span:nth-child(2) { display:grid; gap:5px; flex:1; min-width:0; }
 .nutrition-review-entry strong { font-size:1.07rem; }
 .nutrition-review-entry small { font-size:.86rem; color:#727965; }
 .nutrition-review-entry > svg { flex-shrink:0; }
+.nutrition-page { position:fixed; inset:0; z-index:46; display:flex; justify-content:center; overflow:hidden; background:#e9ede4; }
+.nutrition-page-shell { display:flex; flex-direction:column; width:min(100%,720px); min-height:0; background:var(--surface,#faf9f5); box-shadow:0 0 28px #30422e18; }
+.nutrition-page-header { flex:none; display:flex; align-items:center; gap:8px; min-height:56px; padding:max(2px,env(safe-area-inset-top)) 12px 2px; border-bottom:1px solid var(--chrome-line,#dce2d2); background:var(--chrome,#eef1e7); }
+.nutrition-page-header button { flex:none; width:48px; height:48px; min-height:48px; }
+.nutrition-page-header h1 { margin:0; color:var(--heading-ink,#30422e); font-size:1.15rem; line-height:1.4; }
+.nutrition-page-body { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:16px 18px max(24px,env(safe-area-inset-bottom)); }
+.nutrition-page-body > .nutrition-panel { max-width:600px; margin:auto; }
 .app-dialog.nutrition-dialog { --tw-translate-x:0px !important; --tw-translate-y:0px !important; inset:0 !important; margin:auto !important; transform:none !important; translate:none; width:calc(100% - 24px) !important; height:fit-content; max-width:600px !important; max-height:calc(100dvh - 32px) !important; padding:20px !important; overflow-y:auto; overscroll-behavior:contain; background:#fcfcf9; }
 .nutrition-dialog > [data-slot=dialog-description] { display:none; }
 .nutrition-panel { gap:20px; }
 .review-period { display:grid; gap:5px; padding-bottom:4px; }
 .review-period > span,.review-period p { font-size:.85rem; color:#787c72; }
 .review-period strong { font-size:1rem; font-weight:500; font-variant-numeric:tabular-nums; }
+.review-overview { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:14px 16px; border:1px solid #e1e6da; border-radius:14px; background:#f1f3ec; }
+.review-overview > div { display:grid; gap:4px; min-width:0; }
+.review-overview small { color:#687463; font-size:.86rem; }
+.review-overview strong { color:#3f5134; font-size:1rem; font-weight:600; }
 .review-section-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
 .review-section-heading h3 { display:flex; align-items:center; gap:7px; margin:0; font-size:1.07rem; }
-.review-status { border-radius:6px; padding:3px 7px; background:#ebeee4; color:#637253; font-size:.78rem; white-space:nowrap; }
-.review-advice { display:grid; gap:14px; padding:18px; border:1px solid #e7dbac; border-radius:16px; background:#faf5e4; }
-.review-advice .primary { justify-self:start; font-size:.93rem; }
+.review-status { border-radius:6px; padding:3px 7px; background:#ebeee4; color:#637253; font-size:.86rem; white-space:nowrap; }
+.review-advice { display:grid; gap:12px; padding:16px; border:1px solid #e7dbac; border-radius:16px; background:#faf5e4; }
+.nutrition-panel .review-advice.empty-advice { border-color:#e1e6da; background:#f6f7f2; }
 .review-advice p { line-height:1.8; }
+.review-advice-empty { margin:0; color:#687463; font-size:.9rem; }
+.review-advice-action { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:56px; padding:9px 12px; border:1px solid #d8dfcf; border-radius:11px; background:#fff; color:#455b3c; text-align:left; }
+.review-advice-action > span { display:grid; gap:2px; font-weight:600; }
+.review-advice-action small { color:#687463; font-size:.86rem; font-weight:400; }
+.review-advice-action svg { flex:none; }
+.review-advice-action:disabled { opacity:.6; cursor:not-allowed; }
 .review-advice-date { font-size:.85rem; color:#78765f; }
 .review-report { display:grid; gap:12px; font-size:1rem; overflow-wrap:anywhere; }
 .review-report.is-outdated { color:#747566; }
@@ -1803,6 +1818,7 @@ html [data-sonner-toaster][data-sonner-theme] {
 .page-2 .shopping-card.is-purchased h3 { text-decoration:line-through; color:#7a8272; }
 .page-2 .shopping-card strong { text-align:right; overflow-wrap:anywhere; }
 .page-2 .shopping-card .shopping-stock-note { color:#737c68; overflow-wrap:anywhere; line-height:1.7; }
+.page-2 .shopping-card .shopping-category { color:#737c68; font-size:.78rem; }
 .page-2 .shopping-card .shopping-stock-reason span { display:inline-block; margin:3px 0; padding:2px 5px; border-radius:4px; background:#f5eddb; color:#866323; font-size:11px; }
 @media(max-width:360px) { .stock-add-actions button { flex-direction:column; gap:4px; } }
 

@@ -333,6 +333,21 @@ export default function NutritionPanel({
   const summary = summarizeNutrition(plan),
     input = weekNutritionInput(plan),
     outdated = report && report.inputFingerprint !== input;
+  const plannedDays = Array.from({ length: 7 }, (_, d) =>
+    plannedItems(plan, d).length,
+  ).filter(Boolean).length;
+  const estimateStatus = !summary.recipes
+    ? "暂无"
+    : Object.values(summary.values).every((value) => value === null)
+      ? "尚未计算"
+      : summary.missing.length
+        ? "部分估算"
+        : "已估算";
+  const adviceActionLabel = busy
+    ? "正在生成建议…"
+    : report
+      ? "更新下周建议"
+      : "生成下周建议";
   async function generate() {
     if (running.current) return;
     running.current = true;
@@ -385,59 +400,10 @@ export default function NutritionPanel({
         </strong>
 
       </header>
-      <section className={`review-advice ${report ? "" : "empty-advice"}`} aria-label="下周建议">
-        <div className="review-section-heading">
-          <h3>
-            <Sparkles size={18} /> 下周怎么安排
-          </h3>
-          <span className="review-status">AI 建议</span>
-        </div>
-        {report ? (
-          <>
-            <p className="review-advice-date">
-              面向 {dayAt(week, 7)} — {dayAt(week, 13)}
-            </p>
-            {outdated && (
-              <p className="review-outdated" role="status">
-                菜单已改变，以下建议待更新
-              </p>
-            )}
-            <div
-              className={
-                outdated ? "review-report is-outdated" : "review-report"
-              }
-            >
-              {report.reportText
-                .split(/\n\s*\n|\n/)
-                .filter((line) => line.trim())
-                .map((line, index) => (
-                  <p key={index}>{line}</p>
-                ))}
-            </div>
-          </>
-        ) : !summary.recipes ? <p>这一周暂无菜单</p> : null}
-        <button
-          className="primary"
-          disabled={busy || !summary.recipes}
-          onClick={generate}
-        >
-          {busy ? "正在生成建议…" : report ? "更新下周建议" : "生成下周建议"}
-          <ArrowUpRight size={16} />
-        </button>
-        {busy && (
-          <button
-            className="text-link"
-            onClick={() => {
-              token.current++;
-              running.current = false;
-              setBusy(false);
-            }}
-          >
-            取消生成
-          </button>
-        )}
-        {error && <p role="alert">{error}</p>}
-      </section>
+      <div className="review-overview" aria-label="本周概览">
+        <div><small>已安排</small><strong>{plannedDays} 天</strong></div>
+        <div><small>估算状态</small><strong>{estimateStatus}</strong></div>
+      </div>
       <section className="review-daily" aria-label="每日营养">
         <div className="review-section-heading">
           <h3>每日营养</h3>
@@ -486,6 +452,61 @@ export default function NutritionPanel({
         <summary>查看这一周的营养合计</summary>
         <ReviewValues summary={summary} title="本周预计营养" />
       </details>
+      <section className={`review-advice ${report ? "" : "empty-advice"}`} aria-label="下周建议">
+        <div className="review-section-heading">
+          <h3><Sparkles size={18} /> 下周建议</h3>
+          <span className="review-status">AI 建议</span>
+        </div>
+        {report ? (
+          <>
+            <p className="review-advice-date">
+              面向 {dayAt(week, 7)} — {dayAt(week, 13)}
+            </p>
+            {outdated && (
+              <p className="review-outdated" role="status">
+                菜单已改变，以下建议待更新
+              </p>
+            )}
+            <div className={outdated ? "review-report is-outdated" : "review-report"}>
+              {report.reportText
+                .split(/\n\s*\n|\n/)
+                .filter((line) => line.trim())
+                .map((line, index) => <p key={index}>{line}</p>)}
+            </div>
+          </>
+        ) : (
+          <p className="review-advice-empty">
+            {summary.recipes
+              ? "尚未生成；每日预计营养已可离线查看。"
+              : "先安排菜单，再按需生成建议。"}
+          </p>
+        )}
+        <button
+          type="button"
+          className="review-advice-action"
+          aria-label={adviceActionLabel}
+          disabled={busy || !summary.recipes}
+          onClick={generate}
+        >
+          <span>{adviceActionLabel}
+            <small>发送前仍会确认</small>
+          </span>
+          <ArrowUpRight size={18} />
+        </button>
+        {busy && (
+          <button
+            className="text-link"
+            onClick={() => {
+              token.current++;
+              running.current = false;
+              setBusy(false);
+            }}
+          >
+            取消生成
+          </button>
+        )}
+        {error && <p role="alert">{error}</p>}
+      </section>
       <button
         type="button"
         className="review-advanced-entry"

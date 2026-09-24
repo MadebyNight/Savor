@@ -117,7 +117,7 @@ with sync_playwright() as p:
         page.get_by_label('搜索菜品',exact=True).fill('V1.1验收食材')
         expect(page.locator('.recipe-card')).to_have_count(1)
         click('添加V1.1验收临时菜');click('添加V1.1验收临时菜')
-        page.get_by_role('button',name='确认我的菜单',exact=False).click()
+        page.get_by_role('button',name='确认选菜',exact=False).click()
         page.get_by_role('dialog').get_by_role('button',name='确认并同步',exact=False).click()
         wait_state('s.confirmedRecipes.some(r=>r.name==="V1.1验收临时菜" && s.confirmed[r.id]===2)')
         report['checks'].append('搜索食材、选菜两份、确认采购快照')

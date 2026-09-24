@@ -23,7 +23,7 @@ with sync_playwright() as p:
         for button in page.locator('.recipe-card .counter button').all():
             box=button.bounding_box();assert box['width']>=48 and box['height']>=48
         assert page.locator('.recipe-section').bounding_box()['y']+page.locator('.recipe-section').bounding_box()['height']<=page.locator('.selection-bar').bounding_box()['y']
-    click('确认我的菜单');expect(page.get_by_role('dialog')).to_be_visible();click('关闭弹窗')
+    click('确认选菜');expect(page.get_by_role('dialog')).to_be_visible();click('关闭弹窗')
     page.set_viewport_size({'width':320,'height':680})
     for name in ['点单','菜谱','菜篮子','周菜单','冰箱']:
         nav(name)

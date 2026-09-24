@@ -6,9 +6,15 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
 import { defaultAI,testAIConnection,backup,validateBackup } from '../services.js';
-export default function SettingsPanel({state,onRestore,onSyncTarget}) {
+import { ArrowLeft, Bell, ChevronRight, Cloud, DatabaseBackup, Sparkles } from 'lucide-react';
+const settingsEntries=[
+  ['ai','AI 配置','模型、接口与凭据',Sparkles],
+  ['backup','备份恢复','导出与导入本地数据',DatabaseBackup],
+  ['sync','坚果云同步','手动同步与冲突处理',Cloud],
+  ['reminders','营养周报提醒','应用内与系统通知',Bell],
+];
+export default function SettingsPanel({state,onRestore,onSyncTarget,page='home',onPageChange}) {
   const backupInput=useRef(null);
-  const [page,setPage] = useState('ai');
   const [ask, confirmation] = useConfirm();
   const [config,setConfig] = useState(defaultAI);
   const [key,setKey] = useState('');
@@ -47,11 +53,15 @@ export default function SettingsPanel({state,onRestore,onSyncTarget}) {
     try {const incoming=validateBackup(JSON.parse(await file.text()));if(!(await ask('恢复将整体替换当前业务数据，应用会先保留恢复前备份。',{title:'恢复备份？',label:'确认恢复',danger:true})))return;await setPreference('before-restore',backup(state));await onRestore(incoming);toast.success('备份已恢复');}catch(e){toast.error(e.message);}
   }
   return <div className="panel settings-panel">
-    <h2>设置与数据</h2>
-    <nav className="settings-pages" aria-label="设置分页">
-      {[['ai','AI 配置'],['backup','备份恢复'],['sync','坚果云同步'],['reminders','营养周报提醒']].map(([id,label])=><button key={id} type="button" aria-current={page===id?'page':undefined} aria-controls={`settings-${id}`} onClick={event=>{setPage(id);event.currentTarget.scrollIntoView({block:"nearest",inline:"nearest"});}}>{label}</button>)}
+    <h2 className="settings-home-heading" hidden={page!=='home'}>设置与数据</h2>
+    <nav className="settings-home" aria-label="设置首页" hidden={page!=='home'}>
+      <p className="settings-group-title">功能与数据</p>
+      {settingsEntries.slice(0,3).map(([id,label,detail,Icon])=><button className="settings-entry" key={id} type="button" aria-label={label} aria-describedby={`settings-${id}-description`} aria-controls={`settings-${id}`} onClick={()=>onPageChange(id)}><span className="settings-entry-icon"><Icon size={20} strokeWidth={1.8}/></span><span className="settings-entry-copy"><strong>{label}</strong><small id={`settings-${id}-description`}>{detail}</small></span><ChevronRight className="settings-entry-arrow" size={20}/></button>)}
+      <p className="settings-group-title">提醒</p>
+      {settingsEntries.slice(3).map(([id,label,detail,Icon])=><button className="settings-entry" key={id} type="button" aria-label={label} aria-describedby={`settings-${id}-description`} aria-controls={`settings-${id}`} onClick={()=>onPageChange(id)}><span className="settings-entry-icon"><Icon size={20} strokeWidth={1.8}/></span><span className="settings-entry-copy"><strong>{label}</strong><small id={`settings-${id}-description`}>{detail}</small></span><ChevronRight className="settings-entry-arrow" size={20}/></button>)}
     </nav>
-    {page==='reminders'&&<ReminderSettings/>}
+    <div className="settings-detail-header" hidden={page==='home'}><button type="button" className="outline" onClick={()=>onPageChange('home')}><ArrowLeft size={18}/>返回设置</button><h2>{settingsEntries.find(([id])=>id===page)?.[1]}</h2></div>
+    <section id="settings-reminders" className="settings-page" hidden={page!=='reminders'} aria-label="营养周报提醒"><ReminderSettings/></section>
     <section id="settings-ai" className="settings-page" hidden={page!=='ai'} aria-label="AI 配置">
 
     <label>接口地址<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
