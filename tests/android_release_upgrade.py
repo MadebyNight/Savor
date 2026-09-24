@@ -20,15 +20,20 @@ ROOT=Path(__file__).resolve().parents[1]
 ADB=ROOT/'.android-tools/sdk/platform-tools/adb.exe'
 SERIAL=os.environ.get('ANDROID_SERIAL','ea767f86')
 PACKAGE='com.shiguang.mealplanner'
-APK=Path(os.environ['ANDROID_RELEASE_APK']).resolve()
+# Keep a workspace-relative APK path for adb install on Windows: its Unicode absolute path failed on an earlier device run.
+APK=Path(os.environ['ANDROID_RELEASE_APK'])
+assert APK.is_file(), 'Release APK not found; run this script from the workspace root for relative paths'
 OUT=(ROOT/'.android-tools/device-logs'/os.environ['ANDROID_RELEASE_DIR']).resolve()
 assert OUT.is_relative_to((ROOT/'.android-tools/device-logs').resolve())
 assert not OUT.exists(), 'Use a fresh release evidence directory'
 OUT.mkdir()
 SIGNER=ROOT/'.android-tools/sdk/build-tools/36.0.0/lib/apksigner.jar'
+AAPT=ROOT/'.android-tools/sdk/build-tools/36.0.0/aapt.exe'
 JAVA=next((ROOT/'.android-tools/jdk21').glob('*/bin/java.exe'))
 PORT='9236'
 EXPECTED='82822576f8ce89e9029d3246e5dee0f988af129389333426ebeae9253a0eae9e'
+VERSION_NAME='2.0.1'
+VERSION_CODE=7
 def adb(*args):
     return subprocess.run([str(ADB),'-s',SERIAL,*args],check=True,capture_output=True,timeout=120).stdout
 def certificate(path):
@@ -62,6 +67,8 @@ def state(page):
     return json.loads(page.evaluate('Capacitor.Plugins.LocalData.loadState().then(r=>r.value)'))
 
 assert certificate(APK)==EXPECTED,'New APK certificate mismatch'
+badging=subprocess.run([str(AAPT),'dump','badging',str(APK)],check=True,capture_output=True).stdout.decode(errors='replace')
+assert re.search(rf"^package: name='{re.escape(PACKAGE)}' versionCode='{VERSION_CODE}' versionName='{re.escape(VERSION_NAME)}'",badging,re.M),'New APK package or version mismatch'
 with zipfile.ZipFile(APK) as apk:
     files=[f for f in (ROOT/'dist').rglob('*') if f.is_file()]
     assert all(apk.read('assets/public/'+f.relative_to(ROOT/'dist').as_posix())==f.read_bytes() for f in files)
@@ -119,10 +126,10 @@ with sync_playwright() as p:
         assert before_files==after_files,'Private images/files or encrypted credentials changed'
         assert preferences(private_before)==preferences(private_after),'User preferences changed'
         version=adb('shell','dumpsys','package',PACKAGE).decode()
-        assert 'versionCode=6 ' in version and 'versionName=1.2.3' in version
+        assert f'versionCode={VERSION_CODE} ' in version and f'versionName={VERSION_NAME}' in version
         report.update(businessHashBefore=digest(before_core),businessHashAfter=digest(after_core),
             onlyExpectedCategoryMigration=True,privateFilesAndEncryptedCredentialsUnchanged=True,
-            userPreferencesUnchanged=True,coldStartPreserved=True,version='1.2.3',versionCode=6,
+            userPreferencesUnchanged=True,coldStartPreserved=True,version=VERSION_NAME,versionCode=VERSION_CODE,
             allowedRuntimeFileChange='files/profileInstalled')
         print('PASS: in-place upgrade, original business data/images/encrypted credentials, expected category migration, cold start, UI alignment',flush=True)
     finally:
