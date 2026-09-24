@@ -26,8 +26,7 @@ with sync_playwright() as p:
     nav('周菜单');page.locator('.week-dates button').first.click()
     expect(page.locator('.week-summary')).to_contain_text('10 道菜')
     assert page.locator('.week-heading').bounding_box()['y'] < page.locator('.week-dates').bounding_box()['y'] < page.locator('.week-summary').bounding_box()['y']
-    click('安排菜品');page.get_by_label('安排餐次',exact=True).click();page.locator('.picker-options').get_by_role('button',name='夜宵',exact=True).click()
-    expect(page.locator('.picker-dialog')).to_have_count(0)
+    click('安排菜品');page.get_by_role('dialog',name='安排哪一餐').get_by_role('button',name='夜宵',exact=True).click()
     expect(page.get_by_role('dialog')).to_contain_text('夜宵 · 管理菜品');click('关闭弹窗')
     page.locator('.week-picker > summary').click()
     previous=page.get_by_label('当前周',exact=True).get_attribute('value')
@@ -43,6 +42,7 @@ with sync_playwright() as p:
             rect=box.bounding_box();assert rect['y']>=0 and rect['y']+rect['height']<bottom,(width,rect,bottom)
         page.screenshot(path=str(OUT/f'five-meals-{width}.png'))
     expect(page.get_by_role('region',name='当日预计营养')).to_contain_text('未估算')
+    assert page.get_by_role('region',name='当日预计营养').bounding_box()['y'] < page.get_by_role('button',name='本周菜单营养回顾').bounding_box()['y']
     click('安排周1下午茶餐');page.get_by_label('酸奶餐次份数').fill('2');click('关闭弹窗')
     expect(page.locator('.meal-table-dishes').filter(has_text='酸奶')).to_contain_text('×2')
     click('一周总览');expect(page.locator('.meal-table-row')).to_have_count(35)

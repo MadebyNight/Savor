@@ -56,6 +56,25 @@ with sync_playwright() as playwright:
     expect(page.get_by_role('dialog', name='早餐 · 管理菜品')).to_be_visible()
     page.evaluate('window.dispatchEvent(new Event("shiguang:back", {cancelable: true}))')
     expect(page.get_by_role('dialog')).to_have_count(0)
+    page.get_by_role('button', name='历史', exact=True).click()
+    history = page.get_by_role('dialog', name='膳食日历')
+    assert history.evaluate('element => element.scrollWidth <= element.clientWidth + 1')
+    page.screenshot(path=str(ROOT / '.android-tools/device-logs/ux-week-history-320.png'))
+    page.get_by_role('button', name='查看旧版番茄蛋做法', exact=True).click()
+    archived_snapshot = page.get_by_role('dialog', name='旧版番茄蛋')
+    expect(archived_snapshot).to_contain_text('按旧做法慢炒。')
+    page.evaluate('window.dispatchEvent(new Event("shiguang:back", {cancelable: true}))')
+    expect(archived_snapshot).to_have_count(0)
+    expect(history).to_be_visible()
+    page.evaluate('window.dispatchEvent(new Event("shiguang:back", {cancelable: true}))')
+    expect(history).to_have_count(0)
+    page.set_viewport_size({'width': 1200, 'height': 800})
+    page.locator('.week-grid').get_by_role('button', name='查看旧版番茄蛋做法', exact=True).click()
+    desktop_snapshot = page.get_by_role('dialog', name='旧版番茄蛋')
+    expect(desktop_snapshot).to_contain_text('旧配方番茄')
+    page.screenshot(path=str(ROOT / '.android-tools/device-logs/ux-week-desktop-snapshot.png'))
+    page.evaluate('window.dispatchEvent(new Event("shiguang:back", {cancelable: true}))')
+    expect(desktop_snapshot).to_have_count(0)
     assert page.evaluate('''() => {
       const {weeks, recipes, confirmed, confirmedRecipes} = JSON.parse(localStorage.getItem('shiguang-v1'));
       return {weeks, recipes, confirmed, confirmedRecipes};
@@ -63,4 +82,4 @@ with sync_playwright() as playwright:
     assert not errors, errors
     browser.close()
 
-print('PASS: deleted recipe snapshot, readonly ingredients and steps, back order, 320px layout')
+print('PASS: deleted recipe snapshot, mobile/archived/desktop read-only views, back order, 320px layout')

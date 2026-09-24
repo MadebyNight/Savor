@@ -1653,9 +1653,7 @@ html [data-sonner-toaster][data-sonner-theme] {
 .stock-compact-row strong { font-size:1.14rem; overflow-wrap:anywhere; }
 .stock-compact-row>span { font-size:.86rem; color:#666f60; overflow-wrap:anywhere; }
 .stock-compact-row .stock-status { color:#588443; }
-.stock-compact-row.expired { background:#fff0ed; border-left:3px solid #bd493d; }
 .stock-compact-row.expired .stock-status { color:#fff; background:#b9473b; font-weight:650; }
-.stock-compact-row.soon { background:#fff7df; border-left:3px solid #b98021; }
 .stock-compact-row.soon .stock-status { color:#604312; background:#f2d27d; }
 .stock-compact-row:is(.expired,.soon) .stock-status { padding:4px; border-radius:4px; }
 .stock-compact-row.unknown .stock-status { color:#666f60; }

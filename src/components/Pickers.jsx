@@ -185,8 +185,46 @@ export function DateTimePicker({
                 >
                   <ChevronLeft size={20} />
                 </button>
-                <strong aria-live="polite">
-                  {year} 年 {monthNumber} 月
+                <strong style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <input
+                    key={`year-${year}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    defaultValue={year}
+                    aria-label="年份"
+                    style={{ width: 62, minHeight: 44, textAlign: "center" }}
+                    onBlur={(event) => {
+                      const nextYear = event.target.value;
+                      if (/^[1-9]\d{3}$/.test(nextYear)) {
+                        setMonth(`${nextYear}-${String(monthNumber).padStart(2, "0")}`);
+                      } else {
+                        event.target.value = year;
+                      }
+                    }}
+                    onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+                  />
+                  年
+                  <input
+                    key={`month-${monthNumber}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    defaultValue={monthNumber}
+                    aria-label="月份"
+                    style={{ width: 40, minHeight: 44, textAlign: "center" }}
+                    onBlur={(event) => {
+                      const nextMonth = Number(event.target.value);
+                      if (/^\d{1,2}$/.test(event.target.value) && nextMonth >= 1 && nextMonth <= 12) {
+                        setMonth(`${year}-${String(nextMonth).padStart(2, "0")}`);
+                      } else {
+                        event.target.value = monthNumber;
+                      }
+                    }}
+                    onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+                  />
+                  月
+                  <span className="sr-only" aria-live="polite">当前显示 {year} 年 {monthNumber} 月</span>
                 </strong>
                 <button
                   type="button"

@@ -1122,8 +1122,6 @@
 .photo-upload { display:flex; align-items:center; gap:8px; min-height:48px; padding:8px 12px; cursor:pointer; width:fit-content; }
 .photo-upload input[hidden] { display:none; }
 .editor .detail-image { width:96px; height:72px; object-fit:cover; border-radius:10px; }
-.meal-slot-control { display:flex; align-items:center; gap:12px; color:#66765b; }
-.meal-slot-control .picker-trigger { flex:1; }
 .meal-picker-dialog .mobile-planned { margin:0; gap:6px; border-bottom:1px solid var(--chrome-line); }
 .meal-picker-dialog .planned-info { display:flex; align-items:center; gap:8px; }
 .meal-picker-dialog .planned-info strong { flex:1; min-width:0; }
@@ -1133,6 +1131,12 @@
 .history-dates { display:flex; gap:3px; overflow-x:auto; flex-shrink:0; }
 .history-dates button { flex:1 0 38px; display:flex; flex-direction:column; gap:4px; min-height:56px; border-radius:10px; }
 .history-dates button[aria-pressed="true"] { background:#f8e9b3; color:var(--heading-ink); }
+.history-meal-row { align-items:flex-start; }
+.history-meal-row > strong { flex:0 0 auto; }
+.history-meal-list { flex:1; min-width:0; display:grid; gap:8px; }
+.history-meal-item { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.history-meal-item > span { min-width:0; overflow-wrap:anywhere; }
+.history-meal-item > button { flex:none; }
 .history-copy { border-top:1px solid var(--chrome-line); padding-top:4px; }
 .history-copy > summary { min-height:48px; padding:12px 0; color:var(--action-ink); cursor:pointer; }
 .history-copy > label { display:grid; gap:6px; margin-bottom:12px; }
@@ -1196,10 +1200,7 @@
 
 .developer-config > summary { min-height:48px; cursor:pointer; padding:12px 0; color:var(--action-ink); }
 @media (max-width:767px), (max-height:500px) and (max-width:1024px) {
-  .compact-app .editor-layout > .editor { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
-  .compact-app .editor-layout > .editor > * { grid-column:1/-1; }
-  .compact-app .editor-layout > .editor > .section-tools { grid-column:2; grid-row:1; margin:0; }
-  .compact-app .editor-layout > .editor > .photo-upload { grid-column:1; grid-row:1; margin:0; font-size:13px; }
+  .compact-app .editor-layout > .editor > .photo-upload { margin:0; font-size:13px; }
 }
 
 .editor label.photo-upload { display:flex; flex-direction:row; align-items:center; justify-content:center; white-space:nowrap; }

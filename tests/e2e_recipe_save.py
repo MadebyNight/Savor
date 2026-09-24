@@ -26,6 +26,8 @@ with sync_playwright() as p:
     second_name = page.locator('.library-recipe').nth(1).locator('strong').inner_text()
     edit(0)
     name_field = page.get_by_placeholder('给这道菜起个名字')
+    assert name_field.bounding_box()['y'] < page.get_by_label('食材名称').first.bounding_box()['y'] < page.get_by_role('button', name='选择菜谱图片（可选）').bounding_box()['y']
+    page.screenshot(path=str(ROOT / '.android-tools/device-logs/ux-recipe-editor-order.png'))
     name_field.fill('未保存的第一道菜')
     page.get_by_role('button', name='返回', exact=True).click()
 

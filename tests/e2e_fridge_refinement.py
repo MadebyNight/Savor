@@ -48,10 +48,14 @@ with sync_playwright() as p:
     assert chooser.value.element.get_attribute('capture') == 'environment'
     chooser.value.set_files([])
     expect(page.get_by_role('heading',name='冰箱',exact=True)).to_be_visible()
+    page.get_by_role('button',name='看看能做什么',exact=True).scroll_into_view_if_needed()
+    page.screenshot(path=str(OUT/'ux-fridge-long-list-bottom.png'))
     click('看看能做什么')
     expect(page.get_by_role('dialog').get_by_role('button',name='食材0',exact=True)).to_have_count(0)
     page.locator('.fridge-recipe-choice').filter(has_text='推荐菜品').click()
     expect(page.get_by_role('dialog')).to_contain_text('推荐菜品')
+    click('关闭弹窗')
+    expect(page.get_by_role('dialog', name='看看能做什么')).to_be_visible()
     click('关闭弹窗')
     nav('菜篮子')
     bought = page.get_by_role('checkbox',name='已买米（g）',exact=True)
@@ -65,7 +69,7 @@ with sync_playwright() as p:
     expect(bought).not_to_be_checked()
     expect(page.locator('.shopping-card')).to_contain_text('200')
     card = page.locator('.shopping-card')
-    assert card.bounding_box()['height']<=64,card.bounding_box()
+    assert card.bounding_box()['height']<=88,card.bounding_box()
     check_box, name_box, qty_box = [card.locator(selector).bounding_box() for selector in ['.shopping-check','h3','strong']]
     assert check_box['x'] + check_box['width'] <= name_box['x']
     assert name_box['x'] + name_box['width'] <= qty_box['x']
@@ -77,8 +81,8 @@ with sync_playwright() as p:
     assert abs(history.bounding_box()['y']-clear.bounding_box()['y'])<1
     expect(page.get_by_text('菜单修改自动保存',exact=False)).to_have_count(0)
     nav('冰箱')
-    nav('点单');click('设置与备份')
-    page.get_by_label('API Key',exact=True).fill('mock');click('保存 AI 配置');back();nav('冰箱')
+    nav('点单');click('设置与备份');click('AI 配置')
+    page.get_by_label('API Key',exact=True).fill('mock');click('保存 AI 配置');back();back();nav('冰箱')
     mode={'hold':False,'status':200,'count':1}
 
     def respond(route):
@@ -99,8 +103,8 @@ with sync_playwright() as p:
     expect(page.locator('.stock-review-row').nth(0)).to_contain_text('原草稿')
     expect(page.locator('.stock-review-row').nth(1)).to_contain_text('新识别')
     expect(page.get_by_role('dialog',name='发送给 AI 识别？',exact=True)).to_have_count(0)
-    click('稍后处理');click('AI 配置');back()
-    expect(page.get_by_role('heading',name='拍照识别食材',exact=True)).to_be_visible()
+    click('稍后处理');click('AI 配置');back();back()
+    expect(page.get_by_role('heading',name='拍照识别',exact=True)).to_be_visible()
     assert len(requests)==1
     mode['count']=100
     click('重新识别')

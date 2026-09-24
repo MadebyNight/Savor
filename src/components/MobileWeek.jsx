@@ -1,7 +1,7 @@
-import { AppSelect, DateTimePicker } from "./Pickers.jsx";
+import { DateTimePicker } from "./Pickers.jsx";
 import {NutritionSummary,NutritionReviewButton} from './NutritionPanel.jsx';
 import {summarizeNutrition} from '../nutrition.js';
-import { isMissingLocalImage } from '../storage.js';
+import RecipeSnapshotDialog from './RecipeSnapshotDialog.jsx';
 import { useState, useEffect } from "react";
 import useBackHandler from "../useBackHandler.js";
 import {
@@ -136,8 +136,8 @@ export default function MobileWeek({
           </div>
         </section>
       ))}
-      <NutritionReviewButton onClick={onReview}/>
       {!overview && <NutritionSummary summary={summarizeNutrition(plan,day)}/>}
+      <NutritionReviewButton onClick={onReview}/>
       <Dialog
         open={slot !== null}
         onOpenChange={(open) => !open && setSlot(null)}
@@ -149,7 +149,6 @@ export default function MobileWeek({
           <DialogDescription className="sr-only">
             选择要安排的菜品。
           </DialogDescription>
-          <label className="meal-slot-control">餐次<AppSelect aria-label="安排餐次" value={slot?.split('-').slice(1).join('-') || '早'} onChange={event=>setSlot(`${slot.split('-')[0]}-${event.target.value}`)}>{MEALS.map(([key,name])=><option key={key} value={key}>{name}</option>)}</AppSelect></label>
           {(plan[slot] || []).map((item, index) => (
             <div className="mobile-planned" key={index}>
               <div className="planned-info">
@@ -225,26 +224,7 @@ export default function MobileWeek({
               </button>
             </>
           )}
-          <Dialog open={snapshot !== null} onOpenChange={(open) => !open && setSnapshot(null)}>
-            <DialogContent layout="page" className="app-dialog meal-snapshot-dialog">
-              <DialogTitle>{snapshotRecipe?.name || "菜谱内容已缺失"}</DialogTitle>
-              <DialogDescription>已安排时保存的菜谱快照，仅供查看。</DialogDescription>
-              {snapshotRecipe?.image && (isMissingLocalImage(snapshotRecipe.image)
-                ? <p className="subtle">图片暂时无法读取，原引用已保留。</p>
-                : <img className="detail-image" src={snapshotRecipe.image} alt={snapshotRecipe.name} />)}
-              <h3>所需食材</h3>
-              {snapshotRecipe?.ingredients?.length ? snapshotRecipe.ingredients.map((ingredient, index) => (
-                <div className="detail-ingredient" key={index}>
-                  <span>{ingredient.name}</span>
-                  <span>{ingredient.qty ?? "待确认"}{ingredient.unit}</span>
-                </div>
-              )) : <p>快照中没有食材信息。</p>}
-              <h3>制作步骤</h3>
-              {snapshotRecipe?.steps?.length ? snapshotRecipe.steps.map((step, index) => (
-                <p key={index}><b className="step-number">{index + 1}</b>{step}</p>
-              )) : <p>快照中没有制作步骤。</p>}
-            </DialogContent>
-          </Dialog>
+          <RecipeSnapshotDialog recipe={snapshotRecipe} onClose={() => setSnapshot(null)}/>
         </DialogContent>
       </Dialog>
     </section>

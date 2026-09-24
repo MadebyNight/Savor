@@ -6,6 +6,7 @@ import {categoryNames, changeCategory} from './categories.js';
 import { AppSelect, DateTimePicker } from "./components/Pickers.jsx";
 import {getReminderStatus,consumeReminderLaunch,markWeekReviewed} from './reminders.js';
 import NutritionPanel, {RecipeNutrition,NutritionReviewButton} from './components/NutritionPanel.jsx';
+import RecipeSnapshotDialog from './components/RecipeSnapshotDialog.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
 ﻿import { matchesRecipeTime, stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative, isMissingLocalImage } from "./storage.js";
@@ -93,6 +94,8 @@ function App() {
   const [editingRecipe, setEditingRecipe] = useState(false);
   const [selectedDay, setSelectedDay] = useState((new Date().getDay() + 6) % 7);
   const [mealSlot, setMealSlot] = useState(null);
+  const [mealTargetOpen, setMealTargetOpen] = useState(false);
+  const [weekSnapshot, setWeekSnapshot] = useState(null);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)");
     const update = () => setCompact(media.matches);
@@ -317,6 +320,8 @@ function App() {
     setShowSettings(false);
     setRecognition(null);
     setMealSlot(null);
+    setMealTargetOpen(false);
+    setWeekSnapshot(null);
     setDetailOrigin("");
     setPreviewImage(false);
     setPage(nextPage);
@@ -684,7 +689,7 @@ function App() {
               {!showSettings && !recognition && !editingRecipe && page === 0 && <button className="mobile-icon" aria-label="设置与备份" onClick={() => setShowSettings(true)}><Settings2 size={22} /></button>}
               {!showSettings && !recognition && !editingRecipe && page === 4 && <button className="mobile-icon" aria-label="保质期规则" disabled={!hydrated} onClick={()=>setShowStorageRules(true)}><Settings2 size={22}/></button>}
               {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => openRecognition("recipe-import")}><Upload size={18} />导入菜谱</button>}
-              {!showSettings && page === 3 && <button onClick={() => setMealSlot(`${selectedDay}-早`)}><Plus size={18} />安排菜品</button>}
+              {!showSettings && page === 3 && <button onClick={() => setMealTargetOpen(true)}><Plus size={18} />安排菜品</button>}
               {!showSettings && page === 2 && <button disabled={!shoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
             </div>
           </>}
@@ -1052,7 +1057,6 @@ function App() {
           )}
           {page === 3 && (
             <>
-              {!compact&&<NutritionReviewButton onClick={()=>setReviewWeek(week)}/>}
               {compact ? <MobileWeek slot={mealSlot} setSlot={setMealSlot} onHistory={()=>setModal("history")} onReview={()=>setReviewWeek(week)} week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={confirmedRecipes.filter(recipe => confirmedQuantities[recipe.id] > 0)} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} /> : <>
               <div className="panel">
                 <div className="section-tools">
@@ -1156,7 +1160,8 @@ function App() {
                             >
                               {(plan[r] || []).map((e, t) => (
                                 <div key={t} className={"planned " + "low"}>
-                                  {findRecipe(e)?.name}
+                                  <span>{findRecipe(e)?.name || "菜谱内容已缺失"}</span>
+                                  <button type="button" className="text-link" aria-label={`查看${findRecipe(e)?.name || '缺失菜谱'}做法`} onClick={() => setWeekSnapshot(findRecipe(e) || {name: "菜谱内容已缺失"})}>查看做法</button>
                                   <input
                                     aria-label={
                                       findRecipe(e)?.name + "餐次份数"
@@ -1223,6 +1228,7 @@ function App() {
                 </div>
               </div>
               </>}
+              {!compact&&<NutritionReviewButton onClick={()=>setReviewWeek(week)}/>}
               <div className="week-footer-actions">
                 <button className="text-link" onClick={()=>setModal('history')}><CalendarDays size={16}/>历史</button>
                 <button className="text-link" onClick={() => setModal("clear")}>
@@ -1307,34 +1313,6 @@ function App() {
                     上传
                   </button>
                 </div>
-                <button type="button" className="photo-upload outline" onClick={()=>recipePhotoInput.current.click()}><ImagePlus size={18}/>选择菜谱图片</button>
-                  <input
-                    ref={recipePhotoInput}
-                    hidden
-                    aria-label="菜谱图片"
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () =>
-                        setRecipeDraft((draft) => ({
-                          ...draft,
-                          image: reader.result,
-                        }));
-                      reader.onerror = () => toast.error("图片读取失败");
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                {hasUsableImage(recipeDraft.image) && (
-                  <img
-                    className="detail-image"
-                    src={recipeDraft.image}
-                    alt="菜谱图片预览"
-                  />
-                )}
-                {isMissingLocalImage(recipeDraft.image)&&<p role="status">原图片暂时无法读取；可重新选择图片替换，文字草稿已保留。</p>}
                 <label>
                   菜品名称
                   <input
@@ -1486,6 +1464,25 @@ function App() {
                 >
                   ＋ 添加食材
                 </button>
+                <button type="button" className="photo-upload outline" onClick={()=>recipePhotoInput.current.click()}><ImagePlus size={18}/>选择菜谱图片（可选）</button>
+                <input
+                  ref={recipePhotoInput}
+                  hidden
+                  aria-label="菜谱图片"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () =>
+                      setRecipeDraft((draft) => ({...draft, image: reader.result}));
+                    reader.onerror = () => toast.error("图片读取失败");
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                {hasUsableImage(recipeDraft.image) && <img className="detail-image" src={recipeDraft.image} alt="菜谱图片预览" />}
+                {isMissingLocalImage(recipeDraft.image)&&<p role="status">原图片暂时无法读取；可重新选择图片替换，文字草稿已保留。</p>}
                 <h3>制作步骤</h3>
                 {recipeDraft.steps.map((step, index) => (
                   <div
@@ -1643,7 +1640,14 @@ function App() {
           </div>
         </div>
       </section>}
-      <Dialog open={!!modal} onOpenChange={(open) => {if(!open && !stockSaving){if(modal==="detail" && detailOrigin){setModal(detailOrigin);setDetailOrigin("");}else setModal("");}}}>
+      <Dialog open={mealTargetOpen} onOpenChange={setMealTargetOpen}>
+        <DialogContent layout="page" className="app-dialog meal-picker-dialog">
+          <DialogTitle>安排哪一餐</DialogTitle>
+          <DialogDescription>{dayAt(week, selectedDay)} · 选择目标餐次</DialogDescription>
+          {MEALS.map(([key, name]) => <button type="button" className="meal-picker-row" key={key} onClick={() => {setMealSlot(`${selectedDay}-${key}`);setMealTargetOpen(false);}}>{name}<ArrowRight size={18}/></button>)}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!modal} onOpenChange={(open) => {if(!open && !stockSaving){if(modal==="detail" && detailOrigin){setModal(detailOrigin);setDetailOrigin("");}else {if(modal==="history")setWeekSnapshot(null);setModal("");}}}}>
         <DialogContent layout={modal === "clear" ? undefined : "page"} className={`app-dialog ${modal==='stock'?'stock-dialog':''} ${modal==='detail'?'recipe-detail-dialog':''} ${modal==='clear'?'confirm-dialog':''}`} aria-busy={stockSaving}
           footer={modal === "detail" ? <button className="primary" onClick={()=>{changeQuantity(activeRecipe.id,1);toast.success("已加入点单清单");}}>＋ 加入菜单</button>
             : modal === "selection" ? <button className="primary" onClick={confirmSelection}>确认并同步 · {selectedCount} 份菜品</button>
@@ -1810,19 +1814,15 @@ function App() {
               {archiveDate && <div className="week-dates history-dates" aria-label="历史菜单日期">{[0,1,2,3,4,5,6].map(day=><button key={day} aria-pressed={archiveDay===day} onClick={()=>setArchiveDay(day)}><span>周{"一二三四五六日"[day]}</span><b>{Number(dayAt(archiveDate,day).slice(-2))}</b></button>)}</div>}
               {{ ...archives, ...weeks }[archiveDate] ? (
                 Object.entries({ ...archives, ...weeks }[archiveDate]).filter(([key])=>Number(key.split("-")[0])===archiveDay).map(
-                  ([e, t]) => (
-                    <div key={e} className="list-row">
-                      周{"一二三四五六日"[+e.split("-")[0]]} {e.split("-")[1]}餐
-                      <span>
-                        {t
-                          .map(
-                            (e) =>
-                              (findRecipe(e)?.name || "菜谱内容已缺失") +
-                              " × " +
-                              (e.servings || 1),
-                          )
-                          .join("、")}
-                      </span>
+                  ([slot, items]) => items.length > 0 && (
+                    <div key={slot} className="list-row history-meal-row">
+                      <strong>周{"一二三四五六日"[+slot.split("-")[0]]} {slot.split("-")[1]}餐</strong>
+                      <div className="history-meal-list">{items.map((item, index) => (
+                        <div key={index} className="history-meal-item">
+                          <span>{findRecipe(item)?.name || "菜谱内容已缺失"} × {item.servings || 1}</span>
+                          <button type="button" className="text-link" aria-label={`查看${findRecipe(item)?.name || '缺失菜谱'}做法`} onClick={() => setWeekSnapshot(findRecipe(item) || {name: "菜谱内容已缺失"})}>查看做法</button>
+                        </div>
+                      ))}</div>
                     </div>
                   ),
                 )
@@ -1875,12 +1875,14 @@ function App() {
               >
                 复制菜单
               </button></details>
+              <RecipeSnapshotDialog recipe={weekSnapshot} onClose={() => setWeekSnapshot(null)}/>
             </>
           )}
           <Dialog open={previewImage && modal === "detail" && hasUsableImage(activeRecipe?.image)} onOpenChange={setPreviewImage}><DialogContent className="app-dialog image-preview-dialog"><DialogTitle>菜谱图片</DialogTitle><DialogDescription className="sr-only">{activeRecipe?.name}</DialogDescription><img src={hasUsableImage(activeRecipe?.image)?activeRecipe.image:undefined} alt={activeRecipe?.name}/></DialogContent></Dialog>
           {confirmation}
         </DialogContent>
       </Dialog>
+      {!modal && <RecipeSnapshotDialog recipe={weekSnapshot} onClose={() => setWeekSnapshot(null)}/>}
       {clearFridgeConfirmation}
       {hydrated&&<SyncPanel state={fullState} onRestore={restoreState} target={syncTarget}/>}
       <Toaster richColors position="top-center" offset={compact ? "calc(60px + env(safe-area-inset-top))" : undefined} mobileOffset={{top:"calc(60px + env(safe-area-inset-top))"}} />
