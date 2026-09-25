@@ -83,21 +83,6 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 
 原生 HTTP 使用 OkHttp 4.12.0（Apache-2.0），仪器测试使用同版本 MockWebServer。网络诊断标签为 `ShiguangNetwork`，仅记录方法、阶段、状态码/异常类型，不记录 URL、凭据或正文。
 
-## 开发者 AI 配置（V1.1.2）
-
-入口位于“设置与数据 → AI 配置”下方。受控安装包内置整套配置的密文；输入约定密码启用，关闭后恢复个人配置。Android 将解锁结果写入独立 Keystore 加密槽，重启保持状态；不自动发起 AI 请求。
-
-维护者可在已连接且打开食光的手机上执行 `python scripts/export-developer-profile.py --serial <设备序列号>`，按提示输入密码，只导出密文到被忽略的 `public/developer-ai-profile.json`。更新已有密文需显式加 `--replace`。打包前应保留此文件；缺失时开发者入口会提示不可用，个人配置仍可使用。不要将真实 Key、解锁密码或该密文提交 Git。
-
-此方案不阻止安装包持有人离线猜测密码，也不支持逐设备撤销。轮换共享 Key 后需重新导出和打包。流程、测试和交付摘要见 [V1.1.2 交互修复](docs/V1.1.2交互修复.md)。
-
-## GitHub 公开分发
-
-公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。V2.0.1 公开版从 [GitHub Release](https://github.com/MadebyNight/Savor/releases/tag/v2.0.1) 下载 `Savor-v2.0.1-public.apk`，用同页的 `SHA256SUMS.txt` 核对；本地开发者版由维护者自行分发，不上传。
-
-公开版必须从新的、干净的源码工作区执行 `npm run build:public` → `npx cap sync android` → Android `:app:assembleRelease`，然后使用维护者密钥签名。公开构建只复制白名单中的图片和字体资源，隐藏开发者入口，并忽略已有设备上的开发者凭据槽。不能用普通 `npm run build` 的输出代替公开版。
-
-发布前核对 APK：不存在 `assets/public/developer-ai-profile.json`，无明文凭据、解锁密码或该密文内容，`debuggable=false`。保留原安装签名可以覆盖升级；公开版同样需要用户确认后才发送 AI 内容。
 
 ## V1.2.1 使用
 
