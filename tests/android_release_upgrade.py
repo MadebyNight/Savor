@@ -23,6 +23,8 @@ PACKAGE='com.shiguang.mealplanner'
 # Keep a workspace-relative APK path for adb install on Windows: its Unicode absolute path failed on an earlier device run.
 APK=Path(os.environ['ANDROID_RELEASE_APK'])
 assert APK.is_file(), 'Release APK not found; run this script from the workspace root for relative paths'
+WEB_DIR=(ROOT/os.environ.get('ANDROID_WEB_DIR','dist')).resolve()
+assert WEB_DIR.is_relative_to(ROOT.resolve()) and (WEB_DIR/'index.html').is_file(), 'Web build directory missing'
 OUT=(ROOT/'.android-tools/device-logs'/os.environ['ANDROID_RELEASE_DIR']).resolve()
 assert OUT.is_relative_to((ROOT/'.android-tools/device-logs').resolve())
 assert not OUT.exists(), 'Use a fresh release evidence directory'
@@ -50,7 +52,8 @@ def fingerprints(data):
 def preferences(data):
     with tarfile.open(fileobj=io.BytesIO(data)) as tar:
         root=ET.fromstring(tar.extractfile('shared_prefs/preferences.xml').read())
-        return {e.attrib['name']:ET.tostring(e) for e in root if e.attrib['name']!='dav-auto-sync'}
+        # Startup update checks may create/refresh their date; other user preferences must remain identical.
+        return {e.attrib['name']:ET.tostring(e) for e in root if e.attrib['name'] not in ('dav-auto-sync','app-update-checked-day')}
 def attach(p):
     pid=adb('shell','pidof',PACKAGE).decode().strip()
     adb('forward','tcp:'+PORT,'localabstract:webview_devtools_remote_'+pid)
@@ -70,8 +73,8 @@ assert certificate(APK)==EXPECTED,'New APK certificate mismatch'
 badging=subprocess.run([str(AAPT),'dump','badging',str(APK)],check=True,capture_output=True).stdout.decode(errors='replace')
 assert re.search(rf"^package: name='{re.escape(PACKAGE)}' versionCode='{VERSION_CODE}' versionName='{re.escape(VERSION_NAME)}'",badging,re.M),'New APK package or version mismatch'
 with zipfile.ZipFile(APK) as apk:
-    files=[f for f in (ROOT/'dist').rglob('*') if f.is_file()]
-    assert all(apk.read('assets/public/'+f.relative_to(ROOT/'dist').as_posix())==f.read_bytes() for f in files)
+    files=[f for f in WEB_DIR.rglob('*') if f.is_file()]
+    assert all(apk.read('assets/public/'+f.relative_to(WEB_DIR).as_posix())==f.read_bytes() for f in files)
 installed=adb('shell','pm','path',PACKAGE).decode().strip().removeprefix('package:')
 (OUT/'installed-before.apk').write_bytes(adb('exec-out','cat',installed))
 assert certificate(OUT/'installed-before.apk')==EXPECTED,'Installed APK certificate mismatch'
@@ -130,7 +133,7 @@ with sync_playwright() as p:
         report.update(businessHashBefore=digest(before_core),businessHashAfter=digest(after_core),
             onlyExpectedCategoryMigration=True,privateFilesAndEncryptedCredentialsUnchanged=True,
             userPreferencesUnchanged=True,coldStartPreserved=True,version=VERSION_NAME,versionCode=VERSION_CODE,
-            allowedRuntimeFileChange='files/profileInstalled')
+            allowedRuntimeFileChange='files/profileInstalled',allowedRuntimePreferenceChange='app-update-checked-day')
         print('PASS: in-place upgrade, original business data/images/encrypted credentials, expected category migration, cold start, UI alignment',flush=True)
     finally:
         try:
