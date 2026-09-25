@@ -1108,6 +1108,20 @@
 .detail-more { align-self:flex-start; flex:none; }
 .detail-more > summary { list-style:none; display:flex; align-items:center; min-height:48px; color:var(--action-ink); font-size:12px; cursor:pointer; }
 .detail-more > .actions { position:absolute; z-index:1; right:0; top:48px; flex-direction:column; padding:8px; background:white; border:1px solid var(--chrome-line); border-radius:12px; box-shadow:0 6px 16px #30422e18; }
+.recipe-detail-dialog .dialog-page-footer { flex-wrap:wrap; }
+.recipe-detail-dialog .dialog-page-footer > button { flex:1; width:auto; }
+.recipe-timer { flex:none; }
+.recipe-timer.is-open { flex-basis:100%; }
+.recipe-timer-trigger { min-height:48px; min-width:96px; padding:8px 12px; color:var(--action-ink); }
+.recipe-timer-panel { display:grid; gap:12px; padding:12px; border:1px solid var(--chrome-line); border-radius:12px; background:var(--surface); }
+.recipe-timer-main { display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--heading-ink); }
+.recipe-timer-main > div { display:grid; gap:4px; }
+.recipe-timer-main strong { font-size:14px; }
+.recipe-timer-main small { color:#536747; line-height:1.4; }
+.recipe-timer-main output { flex:none; font-variant-numeric:tabular-nums; font-size:26px; font-weight:700; letter-spacing:.04em; }
+.recipe-timer-actions { display:flex; gap:8px; }
+.recipe-timer-actions button { min-height:48px; flex:1; padding:8px; }
+.recipe-timer-panel > p { margin:0; color:var(--heading-ink); font-weight:600; }
 .recipe-detail-dialog .detail-ingredient { padding:6px 0; gap:8px; min-height:32px; font-size:14px; }
 .recipe-detail-dialog .detail-ingredient > span { overflow-wrap:anywhere; }
 .app-dialog.image-preview-dialog img { max-width:100%; max-height:70dvh; object-fit:contain; }

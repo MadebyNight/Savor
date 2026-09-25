@@ -12,6 +12,7 @@ with sync_playwright() as p:
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.goto(os.environ.get('E2E_URL', 'http://127.0.0.1:5173'), wait_until='networkidle')
     page.wait_for_function('localStorage.getItem("shiguang-v1")')
+    page.wait_for_function("Array.from(document.querySelectorAll('[role=status]')).some(el => el.textContent.includes('已保存'))")
     page.evaluate('''() => {
       const state=JSON.parse(localStorage.getItem('shiguang-v1'));
       state.recipes = [null,0,15,16,30,31].map((time,i)=>({...state.recipes[0],id:100+i,name:'测试菜'+i,category:'自定义分类',time}));

@@ -7,6 +7,7 @@ import { AppSelect, DateTimePicker } from "./components/Pickers.jsx";
 import {getReminderStatus,consumeReminderLaunch,markWeekReviewed} from './reminders.js';
 import NutritionPanel, {RecipeNutrition,NutritionReviewButton} from './components/NutritionPanel.jsx';
 import RecipeSnapshotDialog from './components/RecipeSnapshotDialog.jsx';
+import RecipeTimer from './components/RecipeTimer.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
 ﻿import { matchesRecipeTime, stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative, isMissingLocalImage } from "./storage.js";
@@ -1664,7 +1665,7 @@ function App() {
       </Dialog>
       <Dialog open={!!modal} onOpenChange={(open) => {if(!open && !stockSaving){if(modal==="detail" && detailOrigin){setModal(detailOrigin);setDetailOrigin("");}else {if(modal==="history")setWeekSnapshot(null);setModal("");}}}}>
         <DialogContent layout={modal === "clear" ? undefined : "page"} className={`app-dialog ${modal==='stock'?'stock-dialog':''} ${modal==='detail'?'recipe-detail-dialog':''} ${modal==='clear'?'confirm-dialog':''}`} aria-busy={stockSaving}
-          footer={modal === "detail" ? <button className="primary" onClick={()=>{changeQuantity(activeRecipe.id,1);toast.success("已加入点单清单");}}>＋ 加入菜单</button>
+          footer={modal === "detail" ? <>{Number(activeRecipe?.time) > 0 && <RecipeTimer key={activeRecipe.id} minutes={activeRecipe.time} />}<button className="primary" onClick={()=>{changeQuantity(activeRecipe.id,1);toast.success("已加入点单清单");}}>＋ 加入菜单</button></>
             : modal === "selection" ? <button className="primary" onClick={confirmSelection}>确认并同步 · {selectedCount} 份菜品</button>
             : modal === "export" ? exportActions
             : modal === "stock" ? <button className="primary" disabled={stockSaving} type="submit" form="stock-edit-form">{stockSaving?'正在保存…':editingStock===null?'确认放入冰箱':'保存食材修改'}</button> : undefined} >
