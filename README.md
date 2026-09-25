@@ -6,6 +6,16 @@ MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Androi
 
 需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
+## 运行界面
+
+以下为 2026-09-25 V2.0.1 在 OPPO PGAM10 上的真机验收截图，使用设备当前的手写字体。点击图片可查看大图；公开版不包含开发者配置入口。
+
+| 菜谱库 | 周菜单 |
+| --- | --- |
+| <a href="docs/screenshots/v2.0.1/recipes.webp"><img src="docs/screenshots/v2.0.1/recipes.webp" width="260" alt="真机菜谱库：搜索、筛选和菜谱列表"></a> | <a href="docs/screenshots/v2.0.1/week.webp"><img src="docs/screenshots/v2.0.1/week.webp" width="260" alt="真机周菜单：日期、五餐与当日预计营养"></a> |
+| 营养回顾 | 设置与数据 |
+| <a href="docs/screenshots/v2.0.1/nutrition.webp"><img src="docs/screenshots/v2.0.1/nutrition.webp" width="260" alt="真机菜单营养回顾：目标周和每日预计营养"></a> | <a href="docs/screenshots/v2.0.1/settings.webp"><img src="docs/screenshots/v2.0.1/settings.webp" width="260" alt="真机设置首页：AI、备份、坚果云同步与提醒"></a> |
+
 ## 本地开发
 
 Node.js 22.12+。在项目根目录执行：
