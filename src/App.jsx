@@ -139,6 +139,13 @@ function App() {
   const [quantities, setQuantities] = useState({});
   const [confirmedQuantities, setConfirmedQuantities] = useState({});
   const [hydrated, setHydrated] = useState(false);
+  const [splashReady, setSplashReady] = useState(false);
+  const loadedState = useRef(null);
+  const loadFailed = useRef(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSplashReady(true), 1000);
+    return () => window.clearTimeout(timer);
+  }, []);
   useEffect(()=>{if(hydrated)setSavedCategories(current=>{
     const names=categoryNames(current,recipes);
     return JSON.stringify(current)===JSON.stringify(names)?current:names;
@@ -264,25 +271,27 @@ function App() {
   };
   useEffect(() => {
     let active = true;
-    loadState()
-      .then((state) => {
-        if (active) {
+    if (loadedState.current === null && !loadFailed.current) {
+      loadState()
+        .then((state) => {
+          loadedState.current = state;
           if (state) {
             applyState(state);
             const missing=unavailableImageCount(state);
             if(missing)toast.warning(`${missing} 张图片暂时无法读取，其他数据已加载；替换或移除失效图片后可继续备份与同步`);
           }
-          setHydrated(true);
-        }
-      })
-      .catch((error) => {
-        toast.error("读取数据失败：" + error.message);
-        setSaveStatus("加载失败，请重启后重试");
-      });
+          if (active && splashReady) setHydrated(true);
+        })
+        .catch((error) => {
+          loadFailed.current = true;
+          toast.error("读取数据失败：" + error.message);
+          setSaveStatus("加载失败，请重启后重试");
+        });
+    } else if (loadedState.current !== null && splashReady) setHydrated(true);
     return () => {
       active = false;
     };
-  }, []);
+  }, [splashReady]);
   useEffect(() => {
     if (!hydrated) return;
     setSaveStatus("正在保存");
@@ -565,14 +574,20 @@ function App() {
   };
   if (!hydrated)
     return (
-      <main className="panel" role="status">
-        <h1>食光</h1>
-        <p>{saveStatus}</p>
-        <p>数据读取完成后才能编辑。</p>
+      <main className="app-splash" role="status">
+        <img className="app-splash-logo" src="/brand/mark.svg" alt="" />
+        <div className="app-splash-credits" aria-live="polite">
+          <p>Developed by Madebynight</p>
+          <p>Art &amp; Inspiration by 一十一</p>
+        </div>
         {saveStatus.includes("失败") && (
-          <button className="primary" onClick={() => window.location.reload()}>
-            重新加载
-          </button>
+          <div className="app-splash-error">
+            <p>{saveStatus}</p>
+            <p>数据读取完成后才能编辑。</p>
+            <button className="primary" onClick={() => window.location.reload()}>
+              重新加载
+            </button>
+          </div>
         )}
         <Toaster richColors position="top-center" offset={compact ? "calc(60px + env(safe-area-inset-top))" : undefined} mobileOffset={{top:"calc(60px + env(safe-area-inset-top))"}} />
       </main>
