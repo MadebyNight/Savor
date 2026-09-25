@@ -23,7 +23,11 @@ with sync_playwright() as p:
     click('设置与备份')
     home=page.get_by_role('navigation',name='设置首页')
     expect(home).to_be_visible()
-    assert home.locator('.settings-entry').count()==4
+    assert home.locator('.settings-entry').count()==5
+    section('版本更新')
+    expect(page.get_by_text('当前版本：2.0.2 · 开发者版')).to_be_visible()
+    expect(page.get_by_role('button',name='检查更新',exact=True)).to_be_visible()
+    back_to_home()
     page.screenshot(path=str(OUT/'settings-home-390.png'),full_page=True)
     section('AI 配置');page.screenshot(path=str(OUT/'settings-ai-390.png'),full_page=True)
     back_to_home()
@@ -73,14 +77,14 @@ with sync_playwright() as p:
         page.set_viewport_size({'width':width,'height':height})
         back_to_home()
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), (width,height,'home')
-        assert home.locator('.settings-entry:visible').count()==4
-        for name in ['AI 配置','备份恢复','坚果云同步','营养周报提醒']:
+        assert home.locator('.settings-entry:visible').count()==5
+        for name in ['AI 配置','备份恢复','坚果云同步','营养周报提醒','版本更新']:
             section(name)
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), (width,height,name)
             assert page.locator('.settings-page:visible').count()==1
-    page.set_viewport_size({'width':390,'height':844});back_to_home();click('返回')
+    page.set_viewport_size({'width':390,'height':844});page.wait_for_timeout(300);back_to_home();click('返回')
     click('移除图片');page.reload();open_image()
     expect(page.get_by_alt_text('待识别图片',exact=True)).to_have_count(0)
     page.screenshot(path=str(OUT/'settings-recognition.png'),full_page=True)
     assert not errors,errors
-    browser.close();print('PASS: settings home and four detail pages, independent recognition, album/camera routing, cancel/reselect/size/read-error, draft persistence, responsive layout')
+    browser.close();print('PASS: settings home and five detail pages, independent recognition, album/camera routing, cancel/reselect/size/read-error, draft persistence, responsive layout')

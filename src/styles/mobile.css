@@ -98,6 +98,7 @@
 .settings-detail-header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .settings-detail-header button { display:inline-flex; align-items:center; gap:6px; min-height:48px; }
 .settings-detail-header h2 { margin:0; }
+.settings-panel .update-auto-check { display:flex; align-items:center; gap:10px; min-height:48px; cursor:pointer; }
 
 @media (max-width: 767px), (max-height: 500px) and (max-width: 1024px) {
   :root {

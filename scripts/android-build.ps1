@@ -23,6 +23,10 @@ $ErrorActionPreference = 'Continue'
 if ($LASTEXITCODE -ne 0) { throw 'Original signing certificate verification failed.' }
 & npm.cmd run build
 if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
+$index = Get-Content "$workspace/dist/index.html" -Raw -Encoding UTF8
+$bundles = @(Get-ChildItem "$workspace/dist/assets" -File | Where-Object { $_.Extension -in '.js', '.css' })
+$stale = @($bundles | Where-Object { -not $index.Contains("assets/$($_.Name)") })
+if ($stale.Count -gt 0) { throw "Frontend output contains $($stale.Count) stale JS/CSS bundles; refusing Capacitor sync. Clean the ignored dist/ directory and rebuild." }
 & npx.cmd --no-install cap sync android
 if ($LASTEXITCODE -ne 0) { throw 'Capacitor sync failed.' }
 $tasks = @('assembleDebug', 'testDebugUnitTest')

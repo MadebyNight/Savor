@@ -18,6 +18,7 @@ import SelectionItems from "./components/SelectionItems.jsx";
 import {validateStock} from "./validation.js";
 import RecognitionPanel from "./components/RecognitionPanel.jsx";
 import SettingsPanel from "./components/SettingsPanel.jsx";
+import AppUpdate from './components/AppUpdate.jsx';
 import MobileWeek from "./components/MobileWeek.jsx";
 import useConfirm from "./components/useConfirm.jsx";
 import useBackHandler from "./useBackHandler.js";
@@ -88,6 +89,7 @@ function unavailableImageCount(value) {
   return 0;
 }
 function App() {
+  const updateRef=useRef(null);
   const [ask, confirmation] = useConfirm();
   const [askClearFridge, clearFridgeConfirmation] = useConfirm();
   const [page, setPage] = useState(0);
@@ -696,7 +698,7 @@ function App() {
           {compact && <>
             <div className="mobile-title">
               {showSettings || editingRecipe || recognition ? <button className="mobile-icon" aria-label="返回" onClick={returnToPage}><ArrowLeft size={22} /></button> : <img className="brand-logo" src="/brand/mark.svg" alt=""/>}
-              <h1>{showSettings ? ({ai:'AI 配置',backup:'备份恢复',sync:'坚果云同步',reminders:'营养周报提醒'}[settingsPage]||"设置与数据") : recognition ? ({"recipe-import":"导入菜谱",stock:"拍照识别"}[recognition]) : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
+              <h1>{showSettings ? ({ai:'AI 配置',backup:'备份恢复',sync:'坚果云同步',reminders:'营养周报提醒',update:'版本更新'}[settingsPage]||"设置与数据") : recognition ? ({"recipe-import":"导入菜谱",stock:"拍照识别"}[recognition]) : editingRecipe ? (recipeDraft.id ? "编辑菜谱" : "新建菜谱") : ["点单", "菜谱", "菜篮子", "周菜单", "冰箱"][page]}</h1>
               {page === 1 && !showSettings && !recognition && !editingRecipe && <span className="library-total">{filteredRecipes.length} 道</span>}
               {page === 4 && !showSettings && !recognition && <span className="fridge-total">{fridge.length} 批食材</span>}
               <span role="status" className={saveStatus.includes("失败") ? "mobile-save-error" : "sr-only"}>{saveStatus}</span>
@@ -734,6 +736,7 @@ function App() {
             <SettingsPanel
               page={settingsPage}
               onPageChange={setSettingsPage}
+              onCheckUpdate={()=>updateRef.current?.check()}
               onSyncTarget={setSyncTarget}
               state={fullState}
               onRestore={restoreState}
@@ -1623,6 +1626,7 @@ function App() {
           <span>一餐一饭，皆是生活。</span>
         </footer>
       </main>
+      <AppUpdate ref={updateRef}/>
       {managingCategories && <CategoryManager names={recipeCategories.slice(1)} recipes={recipes} onClose={()=>setManagingCategories(false)} onChange={(action,source,target)=>{
         const next=changeCategory(latestState.current,action,source,target);
         setSavedCategories(next.recipeCategories);setRecipes(next.recipes);

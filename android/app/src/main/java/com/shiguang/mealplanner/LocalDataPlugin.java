@@ -5,6 +5,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ClipData;
 import android.app.Activity;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
+import android.os.Build;
 import android.net.Uri;
 import androidx.activity.result.ActivityResult;
 import androidx.core.content.FileProvider;
@@ -29,7 +33,9 @@ import okhttp3.RequestBody;
 import okhttp3.MediaType;
 import okhttp3.Response;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.KeyStore;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -220,6 +226,67 @@ public class LocalDataPlugin extends Plugin {
                 call.reject("网络请求失败（" + safeMethod + " / " + stage + " / " + type + "），本地数据保留");
             }
         });
+    }
+    private static Signature[] packageSigners(PackageInfo info) {
+        if (Build.VERSION.SDK_INT >= 28) return info.signingInfo == null ? new Signature[0] : info.signingInfo.getApkContentsSigners();
+        return info.signatures == null ? new Signature[0] : info.signatures;
+    }
+    @PluginMethod public void installAppUpdate(PluginCall call) {
+        network.execute(() -> {
+            File apk = new File(getContext().getCacheDir(), "public-update.apk");
+            try {
+                String version = required(call, "version");
+                String url = required(call, "url");
+                String expected = required(call, "sha256").toLowerCase(java.util.Locale.ROOT);
+                if (!version.matches("[0-9]+\\.[0-9]+\\.[0-9]+") ||
+                    !url.equals("https://github.com/MadebyNight/Savor/releases/download/v" + version + "/Savor-v" + version + "-public.apk") ||
+                    !expected.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid update metadata");
+                Request request = new Request.Builder().url(url).header("Accept", "application/octet-stream").build();
+                MessageDigest sha = MessageDigest.getInstance("SHA-256");
+                try (Response response = new OkHttpClient.Builder().connectTimeout(30,TimeUnit.SECONDS)
+                        .readTimeout(120,TimeUnit.SECONDS).followRedirects(true).build().newCall(request).execute()) {
+                    if (!response.isSuccessful() || response.body() == null || response.body().contentLength() > 100_000_000)
+                        throw new IOException("Download failed");
+                    try (InputStream input=response.body().byteStream(); FileOutputStream output=new FileOutputStream(apk)) {
+                        byte[] buffer=new byte[8192]; int count; long total=0;
+                        while ((count=input.read(buffer))!=-1) {
+                            total+=count;
+                            if(total>100_000_000)throw new IOException("Update too large");
+                            sha.update(buffer,0,count);output.write(buffer,0,count);
+                        }
+                        if(total==0)throw new IOException("Empty update");
+                    }
+                }
+                String actual=bytesToHex(sha.digest());
+                if(!actual.equals(expected))throw new SecurityException("Update checksum mismatch");
+                PackageManager pm=getContext().getPackageManager();
+                int flags=Build.VERSION.SDK_INT>=28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
+                PackageInfo incoming=pm.getPackageArchiveInfo(apk.getAbsolutePath(),flags);
+                PackageInfo installed=pm.getPackageInfo(getContext().getPackageName(),flags);
+                if(incoming==null || !installed.packageName.equals(incoming.packageName) || !version.equals(incoming.versionName))
+                    throw new SecurityException("Update package mismatch");
+                long incomingCode=Build.VERSION.SDK_INT>=28 ? incoming.getLongVersionCode() : incoming.versionCode;
+                long installedCode=Build.VERSION.SDK_INT>=28 ? installed.getLongVersionCode() : installed.versionCode;
+                if(incomingCode<=installedCode)throw new SecurityException("Update version is not newer");
+                Signature[] oldSigners=packageSigners(installed),newSigners=packageSigners(incoming);
+                if(oldSigners.length==0 || !Arrays.equals(oldSigners,newSigners))throw new SecurityException("Update signature mismatch");
+                Uri uri=FileProvider.getUriForFile(getContext(),getContext().getPackageName()+".fileprovider",apk);
+                Intent intent=new Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(uri,"application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                intent.setClipData(ClipData.newRawUri("食光更新",uri));
+                getActivity().runOnUiThread(()->{try{getActivity().startActivity(intent);call.resolve();}
+                    catch(Exception error){call.reject("无法打开系统安装界面");}});
+            } catch(Exception error) {
+                // 不记录 URL、安装包内容或本机敏感数据。
+                if(apk.exists())apk.delete();
+                call.reject(error instanceof SecurityException ? "安装包校验失败或版本未高于当前版本" : "更新下载失败，请稍后重试");
+            }
+        });
+    }
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder result=new StringBuilder(bytes.length*2);
+        for(byte value:bytes)result.append(String.format(java.util.Locale.ROOT,"%02x",value & 0xff));
+        return result.toString();
     }
     static String exportName(String name) {
         if (name == null || name.trim().isEmpty() || name.contains("/") || name.contains("\\") || name.equals(".") || name.equals("..")) throw new IllegalArgumentException("Invalid export filename");

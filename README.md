@@ -44,6 +44,8 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 
 本工作区执行 `./scripts/android-build.ps1`：使用 `.android-tools/jdk21/`、`.android-tools/sdk/`、`.android-tools/gradle-dist/gradle-8.13/` 和 `.android-tools/gradle-home-ascii/` 缓存离线构建，先核验原签名，再依次构建前端、同步 Capacitor、构建 APK 和运行单元测试，最后验证 APK 证书。连接设备后加 `-ConnectedTests` 运行 Android 仪器测试。所需工具和依赖缓存须提前准备。
 
+脚本会在 Capacitor 同步前拒绝 `dist/assets/` 中未被本轮入口引用的旧 JS/CSS；如遇残留，需先清理被忽略的 `dist/` 构建产物再重建，不能把混入旧资源的 APK 当成交付包。
+
 debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在忽略文件 `.android-tools/signing.properties` 配置 `storePassword`、`keyAlias`、`keyPassword`，不得提交真实值。密钥、配置缺失或证书不符会阻止构建，不自动回退默认 debug 密钥。直接调用 Gradle 同样受证书校验约束；证书基准见 [AGENTS.md](AGENTS.md)。当前 V2.0.2 本地测试 APK 在 `android/app/build/outputs/apk/debug/app-debug.apk`；历史 V2.0.1 交付包及校验文件为 `食光-V2.0.1.apk` 和 `食光-V2.0.1.apk.sha256`，均不纳入源码。
 
 ## 测试
@@ -95,6 +97,8 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 ## GitHub 公开分发
 
 公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。V2.0.1 公开版从 [GitHub Release](https://github.com/MadebyNight/Savor/releases/tag/v2.0.1) 下载 `Savor-v2.0.1-public.apk`，用同页的 `SHA256SUMS.txt` 核对；本地开发者版由维护者自行分发，不上传。
+
+下一公开版将提供应用内更新：设置 → 版本更新可手动检查，默认每天首次启动自动检查且可关闭；有更高的公开版时在应用内下载并校验 APK，再由 Android 系统确认安装。开发者版也检查公开版，下载前提示会切换为公开版、开发者配置不再可用。当前 V2.0.1 公开包尚无此入口；发布新包必须沿用兼容签名、提高 versionCode，并保留命名为 `Savor-v<版本>-public.apk` 的 Release 附件及 GitHub 提供的 SHA-256 digest。真实应用内安装验收尚未完成。
 
 公开版必须从新的、干净的源码工作区执行 `npm run build:public` → `npx cap sync android` → Android `:app:assembleRelease`，然后使用维护者密钥签名。公开构建只复制白名单中的图片和字体资源，隐藏开发者入口，并忽略已有设备上的开发者凭据槽。不能用普通 `npm run build` 的输出代替公开版。
 

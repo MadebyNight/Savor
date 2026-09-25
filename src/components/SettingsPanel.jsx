@@ -1,4 +1,5 @@
 import ReminderSettings from './ReminderSettings.jsx';
+import {autoCheckEnabled,currentVersion,isPublicEdition,setAutoCheckEnabled} from '../app-update.js';
 import {developerAvailable,getDeveloperConfig,enableDeveloperConfig,disableDeveloperConfig} from '../developer-ai.js';
 import useConfirm from './useConfirm.jsx';
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from './Dialog.jsx';
@@ -6,19 +7,21 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
 import { defaultAI,testAIConnection,backup,validateBackup } from '../services.js';
-import { ArrowLeft, Bell, ChevronRight, Cloud, DatabaseBackup, Sparkles } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronRight, Cloud, DatabaseBackup, Sparkles, Download } from 'lucide-react';
 const settingsEntries=[
   ['ai','AI 配置','模型、接口与凭据',Sparkles],
   ['backup','备份恢复','导出与导入本地数据',DatabaseBackup],
   ['sync','坚果云同步','手动同步与冲突处理',Cloud],
   ['reminders','营养周报提醒','应用内与系统通知',Bell],
+  ['update','版本更新','检查公开版更新',Download],
 ];
-export default function SettingsPanel({state,onRestore,onSyncTarget,page='home',onPageChange}) {
+export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdate,page='home',onPageChange}) {
   const backupInput=useRef(null);
   const [ask, confirmation] = useConfirm();
   const [config,setConfig] = useState(defaultAI);
   const [key,setKey] = useState('');
   const [developer,setDeveloper]=useState(null);
+  const [autoUpdate,setAutoUpdate]=useState(true);
   const [loadingConfig,setLoadingConfig]=useState(true);
   const [unlockOpen,setUnlockOpen]=useState(false);
   const [unlockPassword,setUnlockPassword]=useState('');
@@ -32,6 +35,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,page='home',
   useEffect(()=>()=>{testGeneration.current++;},[]);
   useEffect(()=>{setTestResult(null);},[config.url,config.model,key,developer]);
   useEffect(() => {let active=true;Promise.all([getPreference('ai-config',defaultAI),getDeveloperConfig()]).then(([saved,profile])=>{if(active){setConfig(saved);setDeveloper(profile);}}).catch(()=>toast.error('AI 配置读取失败，请重新打开设置')).finally(()=>{if(active)setLoadingConfig(false);});return()=>{active=false;};},[]);
+  useEffect(()=>{let active=true;autoCheckEnabled().then(value=>{if(active)setAutoUpdate(value);}).catch(()=>toast.error('自动更新检查设置读取失败'));return()=>{active=false;};},[]);
   async function testConnection(){
     if(testRunning.current)return;
     testRunning.current=true;
@@ -58,10 +62,13 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,page='home',
       <p className="settings-group-title">功能与数据</p>
       {settingsEntries.slice(0,3).map(([id,label,detail,Icon])=><button className="settings-entry" key={id} type="button" aria-label={label} aria-describedby={`settings-${id}-description`} aria-controls={`settings-${id}`} onClick={()=>onPageChange(id)}><span className="settings-entry-icon"><Icon size={20} strokeWidth={1.8}/></span><span className="settings-entry-copy"><strong>{label}</strong><small id={`settings-${id}-description`}>{detail}</small></span><ChevronRight className="settings-entry-arrow" size={20}/></button>)}
       <p className="settings-group-title">提醒</p>
-      {settingsEntries.slice(3).map(([id,label,detail,Icon])=><button className="settings-entry" key={id} type="button" aria-label={label} aria-describedby={`settings-${id}-description`} aria-controls={`settings-${id}`} onClick={()=>onPageChange(id)}><span className="settings-entry-icon"><Icon size={20} strokeWidth={1.8}/></span><span className="settings-entry-copy"><strong>{label}</strong><small id={`settings-${id}-description`}>{detail}</small></span><ChevronRight className="settings-entry-arrow" size={20}/></button>)}
+      {settingsEntries.slice(3,4).map(([id,label,detail,Icon])=><button className="settings-entry" key={id} type="button" aria-label={label} aria-describedby={`settings-${id}-description`} aria-controls={`settings-${id}`} onClick={()=>onPageChange(id)}><span className="settings-entry-icon"><Icon size={20} strokeWidth={1.8}/></span><span className="settings-entry-copy"><strong>{label}</strong><small id={`settings-${id}-description`}>{detail}</small></span><ChevronRight className="settings-entry-arrow" size={20}/></button>)}
+      <p className="settings-group-title">应用</p>
+      {settingsEntries.slice(4).map(([id,label,detail,Icon])=><button className="settings-entry" key={id} type="button" aria-label={label} aria-describedby={`settings-${id}-description`} aria-controls={`settings-${id}`} onClick={()=>onPageChange(id)}><span className="settings-entry-icon"><Icon size={20} strokeWidth={1.8}/></span><span className="settings-entry-copy"><strong>{label}</strong><small id={`settings-${id}-description`}>{detail}</small></span><ChevronRight className="settings-entry-arrow" size={20}/></button>)}
     </nav>
     <div className="settings-detail-header" hidden={page==='home'}><button type="button" className="outline" onClick={()=>onPageChange('home')}><ArrowLeft size={18}/>返回设置</button><h2>{settingsEntries.find(([id])=>id===page)?.[1]}</h2></div>
     <section id="settings-reminders" className="settings-page" hidden={page!=='reminders'} aria-label="营养周报提醒"><ReminderSettings/></section>
+    <section id="settings-update" className="settings-page" hidden={page!=='update'} aria-label="版本更新"><p>当前版本：{currentVersion} · {isPublicEdition?'公开版':'开发者版'}</p><label className="update-auto-check"><input type="checkbox" checked={autoUpdate} onChange={async event=>{const enabled=event.target.checked;try{await setAutoCheckEnabled(enabled);setAutoUpdate(enabled);}catch{toast.error('设置保存失败，请重试');}}}/>自动更新检查</label><p>开启后每天首次启动自动检查公开版；关闭后仍可手动检查。</p><button className="outline" onClick={onCheckUpdate}>检查更新</button></section>
     <section id="settings-ai" className="settings-page" hidden={page!=='ai'} aria-label="AI 配置">
 
     <label>接口地址<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
