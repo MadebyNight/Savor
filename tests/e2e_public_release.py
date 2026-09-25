@@ -4,6 +4,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 ROOT=Path(__file__).resolve().parents[1]
+RELEASE_DIR=Path(os.environ.get('PUBLIC_RELEASE_DIR',ROOT/'.android-tools/release-v1.1.2'))
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True,executable_path=str(ROOT/'.android-tools/playwright/chromium-1223/chrome-win64/chrome.exe'))
     page=browser.new_page(viewport={'width':390,'height':844})
@@ -29,7 +30,7 @@ with sync_playwright() as p:
     expect(page.get_by_role('dialog',name='连接成功',exact=True)).to_be_visible()
     assert len(calls)==1
     click('知道了')
-    page.screenshot(path=str(ROOT/'.android-tools/release-v1.1.2/public-ai-settings.png'),full_page=True)
+    page.screenshot(path=str(RELEASE_DIR/'public-ai-settings.png'),full_page=True)
     assert not errors,errors
     browser.close()
     assert not (Path(os.environ.get('E2E_DIST',ROOT/'dist'))/'developer-ai-profile.json').exists()

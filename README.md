@@ -70,7 +70,7 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 - [DeepSeek 图像理解](https://api-docs.deepseek.com/zh-cn/guides/vision/)：Chat Completions 图文格式。
 - [小红书 MCP](https://github.com/xpzouying/xiaohongshu-mcp)、[小红书 skill](https://github.com/DeliciousBuding/xiaohongshu-skill)：已评估，依赖外部浏览器/登录，不直接嵌入 APK。
 
-不提交SDK、JDK、node_modules、dist、密钥及本地配置。当前为个人安装调试APK流程，正式签名升级与真实服务验证结果以进度文档为准。
+不提交SDK、JDK、node_modules、dist、密钥及本地配置。本地开发者包与 GitHub 公开包分别构建；签名升级与真实服务验证结果以进度文档为准。
 
 原生 HTTP 使用 OkHttp 4.12.0（Apache-2.0），仪器测试使用同版本 MockWebServer。网络诊断标签为 `ShiguangNetwork`，仅记录方法、阶段、状态码/异常类型，不记录 URL、凭据或正文。
 
@@ -84,7 +84,7 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 
 ## GitHub 公开分发
 
-公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。GitHub Releases 仅上传 `Savor-v1.1.2-public.apk` 和 SHA256 校验文件；本地开发者版由维护者自行分发，不上传。
+公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。V2.0.1 公开版下载 `Savor-v2.0.1-public.apk`，用同一 Release 的 `SHA256SUMS.txt` 核对；本地开发者版由维护者自行分发，不上传。
 
 公开版必须从新的、干净的源码工作区执行 `npm run build:public` → `npx cap sync android` → Android `:app:assembleRelease`，然后使用维护者密钥签名。公开构建只复制白名单中的图片和字体资源，隐藏开发者入口，并忽略已有设备上的开发者凭据槽。不能用普通 `npm run build` 的输出代替公开版。
 
@@ -100,4 +100,4 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 
 新增回归：`tests/e2e_recognition.py`、`tests/e2e_five_meals.py`、`tests/e2e_food_storage.py`、`tests/e2e_nutrition.py`、`tests/e2e_reminders.py`。后两者用开发入口注入隔离模拟数据，默认 Vite 5173；生产样式用 mobile/five_meals/interactions/food_storage 脚本，`E2E_URL` 指向 4173。测试先用 `Tee-Object` 保存输出至 `.android-tools/v1.2.1/`，真实设备操作先运行日志脚本。
 
-Windows 中文路径若出现 Gradle 转换目录重命名失败，可使用临时 `S:` 映射、本地 Gradle 8.13 和 `.android-tools/gradle-home-ascii` 缓存；`android-build.ps1` 已使用本地 Gradle 与该缓存，但不自动创建盘符映射；本轮原路径构建通过。APK 构建与设备验收状态见 [开发进度](docs/开发进度.md)，既有公开版仍为 V1.1.2，本轮没有推送或发布。
+Windows 中文路径若出现 Gradle 转换目录重命名失败，可使用临时 `S:` 映射、本地 Gradle 8.13 和 `.android-tools/gradle-home-ascii` 缓存；`android-build.ps1` 已使用本地 Gradle 与该缓存，但不自动创建盘符映射。V2.0.1 公开包来自干净工作区的 `build:public`、Android release 构建和原证书签名，验收范围见 [开发进度](docs/开发进度.md)。
