@@ -84,7 +84,7 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 
 ## GitHub 公开分发
 
-公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。V2.0.1 公开版下载 `Savor-v2.0.1-public.apk`，用同一 Release 的 `SHA256SUMS.txt` 核对；本地开发者版由维护者自行分发，不上传。
+公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。V2.0.1 公开版从 [GitHub Release](https://github.com/MadebyNight/Savor/releases/tag/v2.0.1) 下载 `Savor-v2.0.1-public.apk`，用同页的 `SHA256SUMS.txt` 核对；本地开发者版由维护者自行分发，不上传。
 
 公开版必须从新的、干净的源码工作区执行 `npm run build:public` → `npx cap sync android` → Android `:app:assembleRelease`，然后使用维护者密钥签名。公开构建只复制白名单中的图片和字体资源，隐藏开发者入口，并忽略已有设备上的开发者凭据槽。不能用普通 `npm run build` 的输出代替公开版。
 
