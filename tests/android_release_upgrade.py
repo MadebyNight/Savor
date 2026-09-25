@@ -32,8 +32,8 @@ AAPT=ROOT/'.android-tools/sdk/build-tools/36.0.0/aapt.exe'
 JAVA=next((ROOT/'.android-tools/jdk21').glob('*/bin/java.exe'))
 PORT='9236'
 EXPECTED='82822576f8ce89e9029d3246e5dee0f988af129389333426ebeae9253a0eae9e'
-VERSION_NAME='2.0.1'
-VERSION_CODE=7
+VERSION_NAME='2.0.2'
+VERSION_CODE=8
 def adb(*args):
     return subprocess.run([str(ADB),'-s',SERIAL,*args],check=True,capture_output=True,timeout=120).stdout
 def certificate(path):
