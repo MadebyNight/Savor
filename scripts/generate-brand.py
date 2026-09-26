@@ -3,7 +3,7 @@ from copy import deepcopy
 from io import BytesIO
 from pathlib import Path
 import xml.etree.ElementTree as ET
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +46,23 @@ for path in RES.glob('drawable*/splash.png'):
     stamp = icon.resize((edge,edge),Image.Resampling.LANCZOS)
     canvas.paste(stamp,((size[0]-edge)//2,(size[1]-edge)//2),stamp)
     canvas.save(path)
+
+# Android 12+ reserves a 200 x 80 dp branding image below the launch icon.
+# Keep the same wording as the accessible text in the React startup screen.
+font_path = Path('C:/Windows/Fonts/msyh.ttc')
+if not font_path.exists():
+    raise FileNotFoundError(f'Chinese font required for splash credits: {font_path}')
+credits = Image.new('RGBA', (800, 320))
+draw = ImageDraw.Draw(credits)
+font = ImageFont.truetype(str(font_path), 48)
+for line, y in [('Developed by Madebynight', 29), ('Art & Inspiration by 一十一', 54)]:
+    if draw.textlength(line, font=font) > 760:
+        raise ValueError(f'Splash credit exceeds 200 dp: {line}')
+    draw.text((400, y * 4), line, font=font, fill='#6e7765', anchor='mm')
+for density, scale in [('mdpi', 1), ('hdpi', 1.5), ('xhdpi', 2), ('xxhdpi', 3), ('xxxhdpi', 4)]:
+    target = RES / ('drawable-' + density)
+    target.mkdir(exist_ok=True)
+    credits.resize((round(200 * scale), round(80 * scale)), Image.Resampling.LANCZOS).save(target / 'splash_credits.png')
 
 (RES / 'values/ic_launcher_background.xml').write_text('<?xml version="1.0" encoding="utf-8"?>\n<resources><color name="ic_launcher_background">'+background+'</color></resources>\n',encoding='utf8')
 (RES / 'drawable/ic_launcher_background.xml').write_text('<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><solid android:color="'+background+'"/></shape>\n',encoding='utf8')

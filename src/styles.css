@@ -1861,17 +1861,8 @@ html [data-sonner-toaster][data-sonner-theme] {
 .app-splash-credits p {
   margin: 0;
   font-size: 12px;
-  letter-spacing: 0.06em;
   line-height: 1.5;
-  animation: app-splash-fade-up 550ms ease-out both;
-}
-.app-splash-credits p:first-child {
-  color: #7d8473;
-  animation-delay: 350ms;
-}
-.app-splash-credits p:last-child {
   color: #6e7765;
-  animation-delay: 600ms;
 }
 .app-splash-error {
   position: absolute;
@@ -1892,19 +1883,4 @@ html [data-sonner-toaster][data-sonner-theme] {
 }
 .app-splash-error .primary {
   color: #3f361e;
-}
-@keyframes app-splash-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .app-splash-credits p {
-    animation: none;
-  }
 }
