@@ -97,6 +97,7 @@ export function validateBackup(value) {
         item=items[i]=recipe?{...structuredClone(recipe),servings:1}:{id:item,name:'菜谱内容缺失（旧版记录）',ingredients:[],steps:[],servings:1,missing:true};
       }
       if(!object(item)||typeof item.name!=='string'||!Array.isArray(item.ingredients)||!Array.isArray(item.steps)||(item.servings!=null&&(!Number.isInteger(item.servings)||item.servings<1)))throw new Error('备份中的菜单快照无效');
+      if(item.sourceOrders!=null&&(!Array.isArray(item.sourceOrders)||item.sourceOrders.some(source=>!object(source)||!Number.isSafeInteger(source.servings)||source.servings<1||(source.id!=null&&typeof source.id!=='string')||(source.createdAt!=null&&typeof source.createdAt!=='string'))))throw new Error('备份中的点单来源无效');
       validateRecipe(item,'备份中的菜单快照');
     }
   }
@@ -105,9 +106,29 @@ export function validateBackup(value) {
   uniqueIds(state.confirmedRecipes || [],'采购快照');
   if(state.nutritionReports!=null){if(!object(state.nutritionReports))throw new Error('周报格式无效');for(const [week,report] of Object.entries(state.nutritionReports))validateReport(report,week);}
   if(state.purchased!=null&&(!object(state.purchased)||Object.values(state.purchased).some(value=>value!==null&&(typeof value!=='number'||!Number.isFinite(value)||value<0))))throw new Error('采购勾选状态无效');
-  return {...state,qty:state.qty || {},weeks:state.weeks || {},archives,confirmedRecipes:state.confirmedRecipes || state.recipes.filter(r => state.confirmed[r.id])};
+  if(state.pendingOrders!=null){
+    if(!Array.isArray(state.pendingOrders))throw new Error('待分配排单格式无效');
+    uniqueIds(state.pendingOrders,'待分配排单');
+    for(const order of state.pendingOrders){
+      if(!object(order)||!/^\d{4}-\d{2}-\d{2}$/.test(order.date)||new Date(order.date+'T12:00:00').toLocaleDateString('sv-SE')!==order.date
+        ||typeof order.createdAt!=='string'||!Number.isFinite(Date.parse(order.createdAt))
+        ||!Number.isInteger(order.servings)||order.servings<1)throw new Error('待分配排单格式无效');
+      validateRecipe(order.recipeSnapshot,'待分配菜谱快照');
+    }
+  }
+  if(state.purchaseDrafts!=null){
+    if(!object(state.purchaseDrafts))throw new Error('实际购买量格式无效');
+    for(const [key,draft] of Object.entries(state.purchaseDrafts)){
+      let pair;try{pair=JSON.parse(key);}catch{throw new Error('实际购买量格式无效');}
+      if(!Array.isArray(pair)||pair.length!==2||pair.some(part=>typeof part!=='string'||!part.trim())
+        ||!object(draft)||typeof draft.checked!=='boolean'||(draft.checked&&draft.qty===null)
+        ||(draft.qty!==null&&(!Number.isFinite(draft.qty)||draft.qty<=0))
+        ||(draft.sourceFingerprint!=null&&typeof draft.sourceFingerprint!=='string'))throw new Error('实际购买量格式无效');
+    }
+  }
+  return {...state,qty:state.qty || {},weeks:state.weeks || {},archives,confirmedRecipes:state.confirmedRecipes || state.recipes.filter(r => state.confirmed[r.id]),pendingOrders:state.pendingOrders || [],purchaseDrafts:state.purchaseDrafts || {}};
 }
-export const businessState = state => ({recipes:state.recipes,...(state.storageRules!=null?{storageRules:state.storageRules}:{}),...(state.recipeCategories!=null?{recipeCategories:state.recipeCategories}:{}),fridge:state.fridge,confirmed:state.confirmed,confirmedRecipes:state.confirmedRecipes,weeks:state.weeks,archives:state.archives,...(state.purchased&&Object.keys(state.purchased).length?{purchased:state.purchased}:{}),...(state.nutritionReports&&Object.keys(state.nutritionReports).length?{nutritionReports:state.nutritionReports}:{})});
+export const businessState = state => ({recipes:state.recipes,...(state.storageRules!=null?{storageRules:state.storageRules}:{}),...(state.recipeCategories!=null?{recipeCategories:state.recipeCategories}:{}),fridge:state.fridge,confirmed:state.confirmed,confirmedRecipes:state.confirmedRecipes,weeks:state.weeks,archives:state.archives,...(state.pendingOrders?.length?{pendingOrders:state.pendingOrders}:{}),...(state.purchaseDrafts&&Object.keys(state.purchaseDrafts).length?{purchaseDrafts:state.purchaseDrafts}:{}),...(state.purchased&&Object.keys(state.purchased).length?{purchased:state.purchased}:{}),...(state.nutritionReports&&Object.keys(state.nutritionReports).length?{nutritionReports:state.nutritionReports}:{})});
 export function assertReadableImages(value) {
   if (Array.isArray(value)) for (const item of value) assertReadableImages(item);
   else if (value && typeof value === 'object') for (const [key,item] of Object.entries(value)) {

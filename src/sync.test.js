@@ -85,3 +85,26 @@ test('旧版数字菜谱ID转独立快照，缺失记录明确标记，新周菜
   assert.throws(()=>validateBackup({...state(),weeks:{'2026-09-14':{lunch:[1]}}}),/菜单快照/);
   assert.throws(()=>validateBackup({...local,plan:{lunch:'invalid'}}),/菜单格式/);
 });
+
+test('新排单与实际购买草稿经备份及同步完整往返，旧备份兼容',async()=>{
+  const local=state(),recipe=structuredClone(local.recipes[0]);
+  local.pendingOrders=[{id:'o1',date:'2026-09-29',createdAt:'2026-09-26T08:00:00.000Z',recipeSnapshot:recipe,servings:2}];
+  local.purchaseDrafts={[JSON.stringify(['番茄','g'])]:{qty:300,checked:true,sourceFingerprint:'date-source'}};
+  const {backup}=await import('./services.js');
+  assert.deepEqual(validateBackup(backup(local)).pendingOrders,local.pendingOrders);
+  assert.deepEqual(validateBackup(backup(local)).purchaseDrafts,local.purchaseDrafts);
+  const env=environment(),manifest=await uploadVersion({call:env.call,remote:null},local);
+  assert.deepEqual(businessState(await downloadVersion({call:env.call,remote:manifest})),businessState(local));
+  assert.deepEqual(validateBackup(state()).pendingOrders,[]);
+  assert.deepEqual(validateBackup(state()).purchaseDrafts,{});
+});
+
+test('损坏的日期排单或待入库数量不能恢复',()=>{
+  const local=state(),recipe=structuredClone(local.recipes[0]);
+  const valid={id:'o1',date:'2026-09-29',createdAt:'2026-09-26T08:00:00.000Z',recipeSnapshot:recipe,servings:1};
+  assert.throws(()=>validateBackup({...local,pendingOrders:[{...valid,date:'2026-02-30'}]}),/待分配排单/);
+  assert.throws(()=>validateBackup({...local,pendingOrders:[valid,{...valid}]}),/重复 ID/);
+  assert.throws(()=>validateBackup({...local,pendingOrders:[{...valid,recipeSnapshot:{name:'损坏'}}]}),/待分配菜谱快照/);
+  assert.throws(()=>validateBackup({...local,purchaseDrafts:{'["番茄","g"]':{qty:0,checked:true}}}),/实际购买量/);
+  assert.throws(()=>validateBackup({...local,purchaseDrafts:{'["番茄","g"]':{qty:null,checked:true}}}),/实际购买量/);
+});

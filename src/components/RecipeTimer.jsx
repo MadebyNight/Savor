@@ -3,9 +3,13 @@ import { Clock3 } from 'lucide-react';
 
 export default function RecipeTimer({ minutes }) {
   const duration = Math.max(1, Math.round(Number(minutes) * 60));
+  const [baseDuration, setBaseDuration] = useState(duration);
   const [remaining, setRemaining] = useState(duration);
   const [status, setStatus] = useState('idle');
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editMinutes, setEditMinutes] = useState(Math.floor(duration / 60));
+  const [editSeconds, setEditSeconds] = useState(duration % 60);
   const deadline = useRef(0);
 
   useEffect(() => {
@@ -29,8 +33,23 @@ export default function RecipeTimer({ minutes }) {
     setStatus(seconds === 0 ? 'done' : 'paused');
   };
   const reset = () => {
-    setRemaining(duration);
+    setRemaining(baseDuration);
     setStatus('idle');
+  };
+  const editTime = () => {
+    if (status === 'running') pause();
+    setEditMinutes(Math.floor(remaining / 60));
+    setEditSeconds(remaining % 60);
+    setEditing(true);
+  };
+  const saveTime = (event) => {
+    event.preventDefault();
+    const next = Number(editMinutes) * 60 + Number(editSeconds);
+    if (!Number.isInteger(next) || next <= 0 || Number(editMinutes) < 0 || Number(editSeconds) < 0 || Number(editSeconds) > 59) return;
+    setBaseDuration(next);
+    setRemaining(next);
+    setStatus('idle');
+    setEditing(false);
   };
   const display = `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
 
@@ -38,13 +57,19 @@ export default function RecipeTimer({ minutes }) {
     {!open ? <button type="button" className="outline recipe-timer-trigger" aria-expanded="false" aria-controls="recipe-timer-panel" onClick={() => setOpen(true)}><Clock3 size={18} />{status === 'done' ? '计时结束' : status === 'idle' ? '计时' : display}</button> : <div id="recipe-timer-panel" className="recipe-timer-panel">
       <div className="recipe-timer-main">
         <div><strong>做菜计时</strong><small>按菜谱用时 {minutes} 分钟</small></div>
-        <output role="timer" aria-label={`剩余 ${Math.floor(remaining / 60)} 分 ${remaining % 60} 秒`}>{display}</output>
+        <button type="button" className="recipe-timer-time" aria-label={`编辑倒计时，当前 ${Math.floor(remaining / 60)} 分 ${remaining % 60} 秒`} onClick={editTime}><output role="timer">{display}</output></button>
       </div>
+      {editing && <form className="recipe-timer-edit" onSubmit={saveTime}>
+        <label>分钟<input type="number" min="0" max="999" step="1" required value={editMinutes} onChange={event=>setEditMinutes(event.target.value)} /></label>
+        <label>秒<input type="number" min="0" max="59" step="1" required value={editSeconds} onChange={event=>setEditSeconds(event.target.value)} /></label>
+        <button type="submit" className="primary" disabled={!Number.isInteger(Number(editMinutes)*60+Number(editSeconds)) || Number(editMinutes)*60+Number(editSeconds)<=0 || Number(editMinutes)<0 || Number(editSeconds)<0 || Number(editSeconds)>59}>确定</button>
+        <button type="button" className="outline" onClick={()=>setEditing(false)}>取消</button>
+      </form>}
       <div className="recipe-timer-actions">
-        <button type="button" className="primary" onClick={status === 'running' ? pause : start} disabled={status === 'done'}>
+        <button type="button" className="primary" onClick={status === 'running' ? pause : start} disabled={status === 'done' || editing}>
           {status === 'running' ? '暂停' : status === 'paused' ? '继续' : status === 'done' ? '计时结束' : '开始计时'}
         </button>
-        {status !== 'idle' && <button type="button" className="outline" onClick={reset}>重置</button>}
+        {status !== 'idle' && <button type="button" className="outline" onClick={reset} disabled={editing}>重置</button>}
         <button type="button" className="outline" aria-expanded="true" aria-controls="recipe-timer-panel" onClick={() => setOpen(false)}>收起</button>
       </div>
       {status === 'done' && <p role="status">计时结束</p>}

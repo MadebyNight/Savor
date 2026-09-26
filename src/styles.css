@@ -1818,6 +1818,25 @@ html [data-sonner-toaster][data-sonner-theme] {
 .page-2 .shopping-card .shopping-stock-note { color:#737c68; overflow-wrap:anywhere; line-height:1.7; }
 .page-2 .shopping-card .shopping-category { color:#737c68; font-size:.78rem; }
 .page-2 .shopping-card .shopping-stock-reason span { display:inline-block; margin:3px 0; padding:2px 5px; border-radius:4px; background:#f5eddb; color:#866323; font-size:11px; }
+.page-2 .shopping-card .basket-quantity { grid-column:3; min-height:48px; padding:5px 0 5px 8px; border:0; background:transparent; color:inherit; font-size:1.1rem; font-weight:700; text-align:right; cursor:pointer; }
+.page-2 .shopping-card .basket-quantity small { font-size:.75rem; font-weight:400; }
+.page-2 .shopping-card .basket-name { min-height:44px; padding:4px 0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.page-2 .shopping-card .basket-name span { color:#7e8b70; }
+.basket-range { margin:8px 0 12px; }
+.basket-stock-action { width:100%; min-height:48px; margin:0 0 12px; }
+.basket-legacy { margin:16px 0; padding:12px; border:1px solid #e4e7dc; border-radius:12px; }
+.basket-legacy summary { cursor:pointer; font-weight:700; }
+.basket-edit-content label { display:grid; gap:8px; }
+.basket-edit-content input { width:100%; }
+.basket-detail-content,.basket-stock-content { display:grid; gap:10px; }
+.menu-view-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; padding:4px; margin:0 0 14px; border-radius:14px; background:#edf0e7; }
+.menu-view-tabs button { min-height:48px; border:0; border-radius:11px; background:transparent; color:#52604b; font-size:1rem; font-weight:700; cursor:pointer; }
+.menu-view-tabs button[aria-selected="true"] { background:#fffdf8; color:#31422f; box-shadow:0 1px 5px #34452b18; }
+.menu-view-tabs button:focus-visible,.basket-quantity:focus-visible,.basket-name:focus-visible { outline:2px solid #72835f; outline-offset:2px; }
+.week-pending { margin:8px 0; padding:8px 12px; border:1px solid #e4e7dc; border-radius:10px; background:#fffdf8; }
+.week-pending summary { min-height:40px; display:flex; align-items:center; cursor:pointer; color:#52604b; font-weight:700; }
+.week-pending label { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0; }
+.week-pending select { min-height:44px; max-width:50%; }
 @media(max-width:360px) { .stock-add-actions button { flex-direction:column; gap:4px; } }
 
 .recognition-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }

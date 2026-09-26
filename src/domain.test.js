@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit, trimName } from "./domain.js";
+import { stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, datedProcurement, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit, trimName } from "./domain.js";
 import {backup,validateBackup} from './services.js';
 test('五餐备份往返保留旧三餐、新餐次和独立快照，采购不随安排增加',()=>{
   assert.deepEqual(MEALS.map(([key])=>key),['早','中','下午茶','晚','夜宵']);
@@ -135,6 +135,54 @@ test('同义食材合并采购需求并统一扣减，不改食材展示名称',
   const result=procurement(recipes,{a:1},[{name:'番茄',qty:250,unit:'克',days:0}]);
   assert.equal(result.length,1);assert.equal(result[0].name,'西红柿');assert.equal(result[0].qty,50);
   assert.equal(recipes[0].ingredients[0].name,'西红柿');
+});
+
+test('日期排单与待分配共算，分配后只计一次，旧确认独立展示',()=>{
+  const recipe={id:'r',name:'番茄蛋',ingredients:[{name:'番茄',qty:200,unit:'g'}],steps:['炒']};
+  const pending={id:'o1',date:'2026-09-29',createdAt:'2026-09-26T08:00:00.000Z',recipeSnapshot:recipe,servings:1};
+  const input={weeks:{'2026-09-28':{'1-中':[{...recipe,servings:1}]}},pendingOrders:[pending],legacyRecipes:[recipe],legacyQuantities:{r:1},fridge:[],from:'2026-09-28',to:'2026-10-04'};
+  const first=datedProcurement(input);
+  assert.equal(first.items[0].qty,400);
+  assert.equal(first.items[0].sources.length,2);
+  assert.equal(first.legacyItems[0].qty,200);
+  assert.ok(first.items[0].sourceFingerprint.length<200);
+  const moved=datedProcurement({...input,pendingOrders:[],weeks:{'2026-09-28':{'1-中':[{...recipe,servings:2,createdAt:'2026-09-26T08:00:00.000Z'}]}}});
+  assert.equal(moved.items[0].qty,400);
+  assert.equal(moved.items[0].sources.length,1);
+  assert.equal(moved.items[0].sources[0].servings,2);
+  assert.equal(moved.items[0].sources[0].createdAt,'2026-09-26T08:00:00.000Z');
+  const repeated=datedProcurement({...input,pendingOrders:[],weeks:{'2026-09-28':{'1-中':[{...recipe,servings:1,orderId:'one',createdAt:'2026-09-26T08:00:00.000Z'},{...recipe,servings:2,orderId:'two',createdAt:'2026-09-26T09:00:00.000Z'}]}}});
+  assert.equal(repeated.items[0].qty,600);
+  assert.equal(repeated.items[0].sources.length,1);
+  assert.equal(repeated.items[0].sources[0].servings,3);
+  assert.equal(repeated.items[0].sources[0].timestamps.length,2);
+  const merged=datedProcurement({...input,pendingOrders:[],weeks:{'2026-09-28':{'1-中':[{...recipe,servings:3,sourceOrders:[{id:'one',createdAt:'2026-09-26T08:00:00.000Z',servings:1},{id:'two',createdAt:'2026-09-26T09:00:00.000Z',servings:2}]}]}}});
+  assert.equal(merged.items[0].sources[0].timestamps.length,2);
+});
+
+test('库存按日期先后只抵一次，并排除用餐前过期或尚未入库的批次',()=>{
+  const recipe={id:'r',name:'番茄蛋',ingredients:[{name:'番茄',qty:100,unit:'g'}]};
+  const weeks={'2026-09-28':{'0-早':[{...recipe,servings:1}],'2-晚':[{...recipe,servings:1}]}};
+  const fridge=[{name:'番茄',qty:40,unit:'g',date:'2026-09-28',days:2},
+    {name:'番茄',qty:30,unit:'g',date:'2026-09-30',days:3},
+    {name:'番茄',qty:10,unit:'g',date:'2026-09-20',days:2}];
+  const result=datedProcurement({weeks,fridge,from:'2026-09-28',to:'2026-10-04'}).items[0];
+  assert.deepEqual([result.requiredQty,result.availableQty,result.qty],[200,70,130]);
+  assert.deepEqual(result.sources.map(source=>source.date),['2026-09-28','2026-09-30']);
+  assert.equal(datedProcurement({weeks,fridge,from:'2026-09-30',to:'2026-10-04',asOf:'2026-09-26'}).items[0].qty,70);
+  const longStock=[{name:'番茄',qty:80,unit:'g',date:'2026-09-26',days:10}];
+  assert.equal(datedProcurement({weeks,fridge:longStock,from:'2026-09-30',asOf:'2026-09-26'}).items[0].qty,100);
+});
+
+test('同义食材合并但单位不混算，未知用量不虚构缺口，历史日期默认排除',()=>{
+  const weeks={'2026-09-28':{'0-早':[
+    {id:'a',name:'甲',servings:1,ingredients:[{name:'番茄',unit:'克',qty:100},{name:'盐',unit:'g',qty:null}]},
+    {id:'b',name:'乙',servings:1,ingredients:[{name:'西红柿',unit:'g',qty:50},{name:'番茄',unit:'kg',qty:1}]},
+  ]}};
+  const items=datedProcurement({weeks,fridge:[],from:'2026-09-28'}).items;
+  assert.deepEqual(items.map(item=>[item.name,item.unit,item.qty]),[['番茄','g',150],['盐','g',null],['番茄','kg',1]]);
+  assert.equal(datedProcurement({weeks,fridge:[{name:'盐',qty:50,unit:'g',date:'2026-09-28',days:0}],from:'2026-09-28'}).items[1].availableQty,50);
+  assert.equal(datedProcurement({weeks,fridge:[],from:'2026-09-29'}).items.length,0);
 });
 
 

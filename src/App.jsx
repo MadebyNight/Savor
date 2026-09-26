@@ -9,7 +9,7 @@ import NutritionPanel, {RecipeNutrition,NutritionReviewButton} from './component
 import RecipeSnapshotDialog from './components/RecipeSnapshotDialog.jsx';
 import RecipeTimer from './components/RecipeTimer.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
-﻿import { matchesRecipeTime, stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, reconcilePurchased, MEALS, monday, dayAt, usableStock, procurement, normalizeUnit } from "./domain.js";
+﻿import { matchesRecipeTime, stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, datedProcurement, MEALS, monday, dayAt, usableStock, normalizeUnit } from "./domain.js";
 import { loadState, saveState, exportBlob, isNative, isMissingLocalImage } from "./storage.js";
 import {businessState} from "./services.js";
 import SyncPanel from "./components/SyncPanel.jsx";
@@ -20,6 +20,7 @@ import RecognitionPanel from "./components/RecognitionPanel.jsx";
 import SettingsPanel from "./components/SettingsPanel.jsx";
 import AppUpdate from './components/AppUpdate.jsx';
 import MobileWeek from "./components/MobileWeek.jsx";
+import TodayMenu from "./components/TodayMenu.jsx";
 import useConfirm from "./components/useConfirm.jsx";
 import useBackHandler from "./useBackHandler.js";
 // 从原站公开页面恢复的交互界面，保留原有文案、状态流转及计算规则。
@@ -82,6 +83,18 @@ const navigationItems = [
   ["我的冰箱", Refrigerator],
 ];
 const hasUsableImage = image => !!image && !isMissingLocalImage(image);
+const purchaseFingerprint=item=>JSON.stringify([item.sourceFingerprint,item.availableQty,item.qty]);
+const sameRecipeSnapshot=(left,right)=>{
+  const compareNutrition=!!(left?.nutrition&&right?.nutrition);
+  const strip=({servings,createdAt,orderId,sourceOrders,nutrition,...snapshot})=>compareNutrition?{...snapshot,nutrition:{...nutrition,generatedAt:undefined}}:snapshot;
+  return left?.id===right?.id&&JSON.stringify(strip(left))===JSON.stringify(strip(right));
+};
+const appendPlannedDish=(items,recipe)=>{
+  const index=items.findIndex(item=>sameRecipeSnapshot(item,recipe));
+  if(index<0)return [...items,recipe];
+  const origins=item=>item.sourceOrders||[{id:item.orderId||null,createdAt:item.createdAt||null,servings:item.servings||1}];
+  return items.map((item,position)=>position===index?{...item,servings:(item.servings||1)+(recipe.servings||1),sourceOrders:[...origins(item),...origins(recipe)]}:item);
+};
 function unavailableImageCount(value) {
   if (isMissingLocalImage(value)) return 1;
   if (Array.isArray(value)) return value.reduce((count,item)=>count+unavailableImageCount(item),0);
@@ -138,6 +151,22 @@ function App() {
   const [storageRules,setStorageRules]=useState(DEFAULT_STORAGE_RULES);
   const [showStorageRules,setShowStorageRules]=useState(false);
   const [purchased,setPurchased]=useState({});
+  const [pendingOrders,setPendingOrders]=useState([]);
+  const [purchaseDrafts,setPurchaseDrafts]=useState({});
+  const [basketRange,setBasketRange]=useState('seven');
+  const [legacyDate,setLegacyDate]=useState(today());
+  const [basketItem,setBasketItem]=useState(null);
+  const [purchaseQuantity,setPurchaseQuantity]=useState('');
+  const [basketSaving,setBasketSaving]=useState(false);
+  const basketSaveLock=useRef(false);
+  const basketPress=useRef(null);
+  const basketLongPressed=useRef(false);
+  const [menuView,setMenuView]=useState('week');
+  const [weekView,setWeekView]=useState('day');
+  const [orderSaving,setOrderSaving]=useState(false);
+  const orderSaveLock=useRef(false);
+  const [menuSaving,setMenuSaving]=useState(false);
+  const menuSaveLock=useRef(false);
   // 修改点单只更新 quantities；确认后才更新采购缺口与周菜单素材。
   const [quantities, setQuantities] = useState({});
   const [confirmedQuantities, setConfirmedQuantities] = useState({});
@@ -230,6 +259,8 @@ function App() {
     fridge,
     storageRules,
     purchased,
+    pendingOrders,
+    purchaseDrafts,
     qty: quantities,
     confirmed: confirmedQuantities,
     weeks,
@@ -245,6 +276,8 @@ function App() {
     setFridge(state.fridge || []);
     setStorageRules(state.storageRules ? validateStorageRules(state.storageRules) : DEFAULT_STORAGE_RULES);
     setPurchased(state.purchased || {});
+    setPendingOrders(state.pendingOrders || []);
+    setPurchaseDrafts(state.purchaseDrafts || {});
     setQuantities(state.qty || {});
     setConfirmedQuantities(state.confirmed || {});
     setWeeks(state.weeks || {});
@@ -318,6 +351,8 @@ function App() {
     fridge,
     storageRules,
     purchased,
+    pendingOrders,
+    purchaseDrafts,
     quantities,
     confirmedQuantities,
     weeks,
@@ -351,15 +386,80 @@ function App() {
     (total, quantity) => total + quantity,
     0,
   );
-  // 同名、同单位食材合并；先汇总全部需求，再减去冰箱中已有数量。
-  const shoppingList = procurement(
-    confirmedRecipes,
-    confirmedQuantities,
-    fridge,
-  );
-  const shoppingFingerprint=JSON.stringify(shoppingList.map(item=>[shoppingKey(item),item.qty]));
-  useEffect(()=>{if(hydrated)setPurchased(current=>{const next=reconcilePurchased(shoppingList,current);return JSON.stringify(next)===JSON.stringify(current)?current:next;});},[shoppingFingerprint,hydrated]);
-  const remainingShopping=shoppingList.filter(item=>!isPurchased(item,purchased)).length;
+  const procurementResult=datedProcurement({
+    weeks,pendingOrders,legacyRecipes:confirmedRecipes,legacyQuantities:confirmedQuantities,fridge,
+    from:today(),to:basketRange==='today'?today():basketRange==='seven'?dayAt(today(),6):undefined,
+  });
+  const legacyShoppingList=procurementResult.legacyItems;
+  const legacyOrders=confirmedRecipes.filter(item=>confirmedQuantities[item.id]>0);
+  const allShoppingItems=datedProcurement({weeks,pendingOrders,fridge,from:today()}).items;
+  const currentPurchaseFingerprint=item=>{
+    const current=allShoppingItems.find(value=>shoppingKey(value)===shoppingKey(item));
+    return current?purchaseFingerprint(current):'missing';
+  };
+  const purchasedKeys=Object.keys(purchaseDrafts).filter(key=>purchaseDrafts[key]?.checked);
+  const shoppingList=[...procurementResult.items,...purchasedKeys.filter(key=>!procurementResult.items.some(item=>shoppingKey(item)===key)).map(key=>allShoppingItems.find(item=>shoppingKey(item)===key)||(()=>{const [name,unit]=JSON.parse(key);return {name,unit,category:'其他',qty:0,requiredQty:0,availableQty:0,sources:[],sourceFingerprint:''};})())]
+    .filter(item=>item.qty==null || item.qty>0 || purchaseDrafts[shoppingKey(item)]?.qty>0 || purchaseDrafts[shoppingKey(item)]?.checked);
+  const remainingShopping=shoppingList.filter(item=>!purchaseDrafts[shoppingKey(item)]?.checked).length;
+  const checkedShopping=shoppingList.filter(item=>purchaseDrafts[shoppingKey(item)]?.checked);
+  const shoppingExportLines=[...shoppingList.flatMap(item=>{
+    const draft=purchaseDrafts[shoppingKey(item)];
+    const quantity=draft?.qty??item.qty??'待确认';
+    const label=draft?.checked?'已买':draft?.qty?'拟购买':'还需买';
+    return [`${item.name} ${label} ${quantity}${item.unit}`,...(item.sources||[]).map(source=>`  ${source.date} ${MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'} · ${source.recipeName} ×${source.servings}`)];
+  }),...legacyShoppingList.map(item=>`${item.name} ${item.qty??'待确认'}${item.unit} · 旧版待安排采购`)];
+  const openPurchaseEditor=item=>{setBasketItem(item);setPurchaseQuantity(String(purchaseDrafts[shoppingKey(item)]?.qty??item.qty??''));setModal('purchase-edit');};
+  const savePurchaseQuantity=()=>{
+    const qty=Number(purchaseQuantity);
+    if(!Number.isFinite(qty)||qty<=0){toast.error('请填写大于 0 的实际购买量');return;}
+    const key=shoppingKey(basketItem);
+    setPurchaseDrafts(current=>({...current,[key]:{...current[key],qty,checked:current[key]?.checked||false,sourceFingerprint:currentPurchaseFingerprint(basketItem)}}));
+    setModal('');toast.success('购买量已保存');
+  };
+  const togglePurchased=(item,checked)=>{
+    const key=shoppingKey(item),current=purchaseDrafts[key];
+    const qty=current?.qty??item.qty;
+    if(checked&&(!Number.isFinite(Number(qty))||Number(qty)<=0)){openPurchaseEditor(item);toast('先填写实际购买量，再勾选已买');return;}
+    setPurchaseDrafts(drafts=>({...drafts,[key]:{...drafts[key],qty:Number(qty),checked,sourceFingerprint:drafts[key]?.sourceFingerprint||currentPurchaseFingerprint(item)}}));
+  };
+  const assignLegacy=async()=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(legacyDate)){toast.error('请选择有效用餐日期');return;}
+    if(menuSaveLock.current){toast('菜单正在保存，请稍后重试');return;}
+    menuSaveLock.current=true;setMenuSaving(true);
+    const before=latestState.current;
+    const stamp=new Date().toISOString();
+    const additions=before.confirmedRecipes.filter(item=>before.confirmed[item.id]>0).map((item,index)=>({id:`legacy-${stamp}-${index}`,date:legacyDate,createdAt:stamp,recipeSnapshot:structuredClone(item),servings:before.confirmed[item.id]}));
+    const next=[...before.pendingOrders,...additions];
+    const nextDrafts={...before.purchaseDrafts};
+    for(const [key,qty] of Object.entries(before.purchased))if(Number(qty)>0)nextDrafts[key]??={qty:Number(qty),checked:true};
+    try{await saveState({...before,pendingOrders:next,purchaseDrafts:nextDrafts,confirmed:{},confirmedRecipes:[],purchased:{}});setPendingOrders(next);setPurchaseDrafts(nextDrafts);setConfirmedQuantities({});setConfirmedRecipes([]);setPurchased({});toast.success('旧版点单已归入指定日期的待分配');}
+    catch(error){toast.error('安排失败，旧记录已保留：'+error.message);}
+    finally{menuSaveLock.current=false;setMenuSaving(false);}
+  };
+  const stockPurchased=async()=>{
+    if(basketSaveLock.current)return;
+    const before=latestState.current;
+    const entries=Object.entries(before.purchaseDrafts).filter(([,draft])=>draft?.checked);
+    if(!entries.length)return;
+    const currentItems=datedProcurement({weeks:before.weeks,pendingOrders:before.pendingOrders,fridge:before.fridge,from:today()}).items;
+    if(entries.some(([key,draft])=>{
+      const item=currentItems.find(value=>shoppingKey(value)===key);
+      return draft.sourceFingerprint!==(item?purchaseFingerprint(item):'missing');
+    })){toast.error('采购需求已变化，请逐项复核已买数量后入库');return;}
+    basketSaveLock.current=true;setBasketSaving(true);
+    try{
+      const nextFridge=[...before.fridge,...entries.map(([key,draft],index)=>{
+        const [name,unit]=JSON.parse(key);
+        const item=allShoppingItems.find(value=>shoppingKey(value)===key);
+        return suggestStorage({...ingredient(name,Number(draft.qty),item?.category||'其他',unit),id:`purchase-${Date.now()}-${index}`,date:today()},before.storageRules);
+      })];
+      const nextDrafts={...before.purchaseDrafts};for(const [key] of entries)delete nextDrafts[key];
+      await saveState({...before,fridge:nextFridge,purchaseDrafts:nextDrafts});
+      setFridge(nextFridge);setPurchaseDrafts(nextDrafts);setModal('');
+      toast.success(`已入库 ${entries.length} 项，采购缺口已更新`);
+    }catch(error){toast.error('入库失败，已买记录保留：'+error.message);}
+    finally{basketSaveLock.current=false;setBasketSaving(false);}
+  };
   const manualStock=()=>{if(editingStock!==null)setIngredientDraft({...ingredient('',100),days:0,date:today()});setEditingStock(null);setIngredientDraft(current=>suggestStorage(current,storageRules));setStockError('');setModal('stock');};
   async function selectStockImage(event){
     const file=event.target.files?.[0];event.target.value='';if(!file)return;
@@ -373,40 +473,127 @@ function App() {
       [recipeId]: Math.max(0, (currentQuantities[recipeId] || 0) + delta),
     }));
   const confirmSelection = async () => {
-    if (!selectedCount && !(await ask("清空后不再计算采购缺口，已排菜单保持不变。", { title: "清空采购需求？", label: "确认清空", danger: true })))
-      return;
-    setConfirmedRecipes(
-      structuredClone(recipes.filter((item) => quantities[item.id] > 0).map(item=>({...item,nutrition:calculateNutrition(item)}))),
-    );
-    setConfirmedQuantities({
-      ...quantities,
-    });
-    setModal("");
-    toast.success("已同步周菜单素材与缺失食材清单");
+    if (!selectedCount||orderSaveLock.current) return;
+    orderSaveLock.current=true;setOrderSaving(true);
+    const stamp=new Date().toISOString();
+    const date=today();
+    const additions=recipes.filter(item=>quantities[item.id]>0).map((item,index)=>({
+      id:`${stamp}-${index}`,date,createdAt:stamp,
+      recipeSnapshot:structuredClone({...item,nutrition:calculateNutrition(item)}),
+      servings:quantities[item.id],
+    }));
+    const next=[...latestState.current.pendingOrders,...additions];
+    try {
+      await saveState({...latestState.current,pendingOrders:next});
+      setPendingOrders(next);
+      setQuantities({});
+      setModal("");
+      toast.success("已加入当日菜单待分配，采购清单已更新");
+    } catch(error) {toast.error('点单保存失败，本次选菜已保留：'+error.message);}
+    finally{orderSaveLock.current=false;setOrderSaving(false);}
   };
   const addToMeal = (slot, recipeId) => {
-    if (recipeId) {
+    if(menuSaveLock.current){toast('菜单正在保存，请稍后重试');return;}
+    const recipe=recipes.find(item=>item.id===recipeId);
+    if (recipe) {
+      const stamp=new Date().toISOString();
+      const snapshot=structuredClone({...recipe,nutrition:calculateNutrition(recipe)});
       setPlan((currentPlan) => {
         const items = [...(currentPlan[slot] || [])];
-        const index = items.findIndex((item) => item.id === recipeId);
+        const index = items.findIndex((item) => sameRecipeSnapshot(item,snapshot));
         if (index >= 0)
           items[index] = {
             ...items[index],
             servings: (items[index].servings || 1) + 1,
+            sourceOrders:[...(items[index].sourceOrders||[{id:null,createdAt:items[index].createdAt||null,servings:items[index].servings||1}]),{id:crypto.randomUUID(),createdAt:stamp,servings:1}],
           };
         else
           items.push({
-            ...structuredClone(
-              confirmedRecipes.find((item) => item.id === recipeId) ||
-                findRecipe(recipeId),
-            ),
-            nutrition:calculateNutrition(confirmedRecipes.find(item=>item.id===recipeId)||findRecipe(recipeId)),
+            ...snapshot,
             servings: 1,
+            createdAt:stamp,
+            sourceOrders:[{id:crypto.randomUUID(),createdAt:stamp,servings:1}],
           });
         return { ...currentPlan, [slot]: items };
       });
       toast.success("已安排这道菜");
     }
+  };
+  const todayDate=today();
+  const todayWeek=monday(todayDate);
+  const todayIndex=Array.from({length:7},(_,index)=>dayAt(todayWeek,index)).indexOf(todayDate);
+  const todayPlan=weeks[todayWeek] || {};
+  const todayEntries=[
+    ...pendingOrders.filter(order=>order.date===todayDate).map(order=>({id:order.id,meal:null,servings:order.servings,recipe:order.recipeSnapshot})),
+    ...Object.entries(todayPlan).filter(([slot])=>Number(slot.split('-')[0])===todayIndex).flatMap(([slot,items])=>items.map((recipe,index)=>({id:`plan:${slot}:${index}`,meal:slot.split('-').slice(1).join('-'),servings:recipe.servings||1,recipe}))),
+  ];
+  const assignPendingOrder=async(id,meal)=>{
+    if(menuSaveLock.current){toast('菜单正在保存，请稍后重试');return;}
+    const before=latestState.current;
+    const order=before.pendingOrders.find(item=>item.id===id);
+    if(!order||!MEALS.some(([key])=>key===meal))return;
+    const targetWeek=monday(order.date);
+    const day=Array.from({length:7},(_,index)=>dayAt(targetWeek,index)).indexOf(order.date);
+    const slot=`${day}-${meal}`,plan=before.weeks[targetWeek]||{};
+    const entry={...order.recipeSnapshot,servings:order.servings,orderId:id,createdAt:order.createdAt,sourceOrders:[{id,createdAt:order.createdAt,servings:order.servings}]};
+    const items=appendPlannedDish(plan[slot]||[],entry);
+    const nextWeeks={...before.weeks,[targetWeek]:{...plan,[slot]:items}};
+    const nextPending=before.pendingOrders.filter(item=>item.id!==id);
+    menuSaveLock.current=true;setMenuSaving(true);
+    try{await saveState({...before,pendingOrders:nextPending,weeks:nextWeeks});setPendingOrders(nextPending);setWeeks(nextWeeks);toast.success('菜品已分配到餐次');}
+    catch(error){toast.error('排餐保存失败：'+error.message);}
+    finally{menuSaveLock.current=false;setMenuSaving(false);}
+  };
+  const updateTodayEntry=async(id,changes)=>{
+    if(changes.meal&&pendingOrders.some(item=>item.id===id))return assignPendingOrder(id,changes.meal);
+    if(menuSaveLock.current){toast('菜单正在保存，请稍后重试');return;}
+    const before=latestState.current;
+    let nextPending=before.pendingOrders;
+    let nextWeeks=before.weeks;
+    const order=before.pendingOrders.find(item=>item.id===id);
+    let removedRecipe=null,removedSlot=null;
+    const snapshot=order?.recipeSnapshot;
+    if(order){
+      if(changes.remove || changes.meal){
+        nextPending=before.pendingOrders.filter(item=>item.id!==id);
+        if(changes.meal){
+          const slot=`${todayIndex}-${changes.meal}`;
+          const current=before.weeks[todayWeek]||{};
+          nextWeeks={...before.weeks,[todayWeek]:{...current,[slot]:[...(current[slot]||[]),{...snapshot,servings:order.servings,orderId:id,createdAt:order.createdAt}]}};
+        }
+      }else if(changes.servings){
+        nextPending=before.pendingOrders.map(item=>item.id===id?{...item,servings:changes.servings}:item);
+      }
+    }else if(id.startsWith('plan:')){
+      const match=/^plan:(.+):(\d+)$/.exec(id);
+      if(!match)return;
+      const [,slot,indexText]=match,index=Number(indexText);
+      const current=before.weeks[todayWeek]||{};
+      const items=[...(current[slot]||[])];
+      const recipe=items[index];if(!recipe)return;
+      if(changes.remove){removedRecipe=recipe;removedSlot=slot;}
+      if(changes.remove || changes.meal)items.splice(index,1);
+      else if(changes.servings)items[index]={...recipe,servings:changes.servings};
+      const updated={...current,[slot]:items};
+      if(changes.meal){const target=`${todayIndex}-${changes.meal}`;updated[target]=appendPlannedDish(updated[target]||[],recipe);}
+      nextWeeks={...before.weeks,[todayWeek]:updated};
+    }else return;
+    menuSaveLock.current=true;setMenuSaving(true);
+    try{
+      await saveState({...before,pendingOrders:nextPending,weeks:nextWeeks});
+      setPendingOrders(nextPending);setWeeks(nextWeeks);
+      if(changes.remove)toast.success('已移除菜品',{duration:5000,action:{label:'撤销',onClick:async()=>{
+        if(menuSaveLock.current){toast.error('菜单正在保存，请稍后重试撤销');return;}
+        menuSaveLock.current=true;setMenuSaving(true);
+        try{const current=latestState.current;
+          if(order){const restored=[...current.pendingOrders,order];await saveState({...current,pendingOrders:restored});setPendingOrders(restored);}
+          else if(removedRecipe){const plan=current.weeks[todayWeek]||{};const restored={...current.weeks,[todayWeek]:{...plan,[removedSlot]:[...(plan[removedSlot]||[]),removedRecipe]}};await saveState({...current,weeks:restored});setWeeks(restored);}
+        }catch(error){toast.error('撤销失败：'+error.message);}
+        finally{menuSaveLock.current=false;setMenuSaving(false);}
+      }}});
+      else toast.success('当日菜单已更新');
+    }catch(error){toast.error('菜单保存失败：'+error.message);}
+    finally{menuSaveLock.current=false;setMenuSaving(false);}
   };
   const filteredRecipes = recipes.filter(
     (recipe) =>
@@ -533,9 +720,7 @@ function App() {
     finally{setStockSaving(false);}
   };
   const exportShoppingList = async (format) => {
-    const t = shoppingList.map(
-      (item) => `${item.name}    ${item.qty ?? "待确认"} ${item.unit}`,
-    );
+    const t = shoppingExportLines;
     let n;
     if (format === "image") {
       const e = document.createElement("canvas");
@@ -548,7 +733,7 @@ function App() {
       r.font = "bold 36px sans-serif";
       r.fillText("食光 · 食材采购清单", 50, 70);
       r.font = "24px sans-serif";
-      t.forEach((e, t) => r.fillText(e, 50, 145 + t * 60));
+      t.forEach((e, t) => r.fillText(e, 50, 145 + t * 60,700));
       n = await new Promise((t) => e.toBlob((e) => t(e), "image/png"));
     } else {
       const e = (e) =>
@@ -613,12 +798,7 @@ function App() {
               <button
                 className="outline"
                 onClick={async () => {
-                  const e = shoppingList
-                    .map(
-                      (item) =>
-                        `${item.name} ${item.qty ?? "待确认"}${item.unit}`,
-                    )
-                    .join("\n");
+                  const e = shoppingExportLines.join("\n");
                   try {
                     isNative() ? await exportBlob(new Blob([e], {type:"text/plain"}), "食光采购清单.txt", true) : navigator.share
                       ? await navigator.share({
@@ -707,8 +887,8 @@ function App() {
               {!showSettings && !recognition && !editingRecipe && page === 0 && <button className="mobile-icon" aria-label="设置与备份" onClick={() => setShowSettings(true)}><Settings2 size={22} /></button>}
               {!showSettings && !recognition && !editingRecipe && page === 4 && <button className="mobile-icon" aria-label="保质期规则" disabled={!hydrated} onClick={()=>setShowStorageRules(true)}><Settings2 size={22}/></button>}
               {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => openRecognition("recipe-import")}><Upload size={18} />导入菜谱</button>}
-              {!showSettings && page === 3 && <button onClick={() => setMealTargetOpen(true)}><Plus size={18} />安排菜品</button>}
-              {!showSettings && page === 2 && <button disabled={!shoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
+              {!showSettings && page === 3 && menuView==='week' && <button onClick={() => setMealTargetOpen(true)}><Plus size={18} />安排菜品</button>}
+              {!showSettings && page === 2 && <button disabled={!shoppingList.length&&!legacyShoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
             </div>
           </>}
           {!compact && <>
@@ -769,7 +949,7 @@ function App() {
                   [
                     "挑几道喜欢的菜，让一周三餐轻松一点。",
                     "记录食材与步骤，让每一道好菜都能再次上桌。",
-                    "根据已确认菜品与冰箱库存，自动整理食材缺口。",
+                    "根据日期排单与冰箱库存，自动整理食材缺口。",
                     "拖动菜品到对应餐次，也可以先选菜，再点击空格。",
                     "记录每一份新鲜，让家里的食材物尽其用。",
                   ][page]
@@ -974,7 +1154,7 @@ function App() {
 
                 </section>
               </div>
-              {(!compact || selectedCount > 0 || Object.values(confirmedQuantities).some(Boolean)) && <div className="selection-bar">
+              {(!compact || selectedCount > 0) && <div className="selection-bar">
                 <button onClick={() => setModal("selection")}>
                   <span className="basket-circle">
                     <ShoppingBasket size={23} />
@@ -985,16 +1165,13 @@ function App() {
                       {selectedCount}
                       {" 份菜品"}
                     </b>
-                    <small>查看清单，确认后可安排进周菜单</small>
+                    <small>查看本次点单，确认后在当日菜单分配餐次</small>
                   </div>
                 </button>
                 <button
                   className="primary"
                   onClick={() => setModal("selection")}
-                  disabled={
-                    !selectedCount &&
-                    !Object.values(confirmedQuantities).some(Boolean)
-                  }
+                  disabled={!selectedCount}
                 >
                   {"确认选菜 "}
                   <ArrowRight size={18} />
@@ -1014,13 +1191,17 @@ function App() {
                 </h2>
                 <button
                   className="primary"
-                  disabled={!shoppingList.length}
+                  disabled={!shoppingList.length&&!legacyShoppingList.length}
                   onClick={() => setModal("export")}
                 >
                   <Download size={17} />
                   {" 预览与导出"}
                 </button>
               </div>
+              <div className="chip-row basket-range" aria-label="采购日期范围">
+                {[["today","今天"],["seven","未来 7 天"],["all","全部排单"]].map(([value,label])=><button key={value} type="button" aria-pressed={basketRange===value} className={basketRange===value?'active':''} onClick={()=>setBasketRange(value)}>{label}</button>)}
+              </div>
+              {!!checkedShopping.length&&<button type="button" className="outline basket-stock-action" onClick={()=>setModal('purchase-stock')}>已买待入库 {checkedShopping.length} 项 · 确认入库</button>}
               <div className="stock-layout">
               <aside className="chip-row stock-categories" aria-label="食材分类">
                 {stockCategories.map((categoryName) => (
@@ -1041,13 +1222,13 @@ function App() {
                     (item) => category === "全部" || item.category === category,
                   )
                   .map((item) => (
-                    <article key={shoppingKey(item)} className={`stock-card shopping-card ${isPurchased(item,purchased)?'is-purchased':''}`}>
-                      <label className="shopping-check"><input type="checkbox" aria-label={`已买${item.name}（${item.unit}）`} checked={isPurchased(item,purchased)} onChange={event=>{const checked=event.target.checked;setPurchased(current=>{const next={...current};if(checked)next[shoppingKey(item)]=item.qty;else delete next[shoppingKey(item)];return next;});}}/><span className="sr-only">已买</span></label>
-                      <h3>{item.name}</h3>
-                      <strong>
-                        {item.qty != null && <small>{isPurchased(item,purchased) ? '已买 ' : '还需买 '}</small>}
-                        {item.qty ?? "待确认"} <small>{item.unit}</small>
-                      </strong>
+                    <article key={shoppingKey(item)} className={`stock-card shopping-card ${purchaseDrafts[shoppingKey(item)]?.checked?'is-purchased':''}`}>
+                      <label className="shopping-check"><input type="checkbox" aria-label={`已买${item.name}（${item.unit}）`} checked={!!purchaseDrafts[shoppingKey(item)]?.checked} onChange={event=>togglePurchased(item,event.target.checked)}/><span className="sr-only">已买</span></label>
+                      <h3><button type="button" className="basket-name" aria-label={`查看${item.name}日期来源`} onClick={()=>{if(basketLongPressed.current){basketLongPressed.current=false;return;}setBasketItem(item);setModal('basket-detail');}} onContextMenu={event=>{event.preventDefault();openPurchaseEditor(item);}} onTouchStart={()=>{basketLongPressed.current=false;basketPress.current=setTimeout(()=>{basketLongPressed.current=true;openPurchaseEditor(item);},650);}} onTouchEnd={()=>clearTimeout(basketPress.current)} onTouchMove={()=>clearTimeout(basketPress.current)}>{item.name}<span aria-hidden="true"> ›</span></button></h3>
+                      <button type="button" className="basket-quantity" aria-label={`修改${item.name}实际购买量`} onClick={()=>openPurchaseEditor(item)}>
+                        <small>{purchaseDrafts[shoppingKey(item)]?.checked?'已买 ':purchaseDrafts[shoppingKey(item)]?.qty?'拟购买 ':'还需买 '}</small>
+                        {purchaseDrafts[shoppingKey(item)]?.qty??item.qty??"待确认"} <small>{item.unit}</small>
+                      </button>
                       <p className="shopping-category">{item.category}</p>
                       <p className="shopping-stock-note">
                         {item.requiredQty == null ? '用量待确认' : `共需 ${item.requiredQty}${item.unit}`}
@@ -1056,27 +1237,31 @@ function App() {
                       {(item.qty == null || item.availableQty > 0) && <p className="shopping-stock-reason"><span>
                         {item.qty == null ? '请核对所需用量' : '库存不足，补买差额'}
                       </span></p>}
+                      {!!purchaseDrafts[shoppingKey(item)]?.qty&&purchaseDrafts[shoppingKey(item)].sourceFingerprint!==currentPurchaseFingerprint(item)&&<p className="shopping-stock-reason" role="status"><span>排单或库存已变化，请复核购买量</span></p>}
                     </article>
                   ))}
               </div>
               {!shoppingList.length && (
                 <div className="empty">
                   <Check size={40} />
-                  <h2>{Object.values(confirmedQuantities).some(Boolean) ? "所需食材已备齐" : "菜篮子空空的"}</h2>
-                  <p>{Object.values(confirmedQuantities).some(Boolean) ? "当前已确认菜品无需补充采购。" : "先去选菜并确认，缺少的食材会出现在这里。"}</p>
+                  <h2>{pendingOrders.length||Object.keys(weeks).length ? "所需食材已备齐" : "菜篮子空空的"}</h2>
+                  <p>{pendingOrders.length||Object.keys(weeks).length ? "当前日期范围无需补充采购。" : "先去选菜或安排周菜单，缺少的食材会出现在这里。"}</p>
                   <button className="primary" onClick={() => navigate(0)}>
                     去选菜
                   </button>
                 </div>
               )}
               {!!shoppingList.length && !shoppingList.some(item => category === "全部" || item.category === category) && <div className="empty">这个分类没有需要采购的食材。</div>}
+              {!!legacyOrders.length&&<details className="basket-legacy"><summary>旧版待安排菜品 · {legacyOrders.length} 道</summary><p>旧版点单没有用餐日期，不会自动归入今天。选定日期后，原菜品会进入该日待分配。</p>{legacyOrders.map(item=><p key={item.id}>{item.name} ×{confirmedQuantities[item.id]}</p>)}{!legacyShoppingList.length&&<p>当前食材已备齐，无需采购。</p>}<label>用餐日期 <DateTimePicker type="date" value={legacyDate} onChange={event=>setLegacyDate(event.target.value)}/></label><button type="button" className="outline" disabled={menuSaving} onClick={assignLegacy}>归入指定日期</button></details>}
               </section>
               </div>
             </>
           )}
           {page === 3 && (
             <>
-              {compact ? <MobileWeek slot={mealSlot} setSlot={setMealSlot} onHistory={()=>setModal("history")} onReview={()=>setReviewWeek(week)} week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={confirmedRecipes.filter(recipe => confirmedQuantities[recipe.id] > 0)} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} /> : <>
+              <div className="menu-view-tabs" role="tablist" aria-label="菜单视图"><button type="button" role="tab" aria-selected={menuView==='today'} onClick={()=>setMenuView('today')}>当日菜单</button><button type="button" role="tab" aria-selected={menuView==='week'} onClick={()=>setMenuView('week')}>周菜单</button></div>
+              {menuView==='today'?<TodayMenu date={todayDate} entries={todayEntries} saving={menuSaving} onAssign={assignPendingOrder} onRemove={id=>updateTodayEntry(id,{remove:true})} onChangeMeal={(id,meal)=>updateTodayEntry(id,{meal})} onChangeServings={(id,servings)=>updateTodayEntry(id,{servings})}/>:<>
+              {compact ? <MobileWeek slot={mealSlot} setSlot={setMealSlot} onHistory={()=>setModal("history")} onReview={()=>setReviewWeek(week)} week={week} setWeek={setWeek} day={selectedDay} setDay={setSelectedDay} plan={plan} setPlan={setPlan} recipes={recipes} findRecipe={findRecipe} addToMeal={addToMeal} onSelectRecipes={() => navigate(0)} view={weekView} onViewChange={setWeekView} pendingOrders={pendingOrders} onAssignPending={assignPendingOrder} saving={menuSaving}/> : <>
               <div className="panel">
                 <div className="section-tools">
                   <h2>待安排的美味</h2>
@@ -1085,8 +1270,7 @@ function App() {
                   </span>
                 </div>
                 <div className="chip-row">
-                  {confirmedRecipes
-                    .filter((recipe) => confirmedQuantities[recipe.id] > 0)
+                  {recipes
                     .map((recipe) => (
                       <button
                         key={recipe.id}
@@ -1109,7 +1293,7 @@ function App() {
                       </button>
                     ))}
                 </div>
-                {!Object.values(confirmedQuantities).some(Boolean) && (
+                {!recipes.length && (
                   <p>
                     还没有素材，
                     <button className="text-link" onClick={() => navigate(0)}>
@@ -1169,12 +1353,9 @@ function App() {
                               onDragOver={(event) => event.preventDefault()}
                               onDrop={(event) => {
                                 event.preventDefault();
-                                const t = Number(
-                                  event.dataTransfer.getData("text/plain"),
-                                );
-                                if (confirmedQuantities[t]) {
-                                  addToMeal(r, t);
-                                }
+                                const dragged=event.dataTransfer.getData("text/plain");
+                                const recipe=recipes.find(item=>String(item.id)===dragged);
+                                if(recipe)addToMeal(r,recipe.id);
                               }}
                             >
                               {(plan[r] || []).map((e, t) => (
@@ -1255,6 +1436,7 @@ function App() {
                   清空本周
                 </button>
               </div>
+              </>}
             </>
           )}
           {page === 4 && (
@@ -1670,7 +1852,9 @@ function App() {
       <Dialog open={!!modal} onOpenChange={(open) => {if(!open && !stockSaving){if(modal==="detail" && detailOrigin){setModal(detailOrigin);setDetailOrigin("");}else {if(modal==="history")setWeekSnapshot(null);setModal("");}}}}>
         <DialogContent layout={modal === "clear" ? undefined : "page"} className={`app-dialog ${modal==='stock'?'stock-dialog':''} ${modal==='detail'?'recipe-detail-dialog':''} ${modal==='clear'?'confirm-dialog':''}`} aria-busy={stockSaving}
           footer={modal === "detail" ? <>{Number(activeRecipe?.time) > 0 && <RecipeTimer key={activeRecipe.id} minutes={activeRecipe.time} />}<button className="primary" onClick={()=>{changeQuantity(activeRecipe.id,1);toast.success("已加入点单清单");}}>＋ 加入菜单</button></>
-            : modal === "selection" ? <button className="primary" onClick={confirmSelection}>确认并同步 · {selectedCount} 份菜品</button>
+            : modal === "selection" ? <button className="primary" disabled={orderSaving} onClick={confirmSelection}>{orderSaving?'正在保存…':`确认并同步 · ${selectedCount} 份菜品`}</button>
+            : modal === "purchase-edit" ? <button className="primary" onClick={savePurchaseQuantity}>保存购买量</button>
+            : modal === "purchase-stock" ? <button className="primary" disabled={basketSaving} onClick={stockPurchased}>{basketSaving?'正在入库…':`确认入库 · ${checkedShopping.length} 项`}</button>
             : modal === "export" ? exportActions
             : modal === "stock" ? <button className="primary" disabled={stockSaving} type="submit" form="stock-edit-form">{stockSaving?'正在保存…':editingStock===null?'确认放入冰箱':'保存食材修改'}</button> : undefined} >
           <DialogTitle>
@@ -1682,6 +1866,9 @@ function App() {
               clear: "清空本周安排？",
               history: "膳食日历",
               "fridge-recipes":"看看能做什么",
+              "basket-detail":basketItem?.name || '采购来源',
+              "purchase-edit":`修改${basketItem?.name||'食材'}购买量`,
+              "purchase-stock":"核对已买食材并入库",
             }[modal] || "食光"}
           </DialogTitle>
           <DialogDescription className={modal === "clear" ? "" : "sr-only"}>
@@ -1778,6 +1965,15 @@ function App() {
 
             </>
           )}
+          {modal === 'basket-detail' && basketItem && <div className="basket-detail-content">
+            <p>{basketItem.requiredQty==null?'用量待确认':`总需求 ${basketItem.requiredQty}${basketItem.unit}`} · 冰箱可用 {basketItem.availableQty}{basketItem.unit} · 当前缺口 {basketItem.qty??'待确认'}{basketItem.unit}</p>
+            {!!purchaseDrafts[shoppingKey(basketItem)]?.qty&&purchaseDrafts[shoppingKey(basketItem)].sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&<p role="alert">排单或库存发生变化，请复核实际购买量。</p>}
+            {basketItem.sources?.map((source,index)=><p key={index}>{source.date} · {MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'} · {source.recipeName} ×{source.servings} · {source.requiredQty??'用量待确认'}{basketItem.unit}</p>)}
+            {!basketItem.sources?.length&&<p>原排单已变更；已买记录仍可入库。</p>}
+            <button className="outline" onClick={()=>openPurchaseEditor(basketItem)}>修改购买量</button>
+          </div>}
+          {modal === 'purchase-edit' && basketItem && <div className="basket-edit-content"><label>实际购买量（{basketItem.unit}）<input autoFocus type="number" inputMode="decimal" min="0.001" step="any" value={purchaseQuantity} onChange={event=>setPurchaseQuantity(event.target.value)}/></label><p>当前还缺 {basketItem.qty??'待确认'} {basketItem.unit}。修改购买量不会更改菜谱用量或排单份数。</p></div>}
+          {modal === 'purchase-stock' && <div className="basket-stock-content">{checkedShopping.map(item=><div className="list-row" key={shoppingKey(item)}><span>{item.name}</span><strong>{purchaseDrafts[shoppingKey(item)]?.qty} {item.unit}</strong>{purchaseDrafts[shoppingKey(item)]?.sourceFingerprint!==currentPurchaseFingerprint(item)&&<button type="button" className="text-link" onClick={()=>{const key=shoppingKey(item);setPurchaseDrafts(current=>({...current,[key]:{...current[key],sourceFingerprint:currentPurchaseFingerprint(item)}}));}}>需求已变化，复核后确认此数量</button>}</div>)}<p>确认后新增冰箱批次，入库日期为今天；多买的数量保留在冰箱。</p></div>}
           {modal === "stock" && (
             <form id="stock-edit-form" className="editor stock-editor" onSubmit={event=>{event.preventDefault();saveIngredient();}}>
               <fieldset disabled={stockSaving}><StockFields rules={storageRules} autoFill={editingStock===null} value={ingredientDraft} onChange={setIngredientDraft}/></fieldset>
@@ -1791,14 +1987,7 @@ function App() {
           )}
           {modal === "export" && (
             <>
-              {shoppingList.map((item) => (
-                <div key={item.name + item.unit} className="list-row">
-                  {item.name}
-                  <b>
-                    {item.qty ?? "待确认"} {item.unit}
-                  </b>
-                </div>
-              ))}
+              {shoppingExportLines.map((line,index)=><div key={index} className="list-row">{line}</div>)}
 
 
             </>

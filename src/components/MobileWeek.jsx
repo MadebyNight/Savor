@@ -35,13 +35,20 @@ export default function MobileWeek({
   onHistory,
   slot,
   setSlot,
+  view,
+  onViewChange,
+  pendingOrders = [],
+  onAssignPending,
+  saving = false,
 }) {
   const [mealSearch,setMealSearch] = useState("");
-  const [overview, setOverview] = useState(false);
+  const [internalView, setInternalView] = useState('day');
+  const overview = (view ?? internalView) === 'week';
+  const changeView = next => onViewChange ? onViewChange(next) : setInternalView(next);
   const [snapshot, setSnapshot] = useState(null);
   useEffect(()=>setMealSearch(""),[slot]);
   useEffect(()=>setSnapshot(null),[slot,week]);
-  useBackHandler(overview, () => setOverview(false));
+  useBackHandler(overview, () => changeView('day'));
   const snapshotRecipe = snapshot === null ? null : findRecipe(snapshot);
   const days = overview ? weekdays.map((_, index) => index) : [day];
   const dishCount = days.reduce((count, dayIndex) => count + MEALS.reduce((sum, [key]) => sum + (plan[`${dayIndex}-${key}`]?.length || 0), 0), 0);
@@ -78,7 +85,7 @@ export default function MobileWeek({
         </button>
         </div>
       </details>
-      <button className="text-link" onClick={() => setOverview(value => !value)}>{overview ? "返回单日" : "一周总览"}</button>
+      <button className="text-link" onClick={() => changeView(overview ? 'day' : 'week')}>{overview ? "返回单日" : "一周总览"}</button>
       </div>
       <div className="week-dates" aria-label="选择日期">
         {weekdays.map((name, index) => (
@@ -88,7 +95,7 @@ export default function MobileWeek({
             aria-pressed={!overview && day === index}
             onClick={() => {
               setDay(index);
-              setOverview(false);
+              changeView('day');
             }}
           >
             <span>周{name}</span>
@@ -108,6 +115,7 @@ export default function MobileWeek({
               {dayAt(week, dayIndex).slice(5)} · 周{weekdays[dayIndex]}
             </h2>
           )}
+          {!!pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).length&&<details className="week-pending"><summary>待分配 {pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).length} 道</summary>{pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).map(order=><label key={order.id}>{order.recipeSnapshot.name} ×{order.servings}<select disabled={saving} aria-label={`为${order.recipeSnapshot.name}选择${order.date}餐次`} defaultValue="" onChange={event=>event.target.value&&onAssignPending?.(order.id,event.target.value)}><option value="">选择餐次</option>{MEALS.map(([key,name])=><option value={key} key={key}>{name}</option>)}</select></label>)}</details>}
           <div className="meal-table">
             {MEALS.map(([key, name]) => {
               const mealKey = `${dayIndex}-${key}`;
@@ -195,8 +203,8 @@ export default function MobileWeek({
               </button>
             </div>
           ))}
-          <h3>添加已确认菜品</h3>
-          {recipes.length > 5 && <div className="search"><input aria-label="搜索已确认菜品" placeholder="搜索菜名" value={mealSearch} onChange={event=>setMealSearch(event.target.value)}/></div>}
+          <h3>从菜谱库添加</h3>
+          {recipes.length > 5 && <div className="search"><input aria-label="搜索菜谱库" placeholder="搜索菜名" value={mealSearch} onChange={event=>setMealSearch(event.target.value)}/></div>}
           {mealSearch && !recipes.some(recipe=>recipe.name.includes(mealSearch.trim())) && <p>没有找到相符的菜品</p>}
           {recipes.filter(recipe=>recipe.name.includes(mealSearch.trim())).map((recipe) => (
             <button
@@ -212,7 +220,7 @@ export default function MobileWeek({
           ))}
           {!recipes.length && (
             <>
-              <p>还没有已确认菜品，先到点单页选菜并确认。</p>
+              <p>菜谱库中还没有菜品，先到点单页或菜谱页添加。</p>
               <button
                 className="primary"
                 onClick={() => {
