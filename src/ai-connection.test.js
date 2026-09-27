@@ -85,6 +85,14 @@ test('图片按 Chat Completions 内容块发送，小票结果通过库存校�
  });
  const items=await recognize({...config,model:'deepseek-flash'},'',image,'stock');
  assert.equal(items[0].qty,2);assert.equal(items[0].unit,'盒');assert.ok(items[0].id);
+ mock(200,{choices:[{finish_reason:'stop',message:{content:'{"items":[{"name":"番茄","qty":0.35,"unit":"kg"}]}'}}]},(_,options)=>{
+  assert.match(JSON.parse(options.body).messages[0].content,/默认按千克换算为克/);
+ });
+ const kilograms=await recognize({...config,model:'deepseek-flash'},'',image,'stock');
+ assert.equal(kilograms[0].qty,350);assert.equal(kilograms[0].unit,'g');
+ mock(200,{choices:[{finish_reason:'stop',message:{content:'{"items":[{"name":"番茄","qty":0.35,"unit":null,"unitExplicit":false}]}'}}]});
+ const unitless=await recognize({...config,model:'deepseek-flash'},'',image,'stock');
+ assert.equal(unitless[0].qty,350);assert.equal(unitless[0].unit,'g');
 });
 
 test('图片错误区分参数、凭据、大小、限流及服务端故障，不回显业务正文',async()=>{

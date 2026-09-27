@@ -1,4 +1,5 @@
 import {validateNutrition} from './nutrition.js';
+import {convertQuantity,normalizeUnit} from './domain.js';
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const fail = where => { throw new Error(where + '格式无效，请核对字段类型后重试'); };
 const text = (value, where, required = false) => {
@@ -59,7 +60,7 @@ export function uniqueIds(items, where) {
   }
 }
 // 只兼容含义明确的结构差异，不把未知内容或错误字段悄悄丢弃。
-export function normalizeAIDrafts(items, kind) {
+export function normalizeAIDrafts(items, kind, {receiptImage=false} = {}) {
   if (!Array.isArray(items) || items.length > 100) fail('AI 返回的条目');
   return items.map((item, index) => {
     const where = '第 ' + (index + 1) + ' 项识别草稿';
@@ -67,6 +68,14 @@ export function normalizeAIDrafts(items, kind) {
     const result = {...item, name: item.name ?? '', category: item.category ?? (kind === 'stock' ? '其他' : '素菜')};
     if (kind === 'stock') {
       result.unit ??= '';
+      validateStock(result, where, true);
+      const unit=normalizeUnit(result.unit);
+      const assumedKilograms=receiptImage&&result.qty!=null&&result.qty!==''&&result.unitExplicit!==true&&['','g','kg'].includes(unit);
+      if(assumedKilograms||unit==='kg'){
+        if(result.qty!=null&&result.qty!=='')result.qty=convertQuantity(result.qty,assumedKilograms?'kg':unit,'g');
+        result.unit='g';
+      }
+      delete result.unitExplicit;
       validateStock(result, where, true);
     } else {
       const ingredients = item.ingredients == null ? [] : object(item.ingredients) ? [item.ingredients] : item.ingredients;

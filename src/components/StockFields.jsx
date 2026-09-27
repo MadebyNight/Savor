@@ -32,6 +32,7 @@ export default function StockFields({ value, onChange, rules=DEFAULT_STORAGE_RUL
         单位
         <input
           required
+          placeholder="g 或 kg"
           value={value.unit || ""}
           onChange={(e) => field("unit", e.target.value)}
         />

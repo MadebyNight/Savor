@@ -10,6 +10,21 @@ test('AI 单个食材和文字步骤可兼容，缺失食材不编造',()=>{
   assert.equal(result.ingredients.length,1);assert.deepEqual(result.steps,['洗净','煮熟']);
   assert.deepEqual(normalizeAIDrafts([{name:'待补充'}],'recipes')[0].ingredients,[]);
 });
+test('小票千克与公斤识别草稿换算为克，未知数量保留',()=>{
+  const items=normalizeAIDrafts([{name:'番茄',qty:0.35,unit:'kg'},{name:'白菜',qty:1.2,unit:'公斤'},{name:'米',qty:null,unit:'千克'},{name:'牛奶',qty:1,unit:'盒'}],'stock');
+  assert.deepEqual(items.map(({qty,unit})=>[qty,unit]),[[350,'g'],[1200,'g'],[null,'g'],[1,'盒']]);
+});
+test('图片小票未印单位的数字默认按千克换算，明确印出的克和计数单位不变',()=>{
+  const items=normalizeAIDrafts([
+    {name:'番茄',qty:0.35,unit:null,unitExplicit:false},
+    {name:'白菜',qty:0.2,unit:'g'},
+    {name:'盐',qty:250,unit:'g',unitExplicit:true},
+    {name:'牛奶',qty:2,unit:'盒',unitExplicit:true},
+  ],'stock',{receiptImage:true});
+  assert.deepEqual(items.map(({qty,unit})=>[qty,unit]),[[350,'g'],[200,'g'],[250,'g'],[2,'盒']]);
+  assert.equal('unitExplicit' in items[0],false);
+  assert.equal(normalizeAIDrafts([{name:'番茄',qty:0.35,unit:null}],'stock')[0].unit,'');
+});
 test('AI 内部结构和保存字段类型均校验，不静默丢弃错误食材',()=>{
   for(const patch of [{name:42},{ingredients:[null]},{ingredients:42},{steps:[{}]},{category:{}},{time:{}},{ingredients:[{name:'米',unit:42}]}]) {
     assert.throws(()=>normalizeAIDrafts([{...recipe(),...patch}],'recipes'),/格式无效/);

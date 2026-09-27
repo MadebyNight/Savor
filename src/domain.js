@@ -11,7 +11,15 @@ export function fridgeRecipes(recipes, fridge, date) {
   return recipes.map(recipe=>({recipe,count:new Set(recipe.ingredients.map(item=>ingredientKey(item.name)).filter(name=>available.has(name))).size}))
     .filter(item=>item.count>0).sort((a,b)=>b.count-a.count);
 }
-export const normalizeUnit = value => ({'克':'g','毫升':'ml','千克':'kg','公斤':'kg','g':'g','ml':'ml','kg':'kg'}[trimName(value)] || trimName(value));
+export const normalizeUnit = value => ({'克':'g','毫升':'ml','千克':'kg','公斤':'kg','g':'g','ml':'ml','kg':'kg'}[trimName(value).toLowerCase()] || trimName(value));
+export const comparableUnit = value => normalizeUnit(value)==='kg'?'g':normalizeUnit(value);
+export const convertQuantity = (qty,from,to) => {
+  const source=normalizeUnit(from),target=normalizeUnit(to);
+  if(source===target)return Number(qty);
+  if(source==='kg'&&target==='g')return Number(qty)*1000;
+  if(source==='g'&&target==='kg')return Number(qty)/1000;
+  return null;
+};
 export const dayAt = (value, offset) => {
   const date = new Date(value + "T12:00:00");
   date.setDate(date.getDate() + offset);
@@ -39,7 +47,7 @@ export function procurement(recipes, quantities, fridge, date) {
   for (const recipe of recipes) {
     if (!quantities[recipe.id]) continue;
     for (const item of recipe.ingredients) {
-      const name=trimName(item.name), unit=normalizeUnit(item.unit), key = ingredientKey(name) + "|" + unit;
+      const name=trimName(item.name), unit=comparableUnit(item.unit), key = ingredientKey(name) + "|" + unit;
       const previous = requirements.get(key);
       const unknown =
         item.qty == null || item.qty === "" || previous?.qty === null;
@@ -47,7 +55,7 @@ export function procurement(recipes, quantities, fridge, date) {
         ...item,name:previous?.name || name,unit,
         qty: unknown
           ? null
-          : (previous?.qty || 0) + item.qty * quantities[recipe.id],
+          : (previous?.qty || 0) + convertQuantity(item.qty,item.unit,unit) * quantities[recipe.id],
       });
     }
   }
@@ -55,8 +63,8 @@ export function procurement(recipes, quantities, fridge, date) {
     .map((item) => {
       const availableQty = fridge
         .filter(stock => ingredientKey(stock.name) === ingredientKey(item.name) &&
-          normalizeUnit(stock.unit) === item.unit && usableStock(stock, date))
-        .reduce((total, stock) => total + Number(stock.qty), 0);
+          comparableUnit(stock.unit) === item.unit && usableStock(stock, date))
+        .reduce((total, stock) => total + convertQuantity(stock.qty,stock.unit,item.unit), 0);
       return {
         ...item,
         requiredQty: item.qty == null ? null : +item.qty.toFixed(3),
@@ -90,11 +98,11 @@ export function datedProcurement({weeks = {}, pendingOrders = [], legacyRecipes 
   for (const entry of dated) {
     if (entry.date < allocationStart || (to && entry.date > to)) continue;
     for (const ingredient of entry.recipe.ingredients || []) {
-      const name=trimName(ingredient.name), unit=normalizeUnit(ingredient.unit);
+      const name=trimName(ingredient.name), unit=comparableUnit(ingredient.unit);
       if (!name) continue;
       const key=JSON.stringify([ingredientKey(name),unit]);
       const row=rows.get(key) || {name,unit,category:ingredient.category || '其他',requiredQty:0,availableQty:0,qty:0,sources:[],demands:[]};
-      const amount=ingredient.qty == null || ingredient.qty === '' ? null : Number(ingredient.qty) * entry.servings;
+      const amount=ingredient.qty == null || ingredient.qty === '' ? null : convertQuantity(ingredient.qty,ingredient.unit,unit) * entry.servings;
       const visible=entry.date>=from;
       row.demands.push({date:entry.date,amount,visible});
       if (!visible) {rows.set(key,row);continue;}
@@ -110,8 +118,8 @@ export function datedProcurement({weeks = {}, pendingOrders = [], legacyRecipes 
     }
   }
   const items=[...rows].filter(([,row])=>row.sources.length).map(([key,row])=>{
-    const batches=fridge.filter(stock=>JSON.stringify([ingredientKey(stock.name),normalizeUnit(stock.unit)])===key)
-      .map(stock=>({...stock,remaining:Number(stock.qty)}))
+    const batches=fridge.filter(stock=>JSON.stringify([ingredientKey(stock.name),comparableUnit(stock.unit)])===key)
+      .map(stock=>({...stock,remaining:convertQuantity(stock.qty,stock.unit,row.unit)}))
       .sort((a,b)=>{
         const expiry=stock=>stock.days ? dayAt(stock.date || from || todayDate(),Number(stock.days)) : '9999-12-31';
         return expiry(a).localeCompare(expiry(b));

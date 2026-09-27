@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Clock3 } from 'lucide-react';
 
-export default function RecipeTimer({ minutes }) {
+export default function RecipeTimer({ minutes, alwaysOpen = false }) {
   const duration = Math.max(1, Math.round(Number(minutes) * 60));
   const [baseDuration, setBaseDuration] = useState(duration);
   const [remaining, setRemaining] = useState(duration);
   const [status, setStatus] = useState('idle');
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(alwaysOpen);
   const [editing, setEditing] = useState(false);
   const [editMinutes, setEditMinutes] = useState(Math.floor(duration / 60));
   const [editSeconds, setEditSeconds] = useState(duration % 60);
@@ -70,7 +70,7 @@ export default function RecipeTimer({ minutes }) {
           {status === 'running' ? '暂停' : status === 'paused' ? '继续' : status === 'done' ? '计时结束' : '开始计时'}
         </button>
         {status !== 'idle' && <button type="button" className="outline" onClick={reset} disabled={editing}>重置</button>}
-        <button type="button" className="outline" aria-expanded="true" aria-controls="recipe-timer-panel" onClick={() => setOpen(false)}>收起</button>
+        {!alwaysOpen && <button type="button" className="outline" aria-expanded="true" aria-controls="recipe-timer-panel" onClick={() => setOpen(false)}>收起</button>}
       </div>
       {status === 'done' && <p role="status">计时结束</p>}
     </div>}

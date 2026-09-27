@@ -2,7 +2,7 @@
 
 MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作。V1.2.1 已实现独立识别入口、紧凑布局、五餐、参考保存期、菜单预计营养及双渠道周回顾提醒；真机覆盖安装、拍照回传及通知交互已验证；OPPO 后台定时提醒发现系统延迟，尚未通过可靠性验收，进度见 [V1.2.1 清单](docs/V1.2.1-TODO.md)。
 
-当前源码正在开发 V2.1.0（npm / Android versionName 2.1.0，versionCode 9）：在 V2.0.2 基础上增量接入按日期排单、当日菜单、采购与入库闭环，范围见 [V2.1.0 PRD](docs/PRD-点单周菜单采购入库闭环-2026-09-26.md)。本地构建、单测、浏览器回归和原证书签名校验已通过；真机保留数据覆盖升级尚未验收，因此 V2.1.0 仍不是已交付安装包。最近一次已验收的本地测试版仍是 V2.0.2；V2.0.1 的功能范围和此前真机验收记录见 [整合评估](docs/用户体验与美学优化整合评估-2026-09-23.md) 和 [开发进度](docs/开发进度.md)。本地开发者版可用密码解锁 AI 配置；GitHub 公开版仍为 V2.0.1，不含共享配置，需填写个人 AI Key。
+当前源码版本为 V2.1.8（Android versionCode 17）：在 [V2.1.0 PRD](docs/PRD-点单周菜单采购入库闭环-2026-09-26.md) 的排单、采购与入库闭环上增加克／千克处理、无单位小票重量换算，并优化识别核对、当日菜单和计时交互。V2.1.6 冷启动仍有空白过渡；V2.1.7 / code 16 覆盖安装后因启动主题错误崩溃，未通过验收。V2.1.8 已完成构建、原证书签名校验，以及从 V2.1.7 的真机保留数据覆盖升级；冷启动采样从原生版权画面直接到主界面，未采到空白帧。完整核心业务流程本轮未重跑，数据读取失败页亦未单独验证，验收范围见[开发规划](docs/开发规划.md)；尚未公开交付。V2.1.2 已通过真实小票拍摄识别。GitHub 公开版仍为 V2.0.1；本地开发者版可用密码解锁 AI 配置，公开版不含共享配置，需填写个人 AI Key。
 
 需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
@@ -46,7 +46,7 @@ APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。本工作区工
 
 脚本会在 Capacitor 同步前拒绝 `dist/assets/` 中未被本轮入口引用的旧 JS/CSS；如遇残留，需先清理被忽略的 `dist/` 构建产物再重建，不能把混入旧资源的 APK 当成交付包。公开版 `build:public` 保留独立的残留检查，仍须从干净隔离工作区发布。
 
-debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在忽略文件 `.android-tools/signing.properties` 配置 `storePassword`、`keyAlias`、`keyPassword`，不得提交真实值。密钥、配置缺失或证书不符会阻止构建，不自动回退默认 debug 密钥。直接调用 Gradle 同样受证书校验约束；证书基准见 [AGENTS.md](AGENTS.md)。当前 V2.0.2 本地测试 APK 在 `android/app/build/outputs/apk/debug/app-debug.apk`；历史 V2.0.1 交付包及校验文件为 `食光-V2.0.1.apk` 和 `食光-V2.0.1.apk.sha256`，均不纳入源码。
+debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在忽略文件 `.android-tools/signing.properties` 配置 `storePassword`、`keyAlias`、`keyPassword`，不得提交真实值。密钥、配置缺失或证书不符会阻止构建，不自动回退默认 debug 密钥。直接调用 Gradle 同样受证书校验约束；证书基准见 [AGENTS.md](AGENTS.md)。本地测试 APK 构建路径为 `android/app/build/outputs/apk/debug/app-debug.apk`，交付前须核对其实际版本与签名；历史 V2.0.1 交付包及校验文件为 `食光-V2.0.1.apk` 和 `食光-V2.0.1.apk.sha256`，均不纳入源码。
 
 ## 测试
 
@@ -58,11 +58,13 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 - 生产样式回归：先 `npm run build`、`npm run preview`，再设置 `$env:E2E_URL='http://127.0.0.1:4173'` 运行 `python tests/e2e_mobile.py`，包含弹窗正常高度/键盘压缩高度的边界检查。
 - `python tests/android_upgrade.py prepare` / `verify`：经用户确认后用于专用真机升级验收，先备份再安装，验证结束恢复业务基线；设备可通过 `ANDROID_SERIAL` 指定。已有基线时拒绝覆盖，`.android-tools/v1.1-acceptance/` 备份可能含私有数据，不提交、不对外分享。
 - `python tests/e2e_sync_startup.py`：在新启动的 Vite 开发服务器（默认 5173）上验证启动同步、居中确认、账号切换和下载期间本地修改保护；使用内存测试凭据，不连接真实网盘。
+- `python tests/e2e_kg_receipt.py`：启动 Vite 后以模拟 AI 响应验证拍摄和相册小票识别的千克到克换算，不连接真实服务商。
 - `python tests/e2e_sync.py`：模拟 WebDAV 首次上传/下载、冲突备份与损坏数据保护，不代表真实坚果云验收。
 - `python tests/e2e_confirm.py`：应用内业务确认、取消保留数据且不发请求、周安排覆盖、AI 授权/草稿、备份/云端副本恢复。默认生产预览 4173，可用 `E2E_URL` 指定；真机验收可设置 `ANDROID_ACCEPTANCE_DIR` 在 `.android-tools/` 下使用独立备份目录。
 - Android：设备连接后 `android/gradlew.bat connectedDebugAndroidTest`（在 android 目录运行）。原生测试覆盖SQLite错误不覆盖、偏好、路径和图片类型等。
 - 原生网络回归：构建 `:app:assembleDebugAndroidTest`，与应用使用相同证书签名后运行仪器测试；覆盖 WebDAV 方法、请求体/条件头、错误状态及禁止重定向。debug 仅为设备内测试开放 localhost/127.0.0.1 的明文 HTTP，release 不开放。
 - V2.0.2 本地测试版真机：设置 `ANDROID_SERIAL`、相对路径 `ANDROID_RELEASE_APK` 和全新 `ANDROID_RELEASE_DIR` 后运行 `python tests/android_release_upgrade.py`，先备份再覆盖安装；该脚本核对 2.0.2 / code 8。`ANDROID_UX_DIR` 指向全新日志目录后可运行 `python tests/android_ux_v201.py` 只读核对主要页面、系统返回和键盘。升级脚本只用于已授权的专用测试机；安装前须按 AGENTS.md 启动日志采集。
+- V2.1.x 真机：设置 `ANDROID_SERIAL` 和全新 `ANDROID_ACCEPTANCE_DIR` 后运行 `python tests/android_v210_acceptance.py`。默认验证 2.0.2 / code 8 → 2.1.0 / code 9；`ANDROID_TARGET_VERSION` 当前可选择至 2.1.7 / code 16，但该版覆盖安装后启动崩溃，脚本在核心流程前中断。V2.1.8 / code 17 不在此脚本目标映射内，使用 V2.1.7 安装前的 V2.1.6 备份对照和独立覆盖安装核对；未重跑完整核心流程。脚本先核对签名并备份旧 APK、业务状态和私有数据，再保留数据覆盖安装，验证核心闭环并恢复临时测试数据与同步偏好；证据在忽略目录 `.android-tools/device-logs/<ANDROID_ACCEPTANCE_DIR>/`。安装前须按 AGENTS.md 启动日志采集。
 - `python tests/android_sync_check.py`：必须得到用户授权，使用真机已保存的账户仅执行检查（包含创建同步目录的 MKCOL），不选择上传或恢复；不读取凭据，核对业务数据未变，结果写入 `.android-tools/webdav-acceptance/`。
 
 浏览器测试输出留 `.android-tools/e2e/`，Python Playwright 和浏览器需可用；测试脚本将浏览器缓存限定到工作区。模拟服务测试不等于真实AI或坚果云账户验收。

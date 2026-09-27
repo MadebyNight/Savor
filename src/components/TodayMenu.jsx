@@ -11,13 +11,14 @@ export default function TodayMenu({ date, entries = [], onAssign, onRemove, onCh
   const arranged = entries.filter(item => item.meal);
   const editing = entries.find(item => item.id === editingId);
   const label = date ? `${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日` : '今天';
+  const weekday = date ? `周${'日一二三四五六'[new Date(`${date}T12:00:00`).getDay()]}` : '';
 
   return <section className="today-menu" aria-label="当日菜单">
     <div className="today-menu-heading">
-      <div><span className="subtle">当日菜单</span><h2>{label}</h2></div>
+      <div><span className="subtle">今日安排</span><h2>{label} <small>{weekday}</small></h2><p>已安排 {arranged.length} 道菜</p></div>
       {pending.length > 0
         ? <button type="button" className="outline today-pending-trigger" onClick={() => setPendingOpen(true)}>待分配 {pending.length} 道</button>
-        : <span className="subtle">已排 {arranged.length} 道菜</span>}
+        : null}
     </div>
     {MEALS.map(([key, name]) => {
       const dishes = arranged.filter(item => item.meal === key);
@@ -38,11 +39,11 @@ export default function TodayMenu({ date, entries = [], onAssign, onRemove, onCh
         <DialogDescription className="sr-only">选择餐次或移除待分配菜品</DialogDescription>
         {pending.map(item => <div className="today-pending-row" key={item.id}>
           <button type="button" className="today-dish-name" onClick={() => setSnapshot(item.recipe)}>{item.recipe?.name || '菜谱内容已缺失'} <small>×{item.servings || 1}</small></button>
-          <select disabled={saving} aria-label={`为${item.recipe?.name || '菜品'}选择餐次`} defaultValue="" onChange={event => { if (event.target.value) { onAssign(item.id, event.target.value); if (pending.length === 1) setPendingOpen(false); } }}>
-            <option value="">选餐次</option>
-            {MEALS.map(([key, name]) => <option key={key} value={key}>{name}</option>)}
-          </select>
-          <button type="button" className="text-link" disabled={saving} onClick={() => { onRemove(item.id); if (pending.length === 1) setPendingOpen(false); }}>移除</button>
+          <div className="today-pending-actions"><select disabled={saving} aria-label={`为${item.recipe?.name || '菜品'}选择餐次`} defaultValue="" onChange={event => { if (event.target.value) { onAssign(item.id, event.target.value); if (pending.length === 1) setPendingOpen(false); } }}>
+              <option value="">选择餐次</option>
+              {MEALS.map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+            </select>
+            <button type="button" className="text-link" disabled={saving} onClick={() => { onRemove(item.id); if (pending.length === 1) setPendingOpen(false); }}>移除</button></div>
         </div>)}
       </DialogContent>
     </Dialog>

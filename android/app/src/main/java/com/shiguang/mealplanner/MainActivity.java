@@ -6,16 +6,25 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.core.splashscreen.SplashScreen;
 
 public class MainActivity extends BridgeActivity {
+    private volatile boolean uiReady;
+    public void finishStartup(){uiReady=true;}
     @Override public void onResume(){super.onResume();try{WeeklyReminders.foreground(this,true);}catch(RuntimeException error){android.util.Log.e("WeeklyReminder","resume scheduling failed");}}
     @Override public void onPause(){WeeklyReminders.foreground(this,false);super.onPause();}
     @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);}
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
         registerPlugin(LocalDataPlugin.class);
         super.onCreate(savedInstanceState);
+        splashScreen.setKeepOnScreenCondition(() -> !uiReady);
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> uiReady=true, 15000);
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().setBackgroundColor(0xFFFAF9F6);
+        }
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             private boolean pending;
 

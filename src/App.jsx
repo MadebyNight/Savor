@@ -10,7 +10,8 @@ import RecipeSnapshotDialog from './components/RecipeSnapshotDialog.jsx';
 import RecipeTimer from './components/RecipeTimer.jsx';
 import {calculateNutrition,weekNutritionInput} from './nutrition.js';
 ﻿import { matchesRecipeTime, stockStatus, ingredientKey, fridgeRecipes, shoppingKey, isPurchased, datedProcurement, MEALS, monday, dayAt, usableStock, normalizeUnit } from "./domain.js";
-import { loadState, saveState, exportBlob, isNative, isMissingLocalImage } from "./storage.js";
+import { loadState, saveState, exportBlob, isNative, isMissingLocalImage, LocalData } from "./storage.js";
+import { comparableUnit, convertQuantity } from "./domain.js";
 import {businessState} from "./services.js";
 import SyncPanel from "./components/SyncPanel.jsx";
 import StockFields from "./components/StockFields.jsx";
@@ -157,6 +158,7 @@ function App() {
   const [legacyDate,setLegacyDate]=useState(today());
   const [basketItem,setBasketItem]=useState(null);
   const [purchaseQuantity,setPurchaseQuantity]=useState('');
+  const [purchaseUnit,setPurchaseUnit]=useState('g');
   const [basketSaving,setBasketSaving]=useState(false);
   const basketSaveLock=useRef(false);
   const basketPress=useRef(null);
@@ -171,13 +173,9 @@ function App() {
   const [quantities, setQuantities] = useState({});
   const [confirmedQuantities, setConfirmedQuantities] = useState({});
   const [hydrated, setHydrated] = useState(false);
-  const [splashReady, setSplashReady] = useState(false);
+  const startupReported = useRef(false);
   const loadedState = useRef(null);
   const loadFailed = useRef(false);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSplashReady(true), 1000);
-    return () => window.clearTimeout(timer);
-  }, []);
   useEffect(()=>{if(hydrated)setSavedCategories(current=>{
     const names=categoryNames(current,recipes);
     return JSON.stringify(current)===JSON.stringify(names)?current:names;
@@ -316,18 +314,23 @@ function App() {
             const missing=unavailableImageCount(state);
             if(missing)toast.warning(`${missing} 张图片暂时无法读取，其他数据已加载；替换或移除失效图片后可继续备份与同步`);
           }
-          if (active && splashReady) setHydrated(true);
+          if (active) setHydrated(true);
         })
         .catch((error) => {
           loadFailed.current = true;
           toast.error("读取数据失败：" + error.message);
           setSaveStatus("加载失败，请重启后重试");
         });
-    } else if (loadedState.current !== null && splashReady) setHydrated(true);
+    } else if (loadedState.current !== null) setHydrated(true);
     return () => {
       active = false;
     };
-  }, [splashReady]);
+  }, []);
+  useEffect(() => {
+    if (!isNative() || startupReported.current || (!hydrated && !saveStatus.includes("失败"))) return;
+    startupReported.current = true;
+    window.requestAnimationFrame(() => LocalData.appReady().catch(() => {}));
+  }, [hydrated, saveStatus]);
   useEffect(() => {
     if (!hydrated) return;
     setSaveStatus("正在保存");
@@ -408,9 +411,10 @@ function App() {
     const label=draft?.checked?'已买':draft?.qty?'拟购买':'还需买';
     return [`${item.name} ${label} ${quantity}${item.unit}`,...(item.sources||[]).map(source=>`  ${source.date} ${MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'} · ${source.recipeName} ×${source.servings}`)];
   }),...legacyShoppingList.map(item=>`${item.name} ${item.qty??'待确认'}${item.unit} · 旧版待安排采购`)];
-  const openPurchaseEditor=item=>{setBasketItem(item);setPurchaseQuantity(String(purchaseDrafts[shoppingKey(item)]?.qty??item.qty??''));setModal('purchase-edit');};
+  const openPurchaseEditor=item=>{setBasketItem(item);setPurchaseQuantity(String(purchaseDrafts[shoppingKey(item)]?.qty??item.qty??''));setPurchaseUnit(normalizeUnit(item.unit));setModal('purchase-edit');};
   const savePurchaseQuantity=()=>{
-    const qty=Number(purchaseQuantity);
+    const converted=convertQuantity(purchaseQuantity,purchaseUnit,basketItem.unit);
+    const qty=converted==null?NaN:+converted.toFixed(6);
     if(!Number.isFinite(qty)||qty<=0){toast.error('请填写大于 0 的实际购买量');return;}
     const key=shoppingKey(basketItem);
     setPurchaseDrafts(current=>({...current,[key]:{...current[key],qty,checked:current[key]?.checked||false,sourceFingerprint:currentPurchaseFingerprint(basketItem)}}));
@@ -760,26 +764,7 @@ function App() {
     try {await exportBlob(n,"食材采购清单." + (format === "image" ? "png" : "doc"));} catch(error) {toast.error("导出失败："+error.message);}
 
   };
-  if (!hydrated)
-    return (
-      <main className="app-splash" role="status">
-        <img className="app-splash-logo" src="/brand/mark.svg" alt="" />
-        <div className="app-splash-credits" aria-live="polite">
-          <p>Developed by Madebynight</p>
-          <p>Art &amp; Inspiration by 一十一</p>
-        </div>
-        {saveStatus.includes("失败") && (
-          <div className="app-splash-error">
-            <p>{saveStatus}</p>
-            <p>数据读取完成后才能编辑。</p>
-            <button className="primary" onClick={() => window.location.reload()}>
-              重新加载
-            </button>
-          </div>
-        )}
-        <Toaster richColors position="top-center" offset={compact ? "calc(60px + env(safe-area-inset-top))" : undefined} mobileOffset={{top:"calc(60px + env(safe-area-inset-top))"}} />
-      </main>
-    );
+  if (!hydrated) return saveStatus.includes("失败") && <main className="app-load-error" role="alert"><p>{saveStatus}</p><p>数据读取完成后才能编辑。</p><button className="primary" onClick={() => window.location.reload()}>重新加载</button></main>;
   const exportActions = <>
               <div className="actions">
                 <button
@@ -1094,10 +1079,10 @@ function App() {
                                       (stock) =>
                                         usableStock(stock) &&
                                         ingredientKey(stock.name) === ingredientKey(item.name) &&
-                                        normalizeUnit(stock.unit) === normalizeUnit(item.unit),
+                                        comparableUnit(stock.unit) === comparableUnit(item.unit),
                                     )
                                     .reduce(
-                                      (sum, stock) => sum + Number(stock.qty),
+                                      (sum, stock) => sum + convertQuantity(stock.qty,stock.unit,item.unit),
                                       0,
                                     );
                                   return item.qty == null
@@ -1460,8 +1445,8 @@ function App() {
                 ))}
               </aside>
               <div className="stock-add-actions">
-                <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeCamera.current.click()}><Camera size={18}/>拍摄</button>
                 <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeAlbum.current.click()}><ImagePlus size={18}/>相册选择</button>
+                <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeCamera.current.click()}><Camera size={18}/>拍摄</button>
                 <button type="button" className="outline" onClick={manualStock}><Plus size={18}/>手动添加</button>
               </div>
 
@@ -1926,10 +1911,10 @@ function App() {
                     .filter(
                       (stock) =>
                         ingredientKey(stock.name) === ingredientKey(item.name) &&
-                        normalizeUnit(stock.unit) === normalizeUnit(item.unit) &&
+                        comparableUnit(stock.unit) === comparableUnit(item.unit) &&
                         usableStock(stock),
                     )
-                    .reduce((e, t) => e + t.qty, 0) >= item.qty;
+                    .reduce((sum, stock) => sum + convertQuantity(stock.qty,stock.unit,item.unit), 0) >= item.qty;
                 return (
                   <div
                     key={item.name}
@@ -1972,7 +1957,11 @@ function App() {
             {!basketItem.sources?.length&&<p>原排单已变更；已买记录仍可入库。</p>}
             <button className="outline" onClick={()=>openPurchaseEditor(basketItem)}>修改购买量</button>
           </div>}
-          {modal === 'purchase-edit' && basketItem && <div className="basket-edit-content"><label>实际购买量（{basketItem.unit}）<input autoFocus type="number" inputMode="decimal" min="0.001" step="any" value={purchaseQuantity} onChange={event=>setPurchaseQuantity(event.target.value)}/></label><p>当前还缺 {basketItem.qty??'待确认'} {basketItem.unit}。修改购买量不会更改菜谱用量或排单份数。</p></div>}
+          {modal === 'purchase-edit' && basketItem && <div className="basket-edit-content">
+            <label>实际购买量<input autoFocus type="number" inputMode="decimal" min="0.001" step="any" value={purchaseQuantity} onChange={event=>setPurchaseQuantity(event.target.value)}/></label>
+            {['g','kg'].includes(normalizeUnit(basketItem.unit))&&<label>单位<AppSelect aria-label="购买量单位" value={purchaseUnit} onChange={event=>{const next=event.target.value;setPurchaseQuantity(current=>current===''?'':String(convertQuantity(current,purchaseUnit,next)));setPurchaseUnit(next);}}><option value="g">克（g）</option><option value="kg">千克（kg）</option></AppSelect></label>}
+            <p>当前还缺 {basketItem.qty??'待确认'} {basketItem.unit}。{['g','kg'].includes(normalizeUnit(basketItem.unit))&&'千克会换算为克入库；'}修改购买量不会更改菜谱用量或排单份数。</p>
+          </div>}
           {modal === 'purchase-stock' && <div className="basket-stock-content">{checkedShopping.map(item=><div className="list-row" key={shoppingKey(item)}><span>{item.name}</span><strong>{purchaseDrafts[shoppingKey(item)]?.qty} {item.unit}</strong>{purchaseDrafts[shoppingKey(item)]?.sourceFingerprint!==currentPurchaseFingerprint(item)&&<button type="button" className="text-link" onClick={()=>{const key=shoppingKey(item);setPurchaseDrafts(current=>({...current,[key]:{...current[key],sourceFingerprint:currentPurchaseFingerprint(item)}}));}}>需求已变化，复核后确认此数量</button>}</div>)}<p>确认后新增冰箱批次，入库日期为今天；多买的数量保留在冰箱。</p></div>}
           {modal === "stock" && (
             <form id="stock-edit-form" className="editor stock-editor" onSubmit={event=>{event.preventDefault();saveIngredient();}}>

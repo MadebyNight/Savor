@@ -48,6 +48,7 @@ import javax.crypto.spec.GCMParameterSpec;
 
 @CapacitorPlugin(name = "LocalData", permissions = {@com.getcapacitor.annotation.Permission(alias="notifications", strings={"android.permission.POST_NOTIFICATIONS"})})
 public class LocalDataPlugin extends Plugin {
+    @PluginMethod public void appReady(PluginCall call){((MainActivity)getActivity()).finishStartup();call.resolve();}
     @PluginMethod public void reminderStatus(PluginCall call){try{call.resolve(WeeklyReminders.tick(getContext(),true));}catch(Exception e){call.reject("提醒状态读取失败");}}
     @PluginMethod public void saveReminders(PluginCall call){
         JSObject settings=call.getObject("settings");if(settings==null){call.reject("提醒设置无效");return;}

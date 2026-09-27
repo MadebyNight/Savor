@@ -108,7 +108,7 @@ export default function DraftEditor({ items = [], storageRules, kind, onChange, 
             />
             <span className="sr-only">保存第 {index + 1} 项</span>
           </label>
-          {stock?<details className="stock-review-details"><summary className={`stock-compact-row ${stockStatus(item).kind}`}><strong>{item.name||"未命名食材"}</strong><span>{item.category||'其他'}</span><span>{item.qty??"待补充"} {item.unit}</span><span className="stock-status">{stockStatus(item).label}</span></summary><StockFields rules={storageRules} value={item} onChange={value=>update(index,value)}/></details>:<details className="recipe-review-details" name="recipe-draft"><summary><strong>{item.name || "未命名菜谱"}</strong><small>{item.category || "未分类"} · {item.ingredients?.length || 0} 种食材{(!item.name?.trim() || !item.ingredients?.length || !item.steps?.length) ? " · 待补充" : ""}</small></summary><div className="editor">
+          {stock?<details className="stock-review-details"><summary className={`stock-compact-row ${stockStatus(item).kind}`}><strong>{item.name||"未命名食材"}<span className="stock-review-edit">编辑</span></strong><span>{item.category||'其他'}</span><span>{item.qty??"待补充"} {item.unit}</span><span className="stock-status">{stockStatus(item).label}</span></summary><StockFields rules={storageRules} value={item} onChange={value=>update(index,value)}/></details>:<details className="recipe-review-details" name="recipe-draft"><summary><strong>{item.name || "未命名菜谱"}</strong><small>{item.category || "未分类"} · {item.ingredients?.length || 0} 种食材{(!item.name?.trim() || !item.ingredients?.length || !item.steps?.length) ? " · 待补充" : ""}</small></summary><div className="editor">
           <label>
             名称
             <input
@@ -282,8 +282,8 @@ export default function DraftEditor({ items = [], storageRules, kind, onChange, 
           </div></details>}
         </article>
       ))}
-      <div className="draft-actions"><span className="draft-count">已选 {items.length-excluded.length} 项</span><button className="primary" disabled={saving} onClick={save}>
-        {saving ? "正在保存" : "确认保存选中条目"}
+      <div className="draft-actions"><span className="draft-count">已选 {items.length-excluded.length} 项 · 点击食材可核对修改</span><button className="primary" disabled={saving} onClick={save}>
+        {saving ? "正在保存" : stock ? "确认入库" : "保存选中"}
       </button>
       {onDefer&&<button className="outline" disabled={saving} onClick={onDefer}>稍后处理</button>}</div>
     </section>
