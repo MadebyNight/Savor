@@ -25,14 +25,20 @@ with sync_playwright() as playwright:
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).pendingOrders.length===1')
     assert state()['pendingOrders'][0]['recipeSnapshot']['name'] == recipe['name']
 
-    nav('周菜单')
+    nav('菜单')
+    expect(page.get_by_role('tab', name='当日菜单')).to_have_attribute('aria-selected', 'true')
+    page.get_by_role('tab', name='周菜单').click()
+    page.locator('.week-pending > summary').first.click()
+    expect(page.locator('.week-pending-meals button')).to_have_count(5)
+    assert page.locator('.week-pending select').count() == 0
     page.get_by_role('tab', name='当日菜单').click()
     expect(page.get_by_role('button', name='待分配 1 道')).to_be_visible()
     page.get_by_role('button', name='待分配 1 道').click()
-    pending_box = page.locator('.today-pending-dialog').bounding_box()
-    assert abs(pending_box['y'] + pending_box['height'] / 2 - 844 / 2) < 30
+    expect(page.locator('.today-pending-panel')).to_be_visible()
+    page.locator('.today-pending-row').first.get_by_role('button', name='选择餐次').click()
+    expect(page.get_by_role('group', name='为' + recipe['name'] + '选择餐次').get_by_role('button')).to_have_count(5)
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-    page.get_by_label('为' + recipe['name'] + '选择餐次').select_option('中')
+    page.get_by_role('group', name='为' + recipe['name'] + '选择餐次').get_by_role('button', name='午餐').click()
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).pendingOrders.length===0')
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).pendingOrders.length===0')
     expect(page.get_by_role('region', name='午餐')).to_contain_text(recipe['name'])
@@ -43,9 +49,10 @@ with sync_playwright() as playwright:
     page.get_by_role('button', name='确认选菜', exact=False).click()
     page.get_by_role('button', name='确认并同步', exact=False).click()
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).pendingOrders.length===1')
-    nav('周菜单')
+    nav('菜单')
     page.get_by_role('button', name='待分配 1 道').click()
-    page.get_by_label('为' + recipe['name'] + '选择餐次').select_option('中')
+    page.locator('.today-pending-row').first.get_by_role('button', name='选择餐次').click()
+    page.get_by_role('group', name='为' + recipe['name'] + '选择餐次').get_by_role('button', name='午餐').click()
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).pendingOrders.length===0')
     expect(page.get_by_role('region', name='午餐').locator('.today-dish')).to_have_count(1)
     expect(page.get_by_role('region', name='午餐')).to_contain_text('×2')
@@ -80,15 +87,14 @@ with sync_playwright() as playwright:
     assert any(item['name'] == week_recipe['name'] for plan in state()['weeks'].values() for items in plan.values() for item in items)
 
     nav('菜篮子')
-    page.get_by_role('button', name='全部排单').click()
+    assert page.get_by_role('button', name='全部排单').count() == 0
     expect(page.locator('.shopping-card')).not_to_have_count(0)
     card = page.locator('.shopping-card').first
     item_name = card.locator('h3').inner_text().split('›')[0].strip()
-    card.get_by_role('button', name='查看' + item_name + '日期来源').click()
-    expect(page.get_by_role('dialog', name=item_name)).to_contain_text(recipe['name'])
-    page.get_by_role('dialog', name=item_name).get_by_label('关闭弹窗').click()
-    card.get_by_role('button', name='修改' + item_name + '实际购买量').click()
+    card.get_by_role('button', name='编辑' + item_name + '购买量与来源').click()
     edit = page.get_by_role('dialog', name='修改' + item_name + '购买量')
+    expect(edit.get_by_role('region', name='排单来源')).to_contain_text(recipe['name'])
+    expect(edit.get_by_role('region', name='需求核算')).to_be_visible()
     edit.get_by_role('button', name='购买量单位').click()
     page.get_by_role('dialog', name='选择购买量单位').get_by_role('button', name='千克（kg）').click()
     edit.get_by_role('spinbutton').fill('0.5')
@@ -102,7 +108,7 @@ with sync_playwright() as playwright:
     page.get_by_role('button', name='确认并同步', exact=False).click()
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).pendingOrders.length===1')
     nav('菜篮子')
-    page.get_by_role('button', name='已买待入库 1 项 · 确认入库').click()
+    page.locator('.basket-stock-action').click()
     stock_dialog=page.get_by_role('dialog', name='核对已买食材并入库')
     expect(stock_dialog.get_by_role('button', name='需求已变化，复核后确认此数量')).to_be_visible()
     stock_dialog.get_by_role('button', name='确认入库 · 1 项').click()
@@ -118,7 +124,7 @@ with sync_playwright() as playwright:
     assert any(item['name'] == item_name and item['qty'] == 500 for item in state()['fridge'])
     assert not any(draft.get('checked') for draft in state()['purchaseDrafts'].values())
     page.reload(wait_until='networkidle')
-    nav('周菜单')
+    nav('菜单')
     page.get_by_role('tab', name='当日菜单').click()
     expect(page.get_by_role('region', name='午餐')).to_contain_text(recipe['name'])
     page.wait_for_function("Array.from(document.querySelectorAll('[role=status]')).some(el => el.textContent.includes('已保存'))")
@@ -141,14 +147,27 @@ with sync_playwright() as playwright:
     page.get_by_role('button', name='确认选菜', exact=False).click()
     page.get_by_role('button', name='确认并同步', exact=False).click()
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).pendingOrders.length===2')
-    nav('周菜单')
+    nav('菜单')
     page.get_by_role('tab', name='当日菜单').click()
     page.get_by_role('button', name='待分配 2 道').click()
-    page.get_by_label('为' + recipe['name'] + '选择餐次').first.select_option('早')
-    page.get_by_label('为' + recipe['name'] + '选择餐次').select_option('早')
+    page.locator('.today-pending-row').first.get_by_role('button', name='选择餐次').click()
+    page.get_by_role('group', name='为' + recipe['name'] + '选择餐次').first.get_by_role('button', name='早餐').click()
+    page.locator('.today-pending-row').first.get_by_role('button', name='选择餐次').click()
+    page.get_by_role('group', name='为' + recipe['name'] + '选择餐次').get_by_role('button', name='早餐').click()
     page.wait_for_function('JSON.parse(localStorage.getItem("shiguang-v1")).pendingOrders.length===0')
     expect(page.get_by_role('region', name='早餐').locator('.today-dish')).to_have_count(1)
     expect(page.get_by_role('region', name='早餐')).to_contain_text('×2')
+    page.evaluate('''recipe => {
+      const data = JSON.parse(localStorage.getItem('shiguang-v1'));
+      const date = new Date(); date.setDate(date.getDate() + 15);
+      data.weeks = {}; data.fridge = []; data.purchaseDrafts = {};
+      data.pendingOrders = [{id:'future-purchase', date:date.toLocaleDateString('sv-SE'), recipeSnapshot:recipe, servings:1}];
+      localStorage.setItem('shiguang-v1', JSON.stringify(data));
+    }''', recipe)
+    page.reload(wait_until='networkidle')
+    nav('菜篮子')
+    expect(page.locator('.shopping-card')).not_to_have_count(0)
+    assert page.get_by_role('button', name='未来 7 天').count() == 0
     assert not errors, errors
     browser.close()
 

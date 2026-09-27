@@ -229,7 +229,7 @@
     font-weight: 600;
   }
   .mobile-bottom-nav button[aria-current="page"] > span {
-    background: #f8e9b3;
+    background: #f9cc4f;
   }
   .compact-app .page-0:not(.show-settings),
   .compact-app .page-2:not(.show-settings),
@@ -318,7 +318,7 @@
   }
   .compact-app .categories button.active,
   .compact-app .stock-categories button.active {
-    background: white;
+    background: #f9cc4f;
     font-weight: 650;
     color: #35432b;
   }
@@ -1143,13 +1143,26 @@
 .today-dish-name small { color:#66735d; white-space:nowrap; }
 .today-dish .text-link, .today-pending-row .text-link { min-height:48px; flex:none; }
 .today-menu-empty { margin-top:18px; }
-.app-dialog.today-pending-dialog, .app-dialog.today-edit-dialog { --tw-translate-x:0px !important; --tw-translate-y:0px !important; inset:0 !important; margin:auto !important; transform:none !important; translate:none; width:calc(100% - 32px) !important; max-width:440px !important; height:fit-content; max-height:calc(100dvh - 32px) !important; padding:20px 18px !important; border-radius:16px !important; overflow:auto; background:var(--surface); }
-.today-pending-dialog [data-slot="dialog-title"], .today-edit-dialog [data-slot="dialog-title"] { padding-right:38px; }
-.today-pending-row { display:grid; grid-template-columns:minmax(0,1fr); gap:0; padding:8px 0 12px; }
-.today-pending-actions { display:flex; align-items:center; gap:12px; }
-.today-pending-row select { flex:1; min-width:0; min-height:48px; }
+.compact-app .today-menu-empty.has-pending { gap:4px; margin-top:8px; padding:12px 8px; border:1px dashed var(--chrome-line); border-radius:12px; }
+.today-menu-empty.has-pending h3,.today-menu-empty.has-pending p { margin:0; }
+.app-dialog.today-edit-dialog { --tw-translate-x:0px !important; --tw-translate-y:0px !important; inset:0 !important; margin:auto !important; transform:none !important; translate:none; width:calc(100% - 32px) !important; max-width:440px !important; height:fit-content; max-height:calc(100dvh - 32px) !important; padding:20px 18px !important; border-radius:16px !important; overflow:auto; background:var(--surface); }
+.today-edit-dialog [data-slot="dialog-title"] { padding-right:38px; }
+.today-pending-panel { margin-top:18px; padding:12px; border:1px solid var(--chrome-line); border-radius:14px; background:#fffdf8; }
+.today-pending-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.today-pending-heading h3 { margin:0; font-size:16px; color:var(--heading-ink); }
+.today-pending-heading span { font-size:12px; color:#66735d; }
+.today-pending-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 8px; padding:8px 0; }
+.today-pending-row > .today-dish-name { grid-column:1; }
+.today-pending-actions { display:flex; align-items:center; gap:4px; }
+.today-choose-meal { min-height:44px; padding:8px 10px; }
+.today-pending-row > .today-meal-options { grid-column:1/-1; padding:4px 0 8px; }
+.today-meal-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; width:100%; }
+.today-meal-options button { min-width:0; min-height:44px; padding:8px 4px; border-radius:10px; background:#f0f2eb; color:var(--heading-ink); }
+.today-pending-row > .today-meal-options button { background:#fff0b7; }
+.today-meal-options button[aria-pressed="true"] { background:#f9cc4f; box-shadow:inset 0 0 0 1px #ae8730; font-weight:650; }
+.today-edit-meal { display:grid; gap:8px; padding:8px 0; }
 .today-edit-dialog label { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:48px; }
-.today-edit-dialog select, .today-edit-dialog input { width:132px; min-height:48px; font-size:16px; }
+.today-edit-dialog input { width:132px; min-height:48px; font-size:16px; }
 .recipe-detail-dialog .detail-ingredient { padding:6px 0; gap:8px; min-height:32px; font-size:14px; }
 .recipe-detail-dialog .detail-ingredient > span { overflow-wrap:anywhere; }
 .app-dialog.image-preview-dialog img { max-width:100%; max-height:70dvh; object-fit:contain; }

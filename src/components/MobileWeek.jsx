@@ -115,7 +115,7 @@ export default function MobileWeek({
               {dayAt(week, dayIndex).slice(5)} · 周{weekdays[dayIndex]}
             </h2>
           )}
-          {!!pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).length&&<details className="week-pending"><summary>待分配 {pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).length} 道</summary>{pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).map(order=><label key={order.id}>{order.recipeSnapshot.name} ×{order.servings}<select disabled={saving} aria-label={`为${order.recipeSnapshot.name}选择${order.date}餐次`} defaultValue="" onChange={event=>event.target.value&&onAssignPending?.(order.id,event.target.value)}><option value="">选择餐次</option>{MEALS.map(([key,name])=><option value={key} key={key}>{name}</option>)}</select></label>)}</details>}
+          {!!pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).length&&<details className="week-pending"><summary>待分配 {pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).length} 道</summary>{pendingOrders.filter(order=>order.date===dayAt(week,dayIndex)).map(order=><div className="week-pending-order" key={order.id}><span>{order.recipeSnapshot.name} ×{order.servings}</span><div className="week-pending-meals" role="group" aria-label={`为${order.recipeSnapshot.name}选择${order.date}餐次`}>{MEALS.map(([key,name])=><button type="button" disabled={saving} key={key} onClick={()=>onAssignPending?.(order.id,key)}>{name}</button>)}</div></div>)}</details>}
           <div className="meal-table">
             {MEALS.map(([key, name]) => {
               const mealKey = `${dayIndex}-${key}`;

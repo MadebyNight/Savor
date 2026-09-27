@@ -30,7 +30,11 @@ PREVIOUS_VERSION, PREVIOUS_CODE, TARGET_CODE = {
     '2.1.5': ('2.1.4', 13, 14),
     '2.1.6': ('2.1.5', 14, 15),
     '2.1.7': ('2.1.6', 15, 16),
+    '2.1.9': ('2.1.8', 17, 18),
+    '2.1.10': ('2.1.9', 18, 19),
 }[TARGET_VERSION]
+PREVIOUS_VERSION = os.environ.get('ANDROID_PREVIOUS_VERSION', PREVIOUS_VERSION)
+PREVIOUS_CODE = int(os.environ.get('ANDROID_PREVIOUS_CODE', PREVIOUS_CODE))
 HAS_KG = TARGET_CODE >= 10
 OUT = (ROOT / '.android-tools/device-logs' / os.environ['ANDROID_ACCEPTANCE_DIR']).resolve()
 APK = Path('android/app/build/outputs/apk/debug/app-debug.apk')
@@ -175,10 +179,14 @@ with sync_playwright() as playwright:
         page.get_by_role('button', name='确认选菜', exact=False).click()
         page.get_by_role('dialog', name='我的点单清单').get_by_role('button', name='确认并同步', exact=False).click()
         page.wait_for_function('async()=>JSON.parse((await Capacitor.Plugins.LocalData.loadState()).value).pendingOrders.length===1')
-        nav(page, '周菜单')
-        page.get_by_role('tab', name='当日菜单').click()
+        nav(page, '菜单')
+        expect(page.get_by_role('tab', name='当日菜单')).to_have_attribute('aria-selected', 'true')
         page.get_by_role('button', name='待分配 1 道').click()
-        page.get_by_label('为' + recipe['name'] + '选择餐次').select_option('中')
+        assert page.locator('.today-pending-panel select').count() == 0, '待分配区域仍含原生餐次选择器'
+        page.locator('.today-pending-row').first.get_by_role('button', name='选择餐次').click()
+        expect(page.get_by_role('group', name='为' + recipe['name'] + '选择餐次').get_by_role('button')).to_have_count(5)
+        (OUT / 'pending-meal-choices.png').write_bytes(adb('exec-out', 'screencap', '-p'))
+        page.get_by_role('group', name='为' + recipe['name'] + '选择餐次').get_by_role('button', name='午餐').click()
         page.wait_for_function('async()=>JSON.parse((await Capacitor.Plugins.LocalData.loadState()).value).pendingOrders.length===0')
         expect(page.get_by_role('region', name='午餐')).to_contain_text(recipe['name'])
         assert not page.get_by_role('region', name='夜宵').count()
@@ -196,8 +204,10 @@ with sync_playwright() as playwright:
         nav(page, '菜篮子')
         card = page.locator('.shopping-card').filter(has=page.get_by_role('heading', name='V21验收食材'))
         expect(card).to_contain_text('100' if HAS_KG else '200')
-        card.get_by_role('button', name='修改V21验收食材实际购买量').click()
+        card.get_by_role('button', name='编辑V21验收食材购买量与来源').click()
         edit = page.get_by_role('dialog', name='修改V21验收食材购买量')
+        expect(edit.get_by_role('region', name='排单来源')).to_contain_text(recipe['name'])
+        expect(edit.get_by_role('region', name='需求核算')).to_be_visible()
         if HAS_KG:
             edit.get_by_role('button', name='购买量单位').click()
             page.get_by_role('dialog', name='选择购买量单位').get_by_role('button', name='千克（kg）').click()
@@ -206,7 +216,8 @@ with sync_playwright() as playwright:
             edit.get_by_role('spinbutton').fill('260')
         edit.get_by_role('button', name='保存购买量').click()
         card.get_by_role('checkbox').check()
-        page.get_by_role('button', name='已买待入库 1 项 · 确认入库').click()
+        assert page.locator('.basket-stock-action').evaluate('button => getComputedStyle(button).backgroundColor') == 'rgb(249, 204, 79)'
+        page.locator('.basket-stock-action').click()
         page.get_by_role('dialog', name='核对已买食材并入库').get_by_role('button', name='确认入库 · 1 项').click()
         page.wait_for_function('async()=>JSON.parse((await Capacitor.Plugins.LocalData.loadState()).value).fridge.some(x=>x.name==="V21验收食材"&&x.qty===260&&x.unit==="g")')
         assert not any(value.get('checked') for value in state(page)['purchaseDrafts'].values())

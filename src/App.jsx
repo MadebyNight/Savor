@@ -154,16 +154,13 @@ function App() {
   const [purchased,setPurchased]=useState({});
   const [pendingOrders,setPendingOrders]=useState([]);
   const [purchaseDrafts,setPurchaseDrafts]=useState({});
-  const [basketRange,setBasketRange]=useState('seven');
   const [legacyDate,setLegacyDate]=useState(today());
   const [basketItem,setBasketItem]=useState(null);
   const [purchaseQuantity,setPurchaseQuantity]=useState('');
   const [purchaseUnit,setPurchaseUnit]=useState('g');
   const [basketSaving,setBasketSaving]=useState(false);
   const basketSaveLock=useRef(false);
-  const basketPress=useRef(null);
-  const basketLongPressed=useRef(false);
-  const [menuView,setMenuView]=useState('week');
+  const [menuView,setMenuView]=useState('today');
   const [weekView,setWeekView]=useState('day');
   const [orderSaving,setOrderSaving]=useState(false);
   const orderSaveLock=useRef(false);
@@ -375,6 +372,7 @@ function App() {
     setDetailOrigin("");
     setPreviewImage(false);
     setPage(nextPage);
+    if(nextPage===3)setMenuView('today');
     setEditingRecipe(false);
     setCategory(pageFilters.current[nextPage]?.category || "全部");
     setSearch(pageFilters.current[nextPage]?.search || "");
@@ -391,7 +389,7 @@ function App() {
   );
   const procurementResult=datedProcurement({
     weeks,pendingOrders,legacyRecipes:confirmedRecipes,legacyQuantities:confirmedQuantities,fridge,
-    from:today(),to:basketRange==='today'?today():basketRange==='seven'?dayAt(today(),6):undefined,
+    from:today(),
   });
   const legacyShoppingList=procurementResult.legacyItems;
   const legacyOrders=confirmedRecipes.filter(item=>confirmedQuantities[item.id]>0);
@@ -1183,10 +1181,7 @@ function App() {
                   {" 预览与导出"}
                 </button>
               </div>
-              <div className="chip-row basket-range" aria-label="采购日期范围">
-                {[["today","今天"],["seven","未来 7 天"],["all","全部排单"]].map(([value,label])=><button key={value} type="button" aria-pressed={basketRange===value} className={basketRange===value?'active':''} onClick={()=>setBasketRange(value)}>{label}</button>)}
-              </div>
-              {!!checkedShopping.length&&<button type="button" className="outline basket-stock-action" onClick={()=>setModal('purchase-stock')}>已买待入库 {checkedShopping.length} 项 · 确认入库</button>}
+              {!!checkedShopping.length&&<button type="button" className="primary basket-stock-action" onClick={()=>setModal('purchase-stock')}>确认入库 · {checkedShopping.length} 项</button>}
               <div className="stock-layout">
               <aside className="chip-row stock-categories" aria-label="食材分类">
                 {stockCategories.map((categoryName) => (
@@ -1209,7 +1204,7 @@ function App() {
                   .map((item) => (
                     <article key={shoppingKey(item)} className={`stock-card shopping-card ${purchaseDrafts[shoppingKey(item)]?.checked?'is-purchased':''}`}>
                       <label className="shopping-check"><input type="checkbox" aria-label={`已买${item.name}（${item.unit}）`} checked={!!purchaseDrafts[shoppingKey(item)]?.checked} onChange={event=>togglePurchased(item,event.target.checked)}/><span className="sr-only">已买</span></label>
-                      <h3><button type="button" className="basket-name" aria-label={`查看${item.name}日期来源`} onClick={()=>{if(basketLongPressed.current){basketLongPressed.current=false;return;}setBasketItem(item);setModal('basket-detail');}} onContextMenu={event=>{event.preventDefault();openPurchaseEditor(item);}} onTouchStart={()=>{basketLongPressed.current=false;basketPress.current=setTimeout(()=>{basketLongPressed.current=true;openPurchaseEditor(item);},650);}} onTouchEnd={()=>clearTimeout(basketPress.current)} onTouchMove={()=>clearTimeout(basketPress.current)}>{item.name}<span aria-hidden="true"> ›</span></button></h3>
+                      <h3><button type="button" className="basket-name" aria-label={`编辑${item.name}购买量与来源`} onClick={()=>openPurchaseEditor(item)}>{item.name}<span aria-hidden="true"> ›</span></button></h3>
                       <button type="button" className="basket-quantity" aria-label={`修改${item.name}实际购买量`} onClick={()=>openPurchaseEditor(item)}>
                         <small>{purchaseDrafts[shoppingKey(item)]?.checked?'已买 ':purchaseDrafts[shoppingKey(item)]?.qty?'拟购买 ':'还需买 '}</small>
                         {purchaseDrafts[shoppingKey(item)]?.qty??item.qty??"待确认"} <small>{item.unit}</small>
@@ -1230,7 +1225,7 @@ function App() {
                 <div className="empty">
                   <Check size={40} />
                   <h2>{pendingOrders.length||Object.keys(weeks).length ? "所需食材已备齐" : "菜篮子空空的"}</h2>
-                  <p>{pendingOrders.length||Object.keys(weeks).length ? "当前日期范围无需补充采购。" : "先去选菜或安排周菜单，缺少的食材会出现在这里。"}</p>
+                  <p>{pendingOrders.length||Object.keys(weeks).length ? "当前排单无需补充采购。" : "先去选菜或安排周菜单，缺少的食材会出现在这里。"}</p>
                   <button className="primary" onClick={() => navigate(0)}>
                     去选菜
                   </button>
@@ -1814,7 +1809,7 @@ function App() {
         setStorageRules(rules);toast.success('保质期规则已保存');
       }}/>}
       {compact && !editingRecipe && !recognition && !showSettings && !reviewWeek && <nav className="mobile-bottom-nav" aria-label="主导航">
-        {[[0,"点单",Utensils],[4,"冰箱",Refrigerator],[2,"菜篮子",ShoppingBasket],[3,"周菜单",CalendarDays],[1,"菜谱",BookOpen]].map(([index,label,Icon]) => <button key={index} aria-current={page === index && !showSettings ? "page" : undefined} onClick={() => navigate(index)}><span><Icon size={22}/></span>{label}</button>)}
+        {[[0,"点单",Utensils],[4,"冰箱",Refrigerator],[2,"菜篮子",ShoppingBasket],[3,"菜单",CalendarDays],[1,"菜谱",BookOpen]].map(([index,label,Icon]) => <button key={index} aria-current={page === index && !showSettings ? "page" : undefined} onClick={() => navigate(index)}><span><Icon size={22}/></span>{label}</button>)}
       </nav>}
       {!reviewWeek&&reminder?.settings.inApp&&reminder.pendingWeek&&<aside className="reminder-banner" role="status"><span>{reminder.pendingWeek} 起这一周的菜单营养待回顾</span><button className="text-link" onClick={()=>setReviewWeek(reminder.pendingWeek)}>查看营养回顾</button></aside>}
       {reviewWeek&&<section className="nutrition-page" aria-label="菜单营养回顾">
@@ -1851,7 +1846,6 @@ function App() {
               clear: "清空本周安排？",
               history: "膳食日历",
               "fridge-recipes":"看看能做什么",
-              "basket-detail":basketItem?.name || '采购来源',
               "purchase-edit":`修改${basketItem?.name||'食材'}购买量`,
               "purchase-stock":"核对已买食材并入库",
             }[modal] || "食光"}
@@ -1950,17 +1944,19 @@ function App() {
 
             </>
           )}
-          {modal === 'basket-detail' && basketItem && <div className="basket-detail-content">
-            <p>{basketItem.requiredQty==null?'用量待确认':`总需求 ${basketItem.requiredQty}${basketItem.unit}`} · 冰箱可用 {basketItem.availableQty}{basketItem.unit} · 当前缺口 {basketItem.qty??'待确认'}{basketItem.unit}</p>
-            {!!purchaseDrafts[shoppingKey(basketItem)]?.qty&&purchaseDrafts[shoppingKey(basketItem)].sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&<p role="alert">排单或库存发生变化，请复核实际购买量。</p>}
-            {basketItem.sources?.map((source,index)=><p key={index}>{source.date} · {MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'} · {source.recipeName} ×{source.servings} · {source.requiredQty??'用量待确认'}{basketItem.unit}</p>)}
-            {!basketItem.sources?.length&&<p>原排单已变更；已买记录仍可入库。</p>}
-            <button className="outline" onClick={()=>openPurchaseEditor(basketItem)}>修改购买量</button>
-          </div>}
           {modal === 'purchase-edit' && basketItem && <div className="basket-edit-content">
-            <label>实际购买量<input autoFocus type="number" inputMode="decimal" min="0.001" step="any" value={purchaseQuantity} onChange={event=>setPurchaseQuantity(event.target.value)}/></label>
-            {['g','kg'].includes(normalizeUnit(basketItem.unit))&&<label>单位<AppSelect aria-label="购买量单位" value={purchaseUnit} onChange={event=>{const next=event.target.value;setPurchaseQuantity(current=>current===''?'':String(convertQuantity(current,purchaseUnit,next)));setPurchaseUnit(next);}}><option value="g">克（g）</option><option value="kg">千克（kg）</option></AppSelect></label>}
-            <p>当前还缺 {basketItem.qty??'待确认'} {basketItem.unit}。{['g','kg'].includes(normalizeUnit(basketItem.unit))&&'千克会换算为克入库；'}修改购买量不会更改菜谱用量或排单份数。</p>
+            <section className="basket-edit-section basket-edit-main" aria-label="购买量"><h3>实际购买量</h3>
+              <div className="basket-edit-fields"><label>数量<input autoFocus type="number" inputMode="decimal" min="0.001" step="any" value={purchaseQuantity} onChange={event=>setPurchaseQuantity(event.target.value)}/></label>
+              {['g','kg'].includes(normalizeUnit(basketItem.unit))&&<label>单位<AppSelect aria-label="购买量单位" value={purchaseUnit} onChange={event=>{const next=event.target.value;setPurchaseQuantity(current=>current===''?'':String(convertQuantity(current,purchaseUnit,next)));setPurchaseUnit(next);}}><option value="g">克（g）</option><option value="kg">千克（kg）</option></AppSelect></label>}</div>
+              <p>按实际买到的数量填写；修改不会增加排单需求。</p>
+            </section>
+            <section className="basket-edit-section" aria-label="需求核算"><h3>需求核算</h3>
+              <div className="basket-demand-grid"><div><span>排单共需</span><strong>{basketItem.requiredQty??'待确认'} <small>{basketItem.unit}</small></strong></div><div><span>冰箱可用</span><strong>{basketItem.availableQty} <small>{basketItem.unit}</small></strong></div><div className="basket-demand-gap"><span>还需购买</span><strong>{basketItem.qty??'待确认'} <small>{basketItem.unit}</small></strong></div></div>
+              {!!purchaseDrafts[shoppingKey(basketItem)]?.qty&&purchaseDrafts[shoppingKey(basketItem)].sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&<p className="basket-edit-alert" role="alert">排单或库存已变化，请复核购买量。</p>}
+            </section>
+            <section className="basket-edit-section" aria-label="排单来源"><h3>排单来源</h3>
+              {basketItem.sources?.length?<ul className="basket-source-list">{basketItem.sources.map((source,index)=><li key={index}><span>{source.date} · {MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'}</span><strong>{source.recipeName} ×{source.servings}</strong><small>需 {source.requiredQty??'待确认'}{basketItem.unit}</small></li>)}</ul>:<p>原排单已变更；已买记录仍可核对入库。</p>}
+            </section>
           </div>}
           {modal === 'purchase-stock' && <div className="basket-stock-content">{checkedShopping.map(item=><div className="list-row" key={shoppingKey(item)}><span>{item.name}</span><strong>{purchaseDrafts[shoppingKey(item)]?.qty} {item.unit}</strong>{purchaseDrafts[shoppingKey(item)]?.sourceFingerprint!==currentPurchaseFingerprint(item)&&<button type="button" className="text-link" onClick={()=>{const key=shoppingKey(item);setPurchaseDrafts(current=>({...current,[key]:{...current[key],sourceFingerprint:currentPurchaseFingerprint(item)}}));}}>需求已变化，复核后确认此数量</button>}</div>)}<p>确认后新增冰箱批次，入库日期为今天；多买的数量保留在冰箱。</p></div>}
           {modal === "stock" && (
@@ -2068,6 +2064,7 @@ function App() {
                   setWeek(copyTarget);
                   setModal("");
                   navigate(3);
+                  setMenuView('week');
                   toast.success("已复制，目标周可独立修改");
                 }}
               >
