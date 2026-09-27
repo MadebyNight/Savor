@@ -32,6 +32,7 @@ PREVIOUS_VERSION, PREVIOUS_CODE, TARGET_CODE = {
     '2.1.7': ('2.1.6', 15, 16),
     '2.1.9': ('2.1.8', 17, 18),
     '2.1.10': ('2.1.9', 18, 19),
+    '2.1.11': ('2.1.10', 19, 20),
 }[TARGET_VERSION]
 PREVIOUS_VERSION = os.environ.get('ANDROID_PREVIOUS_VERSION', PREVIOUS_VERSION)
 PREVIOUS_CODE = int(os.environ.get('ANDROID_PREVIOUS_CODE', PREVIOUS_CODE))
@@ -106,6 +107,11 @@ def nav(page, name):
     page.get_by_role('navigation', name='主导航').get_by_role('button', name=name, exact=True).click()
 
 
+def wait_toasts(page):
+    page.mouse.move(0, 0)
+    page.wait_for_function("![...document.querySelectorAll('[data-sonner-toast]')].some(item=>item.dataset.removed!=='true')", timeout=15000)
+
+
 assert certificate(APK) == CERT, '新 APK 签名不一致'
 badging = subprocess.run([str(AAPT), 'dump', 'badging', str(APK)], check=True, capture_output=True).stdout.decode(errors='replace')
 assert re.search(rf"^package: name='com\.shiguang\.mealplanner' versionCode='{TARGET_CODE}' versionName='{re.escape(TARGET_VERSION)}'", badging, re.M), '新 APK 包名或版本不正确'
@@ -161,7 +167,7 @@ with sync_playwright() as playwright:
         recipe['ingredients'] = [{'name': 'V21验收食材', 'qty': 200, 'unit': 'g', 'category': '蔬菜'}]
         recipe['steps'] = ['完成验收。']
         recipe['time'] = 2
-        test.update(recipes=[*test['recipes'], recipe], fridge=[], qty={}, confirmed={}, confirmedRecipes=[], purchased={}, weeks={}, pendingOrders=[], purchaseDrafts={})
+        test.update(recipes=[*test['recipes'], recipe], fridge=[], qty={}, confirmed={}, confirmedRecipes=[], purchased={}, weeks={}, pendingOrders=[], purchaseDrafts={}, manualShopping=[])
         page.evaluate('value=>Capacitor.Plugins.LocalData.saveState({value})', json.dumps(test, ensure_ascii=False))
         test_started = True
         page.reload(); saved(page)
@@ -182,7 +188,8 @@ with sync_playwright() as playwright:
         nav(page, '菜单')
         expect(page.get_by_role('tab', name='当日菜单')).to_have_attribute('aria-selected', 'true')
         page.get_by_role('button', name='待分配 1 道').click()
-        assert page.locator('.today-pending-panel select').count() == 0, '待分配区域仍含原生餐次选择器'
+        assert page.locator('.today-pending-dialog select').count() == 0, '待分配弹层仍含原生餐次选择器'
+        expect(page.get_by_role('dialog', name='待分配菜品 · 1 道')).to_be_visible()
         page.locator('.today-pending-row').first.get_by_role('button', name='选择餐次').click()
         expect(page.get_by_role('group', name='为' + recipe['name'] + '选择餐次').get_by_role('button')).to_have_count(5)
         (OUT / 'pending-meal-choices.png').write_bytes(adb('exec-out', 'screencap', '-p'))
@@ -222,6 +229,33 @@ with sync_playwright() as playwright:
         page.wait_for_function('async()=>JSON.parse((await Capacitor.Plugins.LocalData.loadState()).value).fridge.some(x=>x.name==="V21验收食材"&&x.qty===260&&x.unit==="g")')
         assert not any(value.get('checked') for value in state(page)['purchaseDrafts'].values())
         report['checks'].append('点单、当日分配、菜谱快照及计时编辑、购买量修改和入库' + ('；0.1kg 库存抵扣 100g、0.26kg 采购入库 260g' if HAS_KG else ''))
+        page.get_by_role('button', name='手动添加', exact=True).click()
+        manual = page.get_by_role('dialog', name='手动添加采购项')
+        manual.get_by_role('textbox', name='名称').fill('V21验收非食材')
+        manual.get_by_role('spinbutton', name='数量').fill('1')
+        manual.get_by_role('textbox', name='单位').fill('包')
+        (OUT / 'manual-shopping-form.png').write_bytes(adb('exec-out', 'screencap', '-p'))
+        manual.get_by_role('button', name='加入菜篮子').click()
+        page.wait_for_function('async()=>JSON.parse((await Capacitor.Plugins.LocalData.loadState()).value).manualShopping?.length===1')
+        page.locator('.shopping-card').filter(has=page.get_by_role('button', name='编辑V21验收非食材手动采购项', exact=True)).get_by_role('checkbox').check()
+        wait_toasts(page)
+        page.locator('.basket-stock-action').click()
+        page.get_by_role('dialog', name='确认已买采购项').get_by_role('button', name='完成采购 · 1 项').click()
+        page.wait_for_function('async()=>JSON.parse((await Capacitor.Plugins.LocalData.loadState()).value).manualShopping.length===0')
+        assert not any(item['name']=='V21验收非食材' for item in state(page)['fridge'])
+        page.get_by_role('button', name='手动添加', exact=True).click()
+        manual = page.get_by_role('dialog', name='手动添加采购项')
+        manual.get_by_role('textbox', name='名称').fill('V21验收临时水果')
+        manual.get_by_role('spinbutton', name='数量').fill('2')
+        manual.get_by_role('checkbox', name='购买后放入冰箱库存').check()
+        manual.get_by_role('button', name='加入菜篮子').click()
+        page.locator('.shopping-card').filter(has=page.get_by_role('button', name='编辑V21验收临时水果手动采购项', exact=True)).get_by_role('checkbox').check()
+        wait_toasts(page)
+        page.locator('.basket-stock-action').click()
+        page.get_by_role('dialog', name='核对已买食材并入库').get_by_role('button', name='确认入库 · 1 项').click()
+        page.wait_for_function('async()=>JSON.parse((await Capacitor.Plugins.LocalData.loadState()).value).fridge.some(x=>x.name==="V21验收临时水果"&&x.qty===2)')
+        assert state(page)['manualShopping'] == []
+        report['checks'].append('手动采购项填写、购买后完成或入库、已完成项移出菜篮子')
         (OUT / 'workflow-basket.png').write_bytes(adb('exec-out', 'screencap', '-p'))
         browser.close()
         adb('shell', 'am', 'force-stop', PACKAGE)

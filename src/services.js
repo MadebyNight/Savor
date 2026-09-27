@@ -126,9 +126,17 @@ export function validateBackup(value) {
         ||(draft.sourceFingerprint!=null&&typeof draft.sourceFingerprint!=='string'))throw new Error('实际购买量格式无效');
     }
   }
-  return {...state,qty:state.qty || {},weeks:state.weeks || {},archives,confirmedRecipes:state.confirmedRecipes || state.recipes.filter(r => state.confirmed[r.id]),pendingOrders:state.pendingOrders || [],purchaseDrafts:state.purchaseDrafts || {}};
+  if(state.manualShopping!=null){
+    if(!Array.isArray(state.manualShopping))throw new Error('手动采购项格式无效');
+    for(const item of state.manualShopping)if(!object(item)||typeof item.id!=='string'||!item.id
+      ||typeof item.name!=='string'||!item.name.trim()||typeof item.unit!=='string'||!item.unit.trim()
+      ||typeof item.category!=='string'||!item.category.trim()||!Number.isFinite(item.qty)||item.qty<=0
+      ||typeof item.checked!=='boolean'||typeof item.stockOnPurchase!=='boolean'||(item.note!=null&&typeof item.note!=='string'))throw new Error('手动采购项格式无效');
+    uniqueIds(state.manualShopping,'手动采购项');
+  }
+  return {...state,qty:state.qty || {},weeks:state.weeks || {},archives,confirmedRecipes:state.confirmedRecipes || state.recipes.filter(r => state.confirmed[r.id]),pendingOrders:state.pendingOrders || [],purchaseDrafts:state.purchaseDrafts || {},manualShopping:state.manualShopping || []};
 }
-export const businessState = state => ({recipes:state.recipes,...(state.storageRules!=null?{storageRules:state.storageRules}:{}),...(state.recipeCategories!=null?{recipeCategories:state.recipeCategories}:{}),fridge:state.fridge,confirmed:state.confirmed,confirmedRecipes:state.confirmedRecipes,weeks:state.weeks,archives:state.archives,...(state.pendingOrders?.length?{pendingOrders:state.pendingOrders}:{}),...(state.purchaseDrafts&&Object.keys(state.purchaseDrafts).length?{purchaseDrafts:state.purchaseDrafts}:{}),...(state.purchased&&Object.keys(state.purchased).length?{purchased:state.purchased}:{}),...(state.nutritionReports&&Object.keys(state.nutritionReports).length?{nutritionReports:state.nutritionReports}:{})});
+export const businessState = state => ({recipes:state.recipes,...(state.storageRules!=null?{storageRules:state.storageRules}:{}),...(state.recipeCategories!=null?{recipeCategories:state.recipeCategories}:{}),fridge:state.fridge,confirmed:state.confirmed,confirmedRecipes:state.confirmedRecipes,weeks:state.weeks,archives:state.archives,...(state.pendingOrders?.length?{pendingOrders:state.pendingOrders}:{}),...(state.purchaseDrafts&&Object.keys(state.purchaseDrafts).length?{purchaseDrafts:state.purchaseDrafts}:{}),...(state.manualShopping?.length?{manualShopping:state.manualShopping}:{}),...(state.purchased&&Object.keys(state.purchased).length?{purchased:state.purchased}:{}),...(state.nutritionReports&&Object.keys(state.nutritionReports).length?{nutritionReports:state.nutritionReports}:{})});
 export function assertReadableImages(value) {
   if (Array.isArray(value)) for (const item of value) assertReadableImages(item);
   else if (value && typeof value === 'object') for (const [key,item] of Object.entries(value)) {

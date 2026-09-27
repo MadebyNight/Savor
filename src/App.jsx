@@ -154,6 +154,9 @@ function App() {
   const [purchased,setPurchased]=useState({});
   const [pendingOrders,setPendingOrders]=useState([]);
   const [purchaseDrafts,setPurchaseDrafts]=useState({});
+  const [manualShopping,setManualShopping]=useState([]);
+  const [manualDraft,setManualDraft]=useState({id:null,name:'',qty:'',unit:'个',category:'其他',note:'',checked:false,stockOnPurchase:false});
+  const [manualSaving,setManualSaving]=useState(false);
   const [legacyDate,setLegacyDate]=useState(today());
   const [basketItem,setBasketItem]=useState(null);
   const [purchaseQuantity,setPurchaseQuantity]=useState('');
@@ -256,6 +259,7 @@ function App() {
     purchased,
     pendingOrders,
     purchaseDrafts,
+    manualShopping,
     qty: quantities,
     confirmed: confirmedQuantities,
     weeks,
@@ -273,6 +277,7 @@ function App() {
     setPurchased(state.purchased || {});
     setPendingOrders(state.pendingOrders || []);
     setPurchaseDrafts(state.purchaseDrafts || {});
+    setManualShopping(state.manualShopping || []);
     setQuantities(state.qty || {});
     setConfirmedQuantities(state.confirmed || {});
     setWeeks(state.weeks || {});
@@ -353,6 +358,7 @@ function App() {
     purchased,
     pendingOrders,
     purchaseDrafts,
+    manualShopping,
     quantities,
     confirmedQuantities,
     weeks,
@@ -399,17 +405,44 @@ function App() {
     return current?purchaseFingerprint(current):'missing';
   };
   const purchasedKeys=Object.keys(purchaseDrafts).filter(key=>purchaseDrafts[key]?.checked);
-  const shoppingList=[...procurementResult.items,...purchasedKeys.filter(key=>!procurementResult.items.some(item=>shoppingKey(item)===key)).map(key=>allShoppingItems.find(item=>shoppingKey(item)===key)||(()=>{const [name,unit]=JSON.parse(key);return {name,unit,category:'其他',qty:0,requiredQty:0,availableQty:0,sources:[],sourceFingerprint:''};})())]
+  const plannedShoppingList=[...procurementResult.items,...purchasedKeys.filter(key=>!procurementResult.items.some(item=>shoppingKey(item)===key)).map(key=>allShoppingItems.find(item=>shoppingKey(item)===key)||(()=>{const [name,unit]=JSON.parse(key);return {name,unit,category:'其他',qty:0,requiredQty:0,availableQty:0,sources:[],sourceFingerprint:''};})())]
     .filter(item=>item.qty==null || item.qty>0 || purchaseDrafts[shoppingKey(item)]?.qty>0 || purchaseDrafts[shoppingKey(item)]?.checked);
-  const remainingShopping=shoppingList.filter(item=>!purchaseDrafts[shoppingKey(item)]?.checked).length;
-  const checkedShopping=shoppingList.filter(item=>purchaseDrafts[shoppingKey(item)]?.checked);
+  const shoppingList=[...plannedShoppingList,...manualShopping.map(item=>({...item,manual:true,requiredQty:item.qty,availableQty:0,sources:[]}))];
+  const basketKey=item=>item.manual?`manual:${item.id}`:shoppingKey(item);
+  const basketDraft=item=>item.manual?item:purchaseDrafts[shoppingKey(item)];
+  const remainingShopping=shoppingList.filter(item=>!basketDraft(item)?.checked).length;
+  const checkedShopping=shoppingList.filter(item=>basketDraft(item)?.checked);
+  const stockingCount=checkedShopping.filter(item=>!item.manual||item.stockOnPurchase).length;
+  const purchaseActionLabel=stockingCount?`确认入库 · ${checkedShopping.length} 项`:`完成采购 · ${checkedShopping.length} 项`;
   const shoppingExportLines=[...shoppingList.flatMap(item=>{
-    const draft=purchaseDrafts[shoppingKey(item)];
+    const draft=basketDraft(item);
     const quantity=draft?.qty??item.qty??'待确认';
-    const label=draft?.checked?'已买':draft?.qty?'拟购买':'还需买';
-    return [`${item.name} ${label} ${quantity}${item.unit}`,...(item.sources||[]).map(source=>`  ${source.date} ${MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'} · ${source.recipeName} ×${source.servings}`)];
+    const label=draft?.checked?'已买':item.manual?'还需买':draft?.qty?'拟购买':'还需买';
+    return [`${item.name} ${label} ${quantity}${item.unit}${item.manual?` · 手动添加${item.stockOnPurchase?'，买后入库':''}`:''}`,...(item.note?[`  备注：${item.note}`]:[]),...(item.sources||[]).map(source=>`  ${source.date} ${MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'} · ${source.recipeName} ×${source.servings}`)];
   }),...legacyShoppingList.map(item=>`${item.name} ${item.qty??'待确认'}${item.unit} · 旧版待安排采购`)];
   const openPurchaseEditor=item=>{setBasketItem(item);setPurchaseQuantity(String(purchaseDrafts[shoppingKey(item)]?.qty??item.qty??''));setPurchaseUnit(normalizeUnit(item.unit));setModal('purchase-edit');};
+  const openManualEditor=item=>{setManualDraft(item?{...item,qty:String(item.qty)}:{id:null,name:'',qty:'',unit:'个',category:'其他',note:'',checked:false,stockOnPurchase:false});setModal('manual-shopping');};
+  const saveManualItem=async()=>{
+    const name=manualDraft.name.trim(),unit=normalizeUnit(manualDraft.unit),qty=Number(manualDraft.qty),note=manualDraft.note.trim();
+    if(!name||!unit||!Number.isFinite(qty)||qty<=0){toast.error('请填写名称、单位和大于 0 的数量');return;}
+    if(!stockCategories.includes(manualDraft.category)){toast.error('请选择有效分类');return;}
+    const before=latestState.current,existing=before.manualShopping.find(item=>item.id===manualDraft.id);
+    const checked=!!existing?.checked&&existing.name===name&&existing.unit===unit&&existing.qty===qty&&!!existing.stockOnPurchase===!!manualDraft.stockOnPurchase;
+    const item={id:existing?.id||crypto.randomUUID(),name,qty,unit,category:manualDraft.category,note,checked,stockOnPurchase:!!manualDraft.stockOnPurchase};
+    const next=existing?before.manualShopping.map(value=>value.id===item.id?item:value):[...before.manualShopping,item];
+    setManualSaving(true);
+    try{await saveState({...before,manualShopping:next});setManualShopping(next);setCategory('全部');setModal('');toast.success(existing?'采购项已更新':'已加入菜篮子');}
+    catch(error){toast.error('保存采购项失败：'+error.message);}
+    finally{setManualSaving(false);}
+  };
+  const removeManualItem=async()=>{
+    if(!manualDraft.id||!(await ask(`移除「${manualDraft.name}」？`,{title:'移除手动采购项？',label:'确认移除',danger:true})))return;
+    const before=latestState.current,next=before.manualShopping.filter(item=>item.id!==manualDraft.id);
+    setManualSaving(true);
+    try{await saveState({...before,manualShopping:next});setManualShopping(next);setModal('');toast.success('采购项已移除');}
+    catch(error){toast.error('移除失败：'+error.message);}
+    finally{setManualSaving(false);}
+  };
   const savePurchaseQuantity=()=>{
     const converted=convertQuantity(purchaseQuantity,purchaseUnit,basketItem.unit);
     const qty=converted==null?NaN:+converted.toFixed(6);
@@ -419,6 +452,7 @@ function App() {
     setModal('');toast.success('购买量已保存');
   };
   const togglePurchased=(item,checked)=>{
+    if(item.manual){setManualShopping(current=>current.map(value=>value.id===item.id?{...value,checked}:value));return;}
     const key=shoppingKey(item),current=purchaseDrafts[key];
     const qty=current?.qty??item.qty;
     if(checked&&(!Number.isFinite(Number(qty))||Number(qty)<=0)){openPurchaseEditor(item);toast('先填写实际购买量，再勾选已买');return;}
@@ -442,7 +476,8 @@ function App() {
     if(basketSaveLock.current)return;
     const before=latestState.current;
     const entries=Object.entries(before.purchaseDrafts).filter(([,draft])=>draft?.checked);
-    if(!entries.length)return;
+    const manualEntries=(before.manualShopping||[]).filter(item=>item.checked);
+    if(!entries.length&&!manualEntries.length)return;
     const currentItems=datedProcurement({weeks:before.weeks,pendingOrders:before.pendingOrders,fridge:before.fridge,from:today()}).items;
     if(entries.some(([key,draft])=>{
       const item=currentItems.find(value=>shoppingKey(value)===key);
@@ -454,11 +489,12 @@ function App() {
         const [name,unit]=JSON.parse(key);
         const item=allShoppingItems.find(value=>shoppingKey(value)===key);
         return suggestStorage({...ingredient(name,Number(draft.qty),item?.category||'其他',unit),id:`purchase-${Date.now()}-${index}`,date:today()},before.storageRules);
-      })];
+      }),...manualEntries.filter(item=>item.stockOnPurchase).map((item,index)=>suggestStorage({...ingredient(item.name,item.qty,item.category,item.unit),id:`manual-purchase-${Date.now()}-${index}`,date:today()},before.storageRules))];
       const nextDrafts={...before.purchaseDrafts};for(const [key] of entries)delete nextDrafts[key];
-      await saveState({...before,fridge:nextFridge,purchaseDrafts:nextDrafts});
-      setFridge(nextFridge);setPurchaseDrafts(nextDrafts);setModal('');
-      toast.success(`已入库 ${entries.length} 项，采购缺口已更新`);
+      const nextManual=(before.manualShopping||[]).filter(item=>!item.checked);
+      await saveState({...before,fridge:nextFridge,purchaseDrafts:nextDrafts,manualShopping:nextManual});
+      setFridge(nextFridge);setPurchaseDrafts(nextDrafts);setManualShopping(nextManual);setModal('');
+      toast.success(entries.length+manualEntries.filter(item=>item.stockOnPurchase).length?`已入库 ${entries.length+manualEntries.filter(item=>item.stockOnPurchase).length} 项，采购清单已更新`:`已完成 ${manualEntries.length} 项采购`);
     }catch(error){toast.error('入库失败，已买记录保留：'+error.message);}
     finally{basketSaveLock.current=false;setBasketSaving(false);}
   };
@@ -542,8 +578,8 @@ function App() {
     const nextWeeks={...before.weeks,[targetWeek]:{...plan,[slot]:items}};
     const nextPending=before.pendingOrders.filter(item=>item.id!==id);
     menuSaveLock.current=true;setMenuSaving(true);
-    try{await saveState({...before,pendingOrders:nextPending,weeks:nextWeeks});setPendingOrders(nextPending);setWeeks(nextWeeks);toast.success('菜品已分配到餐次');}
-    catch(error){toast.error('排餐保存失败：'+error.message);}
+    try{await saveState({...before,pendingOrders:nextPending,weeks:nextWeeks});setPendingOrders(nextPending);setWeeks(nextWeeks);toast.success('菜品已分配到餐次');return true;}
+    catch(error){toast.error('排餐保存失败：'+error.message);return false;}
     finally{menuSaveLock.current=false;setMenuSaving(false);}
   };
   const updateTodayEntry=async(id,changes)=>{
@@ -871,7 +907,7 @@ function App() {
               {!showSettings && !recognition && !editingRecipe && page === 4 && <button className="mobile-icon" aria-label="保质期规则" disabled={!hydrated} onClick={()=>setShowStorageRules(true)}><Settings2 size={22}/></button>}
               {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => openRecognition("recipe-import")}><Upload size={18} />导入菜谱</button>}
               {!showSettings && page === 3 && menuView==='week' && <button onClick={() => setMealTargetOpen(true)}><Plus size={18} />安排菜品</button>}
-              {!showSettings && page === 2 && <button disabled={!shoppingList.length&&!legacyShoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button>}
+              {!showSettings && page === 2 && <><button onClick={() => openManualEditor()}><Plus size={18} />手动添加</button><button disabled={!shoppingList.length&&!legacyShoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button></>}
             </div>
           </>}
           {!compact && <>
@@ -1172,16 +1208,13 @@ function App() {
                     {` / ${shoppingList.length} 项`}
                   </span>
                 </h2>
-                <button
-                  className="primary"
-                  disabled={!shoppingList.length&&!legacyShoppingList.length}
-                  onClick={() => setModal("export")}
-                >
-                  <Download size={17} />
-                  {" 预览与导出"}
-                </button>
+                <div className="basket-list-actions"><button type="button" className="outline" onClick={() => openManualEditor()}><Plus size={17} />手动添加</button><button
+                    className="primary"
+                    disabled={!shoppingList.length&&!legacyShoppingList.length}
+                    onClick={() => setModal("export")}
+                  ><Download size={17} />预览与导出</button></div>
               </div>
-              {!!checkedShopping.length&&<button type="button" className="primary basket-stock-action" onClick={()=>setModal('purchase-stock')}>确认入库 · {checkedShopping.length} 项</button>}
+              {!!checkedShopping.length&&<button type="button" className="primary basket-stock-action" onClick={()=>setModal('purchase-stock')}>{purchaseActionLabel}</button>}
               <div className="stock-layout">
               <aside className="chip-row stock-categories" aria-label="食材分类">
                 {stockCategories.map((categoryName) => (
@@ -1202,22 +1235,22 @@ function App() {
                     (item) => category === "全部" || item.category === category,
                   )
                   .map((item) => (
-                    <article key={shoppingKey(item)} className={`stock-card shopping-card ${purchaseDrafts[shoppingKey(item)]?.checked?'is-purchased':''}`}>
-                      <label className="shopping-check"><input type="checkbox" aria-label={`已买${item.name}（${item.unit}）`} checked={!!purchaseDrafts[shoppingKey(item)]?.checked} onChange={event=>togglePurchased(item,event.target.checked)}/><span className="sr-only">已买</span></label>
-                      <h3><button type="button" className="basket-name" aria-label={`编辑${item.name}购买量与来源`} onClick={()=>openPurchaseEditor(item)}>{item.name}<span aria-hidden="true"> ›</span></button></h3>
-                      <button type="button" className="basket-quantity" aria-label={`修改${item.name}实际购买量`} onClick={()=>openPurchaseEditor(item)}>
-                        <small>{purchaseDrafts[shoppingKey(item)]?.checked?'已买 ':purchaseDrafts[shoppingKey(item)]?.qty?'拟购买 ':'还需买 '}</small>
-                        {purchaseDrafts[shoppingKey(item)]?.qty??item.qty??"待确认"} <small>{item.unit}</small>
+                    <article key={basketKey(item)} className={`stock-card shopping-card ${basketDraft(item)?.checked?'is-purchased':''}`}>
+                      <label className="shopping-check"><input type="checkbox" aria-label={`已买${item.name}（${item.unit}）`} checked={!!basketDraft(item)?.checked} onChange={event=>togglePurchased(item,event.target.checked)}/><span className="sr-only">已买</span></label>
+                      <h3><button type="button" className="basket-name" aria-label={item.manual?`编辑${item.name}手动采购项`:`编辑${item.name}购买量与来源`} onClick={()=>item.manual?openManualEditor(item):openPurchaseEditor(item)}>{item.name}<span aria-hidden="true"> ›</span></button></h3>
+                      <button type="button" className="basket-quantity" aria-label={item.manual?`编辑${item.name}手动采购项数量`:`修改${item.name}实际购买量`} onClick={()=>item.manual?openManualEditor(item):openPurchaseEditor(item)}>
+                        <small>{basketDraft(item)?.checked?'已买 ':item.manual?'还需买 ':basketDraft(item)?.qty?'拟购买 ':'还需买 '}</small>
+                        {basketDraft(item)?.qty??item.qty??"待确认"} <small>{item.unit}</small>
                       </button>
-                      <p className="shopping-category">{item.category}</p>
-                      <p className="shopping-stock-note">
+                      <p className="shopping-category">{item.manual?'手动添加 · ':''}{item.category}{item.manual&&item.stockOnPurchase?' · 买后入库':''}</p>
+                      {item.manual?<p className="shopping-stock-note">{item.note?`备注：${item.note}`:'临时采购项'}</p>:<p className="shopping-stock-note">
                         {item.requiredQty == null ? '用量待确认' : `共需 ${item.requiredQty}${item.unit}`}
                         {` · 冰箱可用 ${item.availableQty}${item.unit}`}
-                      </p>
-                      {(item.qty == null || item.availableQty > 0) && <p className="shopping-stock-reason"><span>
+                      </p>}
+                      {!item.manual&&(item.qty == null || item.availableQty > 0) && <p className="shopping-stock-reason"><span>
                         {item.qty == null ? '请核对所需用量' : '库存不足，补买差额'}
                       </span></p>}
-                      {!!purchaseDrafts[shoppingKey(item)]?.qty&&purchaseDrafts[shoppingKey(item)].sourceFingerprint!==currentPurchaseFingerprint(item)&&<p className="shopping-stock-reason" role="status"><span>排单或库存已变化，请复核购买量</span></p>}
+                      {!item.manual&&!!purchaseDrafts[shoppingKey(item)]?.qty&&purchaseDrafts[shoppingKey(item)].sourceFingerprint!==currentPurchaseFingerprint(item)&&<p className="shopping-stock-reason" role="status"><span>排单或库存已变化，请复核购买量</span></p>}
                     </article>
                   ))}
               </div>
@@ -1829,12 +1862,13 @@ function App() {
           {MEALS.map(([key, name]) => <button type="button" className="meal-picker-row" key={key} onClick={() => {setMealSlot(`${selectedDay}-${key}`);setMealTargetOpen(false);}}>{name}<ArrowRight size={18}/></button>)}
         </DialogContent>
       </Dialog>
-      <Dialog open={!!modal} onOpenChange={(open) => {if(!open && !stockSaving){if(modal==="detail" && detailOrigin){setModal(detailOrigin);setDetailOrigin("");}else {if(modal==="history")setWeekSnapshot(null);setModal("");}}}}>
+      <Dialog open={!!modal} onOpenChange={(open) => {if(!open && !stockSaving && !manualSaving){if(modal==="detail" && detailOrigin){setModal(detailOrigin);setDetailOrigin("");}else {if(modal==="history")setWeekSnapshot(null);setModal("");}}}}>
         <DialogContent layout={modal === "clear" ? undefined : "page"} className={`app-dialog ${modal==='stock'?'stock-dialog':''} ${modal==='detail'?'recipe-detail-dialog':''} ${modal==='clear'?'confirm-dialog':''}`} aria-busy={stockSaving}
           footer={modal === "detail" ? <>{Number(activeRecipe?.time) > 0 && <RecipeTimer key={activeRecipe.id} minutes={activeRecipe.time} />}<button className="primary" onClick={()=>{changeQuantity(activeRecipe.id,1);toast.success("已加入点单清单");}}>＋ 加入菜单</button></>
             : modal === "selection" ? <button className="primary" disabled={orderSaving} onClick={confirmSelection}>{orderSaving?'正在保存…':`确认并同步 · ${selectedCount} 份菜品`}</button>
             : modal === "purchase-edit" ? <button className="primary" onClick={savePurchaseQuantity}>保存购买量</button>
-            : modal === "purchase-stock" ? <button className="primary" disabled={basketSaving} onClick={stockPurchased}>{basketSaving?'正在入库…':`确认入库 · ${checkedShopping.length} 项`}</button>
+            : modal === "manual-shopping" ? <button className="primary" disabled={manualSaving} type="submit" form="manual-shopping-form">{manualSaving?'正在保存…':manualDraft.id?'保存采购项':'加入菜篮子'}</button>
+            : modal === "purchase-stock" ? <button className="primary" disabled={basketSaving} onClick={stockPurchased}>{basketSaving?'正在处理…':purchaseActionLabel}</button>
             : modal === "export" ? exportActions
             : modal === "stock" ? <button className="primary" disabled={stockSaving} type="submit" form="stock-edit-form">{stockSaving?'正在保存…':editingStock===null?'确认放入冰箱':'保存食材修改'}</button> : undefined} >
           <DialogTitle>
@@ -1847,7 +1881,8 @@ function App() {
               history: "膳食日历",
               "fridge-recipes":"看看能做什么",
               "purchase-edit":`修改${basketItem?.name||'食材'}购买量`,
-              "purchase-stock":"核对已买食材并入库",
+              "manual-shopping":manualDraft.id?'编辑手动采购项':'手动添加采购项',
+              "purchase-stock":stockingCount?'核对已买食材并入库':'确认已买采购项',
             }[modal] || "食光"}
           </DialogTitle>
           <DialogDescription className={modal === "clear" ? "" : "sr-only"}>
@@ -1958,7 +1993,16 @@ function App() {
               {basketItem.sources?.length?<ul className="basket-source-list">{basketItem.sources.map((source,index)=><li key={index}><span>{source.date} · {MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'}</span><strong>{source.recipeName} ×{source.servings}</strong><small>需 {source.requiredQty??'待确认'}{basketItem.unit}</small></li>)}</ul>:<p>原排单已变更；已买记录仍可核对入库。</p>}
             </section>
           </div>}
-          {modal === 'purchase-stock' && <div className="basket-stock-content">{checkedShopping.map(item=><div className="list-row" key={shoppingKey(item)}><span>{item.name}</span><strong>{purchaseDrafts[shoppingKey(item)]?.qty} {item.unit}</strong>{purchaseDrafts[shoppingKey(item)]?.sourceFingerprint!==currentPurchaseFingerprint(item)&&<button type="button" className="text-link" onClick={()=>{const key=shoppingKey(item);setPurchaseDrafts(current=>({...current,[key]:{...current[key],sourceFingerprint:currentPurchaseFingerprint(item)}}));}}>需求已变化，复核后确认此数量</button>}</div>)}<p>确认后新增冰箱批次，入库日期为今天；多买的数量保留在冰箱。</p></div>}
+          {modal === 'manual-shopping' && <form id="manual-shopping-form" className="basket-manual-form" onSubmit={event=>{event.preventDefault();saveManualItem();}}>
+            <p>临时购买的食材或物品会单独列入菜篮子，不改变菜谱和菜单排单。</p>
+            <label>名称<input autoFocus required maxLength={80} value={manualDraft.name} onChange={event=>setManualDraft(current=>({...current,name:event.target.value}))} placeholder="例如：保鲜袋" /></label>
+            <div className="basket-manual-fields"><label>数量<input required type="number" inputMode="decimal" min="0.001" step="any" value={manualDraft.qty} onChange={event=>setManualDraft(current=>({...current,qty:event.target.value}))}/></label><label>单位<input required maxLength={20} value={manualDraft.unit} onChange={event=>setManualDraft(current=>({...current,unit:event.target.value}))} placeholder="个、包、g…"/></label></div>
+            <label>分类<AppSelect aria-label="手动采购项分类" value={manualDraft.category} onChange={event=>setManualDraft(current=>({...current,category:event.target.value}))}>{stockCategories.filter(value=>value!=='全部').map(value=><option key={value} value={value}>{value}</option>)}</AppSelect></label>
+            <label>备注（选填）<textarea maxLength={200} rows={2} value={manualDraft.note} onChange={event=>setManualDraft(current=>({...current,note:event.target.value}))} placeholder="品牌、规格或代买要求"/></label>
+            <label className="basket-manual-stock"><input type="checkbox" checked={manualDraft.stockOnPurchase} onChange={event=>setManualDraft(current=>({...current,stockOnPurchase:event.target.checked}))}/><span>购买后放入冰箱库存</span></label>
+            {manualDraft.id&&<button type="button" className="text-link basket-manual-remove" disabled={manualSaving} onClick={removeManualItem}>移除此项</button>}
+          </form>}
+          {modal === 'purchase-stock' && <div className="basket-stock-content">{checkedShopping.map(item=><div className="list-row" key={basketKey(item)}><span>{item.name}{item.manual&&!item.stockOnPurchase?' · 仅完成采购':''}</span><strong>{basketDraft(item)?.qty} {item.unit}</strong>{!item.manual&&purchaseDrafts[shoppingKey(item)]?.sourceFingerprint!==currentPurchaseFingerprint(item)&&<button type="button" className="text-link" onClick={()=>{const key=shoppingKey(item);setPurchaseDrafts(current=>({...current,[key]:{...current[key],sourceFingerprint:currentPurchaseFingerprint(item)}}));}}>需求已变化，复核后确认此数量</button>}</div>)}<p>{stockingCount?'需入库的项目会新增今天的冰箱批次；其他手动项仅完成采购。':'这些手动采购项完成后将从菜篮子移除，不会放入冰箱。'}</p></div>}
           {modal === "stock" && (
             <form id="stock-edit-form" className="editor stock-editor" onSubmit={event=>{event.preventDefault();saveIngredient();}}>
               <fieldset disabled={stockSaving}><StockFields rules={storageRules} autoFill={editingStock===null} value={ingredientDraft} onChange={setIngredientDraft}/></fieldset>

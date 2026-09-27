@@ -2,7 +2,7 @@
 
 MVP 开发中。React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作。V1.2.1 已实现独立识别入口、紧凑布局、五餐、参考保存期、菜单预计营养及双渠道周回顾提醒；真机覆盖安装、拍照回传及通知交互已验证；OPPO 后台定时提醒发现系统延迟，尚未通过可靠性验收，进度见 [V1.2.1 清单](docs/V1.2.1-TODO.md)。
 
-当前源码版本为 V2.1.10（Android versionCode 19）：菜篮子汇总全部未来排单，食材名称直达结构化购买量编辑，入库使用简短黄色主按钮；底部入口改为“菜单”并默认显示当日菜单，待分配菜品与已安排餐次同屏。已从 V2.1.9 保留数据覆盖升级并通过原证书签名、真机闭环和原数据恢复核对；详情见[开发规划](docs/开发规划.md)。V2.1.2 已通过真实小票拍摄识别。GitHub 公开版仍为 V2.0.1；本地开发者版可用密码解锁 AI 配置，公开版不含共享配置，需填写个人 AI Key。
+当前源码版本为 V2.1.11（Android versionCode 20）：菜篮子在导出前支持手动添加临时采购项，可选择购买后是否放入冰箱；当日菜单的“待分配”改为小型二级弹层，分配成功后返回更新的排期。已从 V2.1.10 保留数据覆盖升级，通过原证书签名、真机闭环和原数据恢复核对；详情见[开发规划](docs/开发规划.md)。V2.1.2 已通过真实小票拍摄识别。GitHub 公开版仍为 V2.0.1；本地开发者版可用密码解锁 AI 配置，公开版不含共享配置，需填写个人 AI Key。
 
 需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
@@ -64,7 +64,7 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 - Android：设备连接后 `android/gradlew.bat connectedDebugAndroidTest`（在 android 目录运行）。原生测试覆盖SQLite错误不覆盖、偏好、路径和图片类型等。
 - 原生网络回归：构建 `:app:assembleDebugAndroidTest`，与应用使用相同证书签名后运行仪器测试；覆盖 WebDAV 方法、请求体/条件头、错误状态及禁止重定向。debug 仅为设备内测试开放 localhost/127.0.0.1 的明文 HTTP，release 不开放。
 - V2.0.2 本地测试版真机：设置 `ANDROID_SERIAL`、相对路径 `ANDROID_RELEASE_APK` 和全新 `ANDROID_RELEASE_DIR` 后运行 `python tests/android_release_upgrade.py`，先备份再覆盖安装；该脚本核对 2.0.2 / code 8。`ANDROID_UX_DIR` 指向全新日志目录后可运行 `python tests/android_ux_v201.py` 只读核对主要页面、系统返回和键盘。升级脚本只用于已授权的专用测试机；安装前须按 AGENTS.md 启动日志采集。
-- V2.1.x 真机：设置 `ANDROID_SERIAL` 和全新 `ANDROID_ACCEPTANCE_DIR` 后运行 `python tests/android_v210_acceptance.py`。默认验证 2.0.2 / code 8 → 2.1.0 / code 9；验证当前版本时设置 `ANDROID_TARGET_VERSION=2.1.10`，预期从 V2.1.9 / code 18 升级到 V2.1.10 / code 19。脚本先核对签名并备份旧 APK、业务状态和私有数据，再保留数据覆盖安装，验证核心闭环并恢复临时测试数据与同步偏好；证据在忽略目录 `.android-tools/device-logs/<ANDROID_ACCEPTANCE_DIR>/`。安装前须按 AGENTS.md 启动日志采集。
+- V2.1.x 真机：设置 `ANDROID_SERIAL` 和全新 `ANDROID_ACCEPTANCE_DIR` 后运行 `python tests/android_v210_acceptance.py`。默认验证 2.0.2 / code 8 → 2.1.0 / code 9；验证当前版本时设置 `ANDROID_TARGET_VERSION=2.1.11`，预期从 V2.1.10 / code 19 升级到 V2.1.11 / code 20。脚本先核对签名并备份旧 APK、业务状态和私有数据，再保留数据覆盖安装，验证核心闭环并恢复临时测试数据与同步偏好；证据在忽略目录 `.android-tools/device-logs/<ANDROID_ACCEPTANCE_DIR>/`。安装前须按 AGENTS.md 启动日志采集。
 - `python tests/android_sync_check.py`：必须得到用户授权，使用真机已保存的账户仅执行检查（包含创建同步目录的 MKCOL），不选择上传或恢复；不读取凭据，核对业务数据未变，结果写入 `.android-tools/webdav-acceptance/`。
 
 浏览器测试输出留 `.android-tools/e2e/`，Python Playwright 和浏览器需可用；测试脚本将浏览器缓存限定到工作区。模拟服务测试不等于真实AI或坚果云账户验收。

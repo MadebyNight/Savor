@@ -34,4 +34,11 @@ test('周报与营养随备份保留；拒绝非法汇总',()=>{
 
 test('旧业务数据补空报告容器不改变同步指纹输入',()=>{const state={recipes:[],fridge:[],confirmed:{},confirmedRecipes:[],weeks:{},archives:{}};assert.deepEqual(businessState({...state,nutritionReports:{}}),businessState(state));});
 
+test('手动采购项随备份保留，非法数量与重复 ID 被拒绝',()=>{
+ const state={recipes:[],fridge:[],confirmed:{},confirmedRecipes:[],weeks:{},archives:{},manualShopping:[{id:'manual-1',name:'保鲜袋',qty:2,unit:'包',category:'其他',note:'中号',checked:false,stockOnPurchase:false}]};
+ assert.deepEqual(validateBackup(backup(state)).manualShopping,state.manualShopping);
+ assert.throws(()=>validateBackup({...state,manualShopping:[{...state.manualShopping[0],qty:0}]}));
+ assert.throws(()=>validateBackup({...state,manualShopping:[state.manualShopping[0],state.manualShopping[0]]}));
+});
+
 test('备份拒绝可渲染字段的非法类型与不一致条目索引',()=>{for(const change of [{basis:{}},{foodId:[]},{grams:-1},{index:8}]){const n=calculateNutrition(recipe);Object.assign(n.entries[0],change);assert.throws(()=>validateNutrition(n));}});

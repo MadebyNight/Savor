@@ -18,7 +18,7 @@ export default function TodayMenu({ date, entries = [], onAssign, onRemove, onCh
     <div className="today-menu-heading">
       <div><span className="subtle">今日安排</span><h2>{label} <small>{weekday}</small></h2><p>已安排 {arranged.length} 道菜</p></div>
       {pending.length > 0
-        ? <button type="button" className={pendingOpen ? 'primary today-pending-trigger' : 'outline today-pending-trigger'} aria-expanded={pendingOpen} onClick={() => setPendingOpen(open => !open)}>待分配 {pending.length} 道</button>
+        ? <button type="button" className="primary today-pending-trigger" aria-haspopup="dialog" onClick={() => setPendingOpen(true)}>待分配 {pending.length} 道</button>
         : null}
     </div>
     {MEALS.map(([key, name]) => {
@@ -32,18 +32,21 @@ export default function TodayMenu({ date, entries = [], onAssign, onRemove, onCh
         </div>)}
       </section>;
     })}
-    {!arranged.length && <div className={`empty today-menu-empty ${pending.length ? 'has-pending' : ''}`}><h3>今天还没有排餐</h3><p>{pending.length ? '从下方选择餐次，排期会显示在这里。' : '在点单页确认菜品后，就可以在这里安排餐次。'}</p></div>}
+    {!arranged.length && <div className={`empty today-menu-empty ${pending.length ? 'has-pending' : ''}`}><h3>今天还没有排餐</h3><p>{pending.length ? '点击“待分配”，选择餐次后会显示在这里。' : '在点单页确认菜品后，就可以在这里安排餐次。'}</p></div>}
 
-    {pendingOpen && pending.length > 0 && <section className="today-pending-panel" aria-label="待分配菜品">
-        <div className="today-pending-heading"><h3>待分配菜品</h3><span>{pending.length} 道待安排</span></div>
+    <Dialog open={pendingOpen && pending.length > 0} onOpenChange={setPendingOpen}>
+      <DialogContent className="app-dialog today-pending-dialog">
+        <DialogTitle>待分配菜品 · {pending.length} 道</DialogTitle>
+        <DialogDescription className="sr-only">为待分配菜品选择餐次或移除菜品</DialogDescription>
         {pending.map(item => <div className="today-pending-row" key={item.id}>
-          <button type="button" className="today-dish-name" onClick={() => setSnapshot(item.recipe)}>{item.recipe?.name || '菜谱内容已缺失'} <small>×{item.servings || 1}</small></button>
+          <button type="button" className="today-dish-name" onClick={() => {setPendingOpen(false);setSnapshot(item.recipe);}}>{item.recipe?.name || '菜谱内容已缺失'} <small>×{item.servings || 1}</small></button>
           <div className="today-pending-actions"><button type="button" className={choosingId===item.id ? 'primary today-choose-meal' : 'outline today-choose-meal'} disabled={saving} aria-expanded={choosingId===item.id} onClick={() => setChoosingId(current => current===item.id ? null : item.id)}>选择餐次</button><button type="button" className="text-link" disabled={saving} onClick={() => onRemove(item.id)}>移除</button></div>
           {choosingId===item.id && <div className="today-meal-options" role="group" aria-label={`为${item.recipe?.name || '菜品'}选择餐次`}>
-              {MEALS.map(([key, name]) => <button type="button" key={key} disabled={saving} onClick={() => { onAssign(item.id, key); setChoosingId(null); }}>{name}</button>)}
+              {MEALS.map(([key, name]) => <button type="button" key={key} disabled={saving} onClick={async () => { if(await onAssign(item.id, key)){setChoosingId(null);if(pending.length===1)setPendingOpen(false);} }}>{name}</button>)}
             </div>}
         </div>)}
-    </section>}
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={!!editing} onOpenChange={open => !open && setEditingId(null)}>
       <DialogContent className="app-dialog today-edit-dialog">

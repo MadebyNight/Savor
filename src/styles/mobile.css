@@ -500,6 +500,7 @@
   .compact-app .page-2 > .section-tools .primary {
     display: none;
   }
+  .compact-app .page-2 > .section-tools .basket-list-actions { display:none; }
   .stock-toolbar {
     display: flex;
     align-items: center;
@@ -1147,10 +1148,8 @@
 .today-menu-empty.has-pending h3,.today-menu-empty.has-pending p { margin:0; }
 .app-dialog.today-edit-dialog { --tw-translate-x:0px !important; --tw-translate-y:0px !important; inset:0 !important; margin:auto !important; transform:none !important; translate:none; width:calc(100% - 32px) !important; max-width:440px !important; height:fit-content; max-height:calc(100dvh - 32px) !important; padding:20px 18px !important; border-radius:16px !important; overflow:auto; background:var(--surface); }
 .today-edit-dialog [data-slot="dialog-title"] { padding-right:38px; }
-.today-pending-panel { margin-top:18px; padding:12px; border:1px solid var(--chrome-line); border-radius:14px; background:#fffdf8; }
-.today-pending-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.today-pending-heading h3 { margin:0; font-size:16px; color:var(--heading-ink); }
-.today-pending-heading span { font-size:12px; color:#66735d; }
+.app-dialog.today-pending-dialog { --tw-translate-x:0px !important; --tw-translate-y:0px !important; inset:0 !important; margin:auto !important; transform:none !important; translate:none; width:calc(100% - 32px) !important; max-width:420px !important; height:fit-content; max-height:min(68dvh,560px) !important; padding:20px 18px !important; border-radius:16px !important; overflow:auto; background:var(--surface); }
+.today-pending-dialog [data-slot="dialog-title"] { padding-right:38px; }
 .today-pending-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 8px; padding:8px 0; }
 .today-pending-row > .today-dish-name { grid-column:1; }
 .today-pending-actions { display:flex; align-items:center; gap:4px; }
