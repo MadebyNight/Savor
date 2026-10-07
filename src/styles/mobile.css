@@ -690,7 +690,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
-  .compact-app .editor .form-row > label:first-child { grid-column: 1 / -1; }
+  .compact-app .editor .form-row > :first-child { grid-column: 1 / -1; }
   .compact-app .editor .form-row > label { min-width: 0; }
   .compact-app .editor .form-row input { width: 100%; min-width: 0; }
   .compact-app .editor > h3 { margin: 16px 0 8px; padding-left: 8px; border-left: 3px solid #cbb474; }
@@ -1101,7 +1101,6 @@
 .dialog-page-body > p { margin:0; line-height:1.7; }
 .dialog-page-footer, .editor-save-bar { flex:none; display:flex; gap:8px; padding:8px 14px max(8px,env(safe-area-inset-bottom)); background:var(--chrome); border-top:1px solid var(--chrome-line); }
 .dialog-page-footer > button, .editor-save-bar > button { width:100%; min-height:48px; margin:0; }
-.compact-app:has(.editor input:focus, .editor textarea:focus) .editor-save-bar { display:none; }
 .detail-overview { display:flex; align-items:center; gap:12px; position:relative; min-height:64px; }
 .detail-photo { padding:0; flex:none; border-radius:10px; overflow:hidden; }
 .detail-photo img { width:64px; height:64px; object-fit:cover; }
@@ -1174,9 +1173,10 @@
 .ai-review-dialog.dialog-page .draft-actions { bottom:-12px; margin-top:8px; padding:8px 0; gap:6px; background:var(--surface); }
 .draft-count { flex-basis:100%; font-size:12px; color:#6b7561; }
 .ai-review-dialog .draft-actions button { white-space:nowrap; padding:8px 10px; }
-.photo-upload { display:flex; align-items:center; gap:8px; min-height:48px; padding:8px 12px; cursor:pointer; width:fit-content; }
-.photo-upload input[hidden] { display:none; }
-.editor .detail-image { width:96px; height:72px; object-fit:cover; border-radius:10px; }
+.photo-upload { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; width:100%; min-height:124px; padding:12px; margin:0 0 14px; border:2px dashed #c6b484; border-radius:12px; background:#fffdf6; color:#4b5d40; cursor:pointer; }
+.photo-upload span { font-size:14px; font-weight:650; }
+.photo-upload small { color:#687462; font-size:12px; }
+.photo-upload img { width:100%; max-height:150px; object-fit:cover; border-radius:8px; }
 .meal-picker-dialog .mobile-planned { margin:0; gap:6px; border-bottom:1px solid var(--chrome-line); }
 .meal-picker-dialog .planned-info { display:flex; align-items:center; gap:8px; }
 .meal-picker-dialog .planned-info strong { flex:1; min-width:0; }
@@ -1206,6 +1206,7 @@
   .mobile-title .library-total, .mobile-title .fridge-total { color:#6b7860; font-size:11px; }
   .mobile-header-actions { color:var(--action-ink); }
   .mobile-header-actions button { font-weight:600; font-size:12px; gap:4px; padding:0 6px; }
+  .mobile-header-actions .editor-import-action { min-height:44px; padding:0 10px; border:1px solid #d6ad43; border-radius:9px; background:#f9cc4f; color:#403619; font-weight:700; white-space:nowrap; }
   .mobile-bottom-nav { background:var(--chrome); border-color:var(--chrome-line); }
   .compact-app .mobile-search, .compact-app .library-tools { background:#f2f4ed; border-color:var(--chrome-line); }
   .compact-app .library-tools { padding:5px 0; margin-bottom:3px; }
@@ -1254,10 +1255,34 @@
 
 .developer-config > summary { min-height:48px; cursor:pointer; padding:12px 0; color:var(--action-ink); }
 @media (max-width:767px), (max-height:500px) and (max-width:1024px) {
-  .compact-app .editor-layout > .editor > .photo-upload { margin:0; font-size:13px; }
+  .compact-app .editor-layout > .editor > .photo-upload { margin:0 0 14px; }
 }
 
 .editor label.photo-upload { display:flex; flex-direction:row; align-items:center; justify-content:center; white-space:nowrap; }
+.recipe-category-picker { display:grid; align-content:start; gap:8px; margin-bottom:20px; color:#707765; font-size:13px; }
+.recipe-category-picker .category-suggestions { margin:0; }
+.recipe-steps-table { width:100%; border:1px solid #dce2d2; border-radius:12px; background:#fffdf8; }
+.recipe-steps-head,.recipe-step-editor { display:grid; grid-template-columns:minmax(0,1fr) 72px 48px; align-items:stretch; }
+.recipe-steps-head { min-height:32px; align-items:center; background:#f0f2e9; color:#56654e; font-size:12px; font-weight:650; }
+.recipe-steps-head span { padding:5px 8px; }
+.recipe-steps-head span:not(:first-child) { text-align:center; }
+.recipe-step-editor { border-top:1px solid #e4e8dd; }
+.recipe-step-editor .step-content { display:flex; align-items:center; min-width:0; gap:4px; padding:4px; }
+.recipe-step-editor .step-content b { flex:none; color:#a28b4e; font-size:11px; }
+.recipe-step-editor .step-content textarea { flex:1; min-width:0; min-height:56px; padding:5px; border:0; background:transparent; resize:vertical; }
+.recipe-step-editor .step-duration { display:grid; place-items:center; min-width:0; border-left:1px solid #e4e8dd; color:#707b68; }
+.compact-app .editor .recipe-step-editor .step-duration label { display:flex; align-items:center; gap:2px; margin:0; }
+.recipe-step-editor .step-duration input { width:42px; min-width:0; min-height:44px; padding:3px; text-align:center; }
+.recipe-step-editor .step-duration small { font-size:11px; }
+.recipe-step-editor .step-actions { position:relative; display:grid; place-items:center; border-left:1px solid #e4e8dd; }
+.recipe-step-editor .step-actions summary { display:grid; place-items:center; width:44px; min-height:44px; background:transparent; color:#526347; cursor:pointer; font-size:22px; list-style:none; }
+.recipe-step-editor .step-actions summary::-webkit-details-marker { display:none; }
+.recipe-step-editor .step-actions > div { position:absolute; z-index:10; right:0; top:48px; display:flex; flex-wrap:wrap; justify-content:flex-end; width:max-content; max-width:min(260px,calc(100vw - 32px)); gap:4px; padding:4px; border:1px solid #dce2d2; border-radius:10px; background:#fffdf8; box-shadow:0 4px 12px #3f412522; }
+.recipe-step-editor .step-actions button { min-width:44px; min-height:44px; }
+.step-add-actions { display:flex; gap:8px; margin-top:10px; }
+.step-add-actions button { flex:1; min-width:0; min-height:44px; padding:6px; font-size:12px; }
+.recipe-step-detail { margin:10px 0; }
+.recipe-step-detail p { margin:0 0 6px; }
 .recipe-review-details .editor > label:first-child { display:grid; }
 @media (max-width:767px), (max-height:500px) and (max-width:1024px) {
   .compact-app .editor label { margin-bottom:8px; }

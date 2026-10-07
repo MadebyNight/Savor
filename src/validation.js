@@ -33,6 +33,16 @@ export function validateRecipe(recipe, where = '菜谱', draft = false) {
   });
   if(recipe.nutrition!=null)validateNutrition(recipe.nutrition);
   recipe.steps.forEach(step => text(step, where + '步骤', !draft));
+  if (recipe.stepTimers != null) {
+    if (!Array.isArray(recipe.stepTimers) || recipe.stepTimers.length > recipe.steps.length) fail(where + '步骤计时');
+    recipe.stepTimers.forEach((minutes,index) => {
+      if (minutes === '') fail(where + '第 ' + (index + 1) + ' 步计时');
+      if (minutes != null) {
+        number(minutes,where + '第 ' + (index + 1) + ' 步计时',1,true);
+        if (Number(minutes)>999) fail(where + '第 ' + (index + 1) + ' 步计时');
+      }
+    });
+  }
   return recipe;
 }
 export function validateStock(stock, where = '库存', draft = false) {

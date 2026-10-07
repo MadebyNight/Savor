@@ -97,6 +97,12 @@ const appendPlannedDish=(items,recipe)=>{
   const origins=item=>item.sourceOrders||[{id:item.orderId||null,createdAt:item.createdAt||null,servings:item.servings||1}];
   return items.map((item,position)=>position===index?{...item,servings:(item.servings||1)+(recipe.servings||1),sourceOrders:[...origins(item),...origins(recipe)]}:item);
 };
+const moveRecipeStep=(draft,from,to)=>{
+  const steps=[...draft.steps],stepTimers=draft.steps.map((_,index)=>draft.stepTimers?.[index]??null);
+  steps.splice(to,0,steps.splice(from,1)[0]);
+  stepTimers.splice(to,0,stepTimers.splice(from,1)[0]??null);
+  return {...draft,steps,stepTimers};
+};
 function unavailableImageCount(value) {
   if (isMissingLocalImage(value)) return 1;
   if (Array.isArray(value)) return value.reduce((count,item)=>count+unavailableImageCount(item),0);
@@ -108,8 +114,23 @@ function App() {
   const [ask, confirmation] = useConfirm();
   const [askClearFridge, clearFridgeConfirmation] = useConfirm();
   const [page, setPage] = useState(0);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 767px), (max-height: 500px) and (max-width: 1024px)").matches);
   const [editingRecipe, setEditingRecipe] = useState(false);
+  useEffect(() => {
+    if (!editingRecipe || !compact) { setKeyboardOpen(false); return; }
+    const viewport = window.visualViewport;
+    let fullHeight = viewport?.height ?? window.innerHeight;
+    const update = () => {
+      const height = viewport?.height ?? window.innerHeight;
+      if (height > fullHeight) fullHeight = height;
+      setKeyboardOpen(fullHeight - height > 120);
+    };
+    viewport?.addEventListener('resize', update);
+    window.addEventListener('resize', update);
+    update();
+    return () => { viewport?.removeEventListener('resize', update); window.removeEventListener('resize', update); };
+  }, [editingRecipe, compact]);
   const [selectedDay, setSelectedDay] = useState((new Date().getDay() + 6) % 7);
   const [mealSlot, setMealSlot] = useState(null);
   const [mealTargetOpen, setMealTargetOpen] = useState(false);
@@ -233,6 +254,7 @@ function App() {
     weight: 300,
     ingredients: [ingredient("", 100)],
     steps: [""],
+    stepTimers: [null],
   });
   const [recipeSaving, setRecipeSaving] = useState(false);
   const [editingStock,setEditingStock]=useState(null);
@@ -668,7 +690,8 @@ function App() {
           !item.name.trim() ||
           (item.qty !== "" && item.qty != null && item.qty <= 0),
       ) ||
-      recipeDraft.steps.some((step) => !step.trim())
+      recipeDraft.steps.some((step) => !step.trim()) ||
+      recipeDraft.stepTimers?.some(value=>value!=null&&(!Number.isInteger(value)||value<1||value>999))
     ) {
       toast.error("请填写菜名、有效食材数量和制作步骤");
       return;
@@ -682,6 +705,7 @@ function App() {
       toast("已有同名菜谱，本次仍独立保存");
     const savedRecipe = {
       ...recipeDraft,
+      stepTimers: recipeDraft.steps.map((_,index)=>recipeDraft.stepTimers?.[index]||null),
       category:recipeDraft.category?.trim() || '未分类',
       name: recipeDraft.name.trim(),
       id: recipeDraft.id || Date.now(),
@@ -707,6 +731,7 @@ function App() {
       weight: 300,
       ingredients: [ingredient("", 100)],
       steps: [""],
+      stepTimers: [null],
     };
     setRecipeSaving(true);
     try {
@@ -732,7 +757,7 @@ function App() {
     if (draft.id !== recipe.id) {
       const original = draft.id ? recipes.find(item => item.id === draft.id) : {
         id: 0, name: "", category: recipeCategories.includes('素菜') ? '素菜' : '未分类',
-        time: 15, weight: 300, ingredients: [ingredient("", 100)], steps: [""],
+        time: 15, weight: 300, ingredients: [ingredient("", 100)], steps: [""], stepTimers:[null],
       };
       if (JSON.stringify(draft) !== JSON.stringify(original) &&
           !(await ask("当前编辑草稿尚未保存，切换菜谱会放弃这份草稿。", {title: "放弃当前草稿？", label: "放弃并编辑"}))) return;
@@ -921,6 +946,7 @@ function App() {
               {!showSettings && !recognition && !editingRecipe && page === 0 && <button className="mobile-icon" aria-label="设置与备份" onClick={() => setShowSettings(true)}><Settings2 size={22} /></button>}
               {!showSettings && !recognition && !editingRecipe && page === 4 && <button className="mobile-icon" aria-label="保质期规则" disabled={!hydrated} onClick={()=>setShowStorageRules(true)}><Settings2 size={22}/></button>}
               {!showSettings && !recognition && !editingRecipe && page === 1 && <button onClick={() => openRecognition("recipe-import")}><Upload size={18} />导入菜谱</button>}
+              {!showSettings && !recognition && editingRecipe && page === 1 && <button className="editor-import-action" onClick={() => openRecognition("recipe-import")}>导入菜谱</button>}
               {!showSettings && page === 3 && menuView==='week' && <button onClick={() => setMealTargetOpen(true)}><Plus size={18} />安排菜品</button>}
               {!showSettings && page === 2 && <><button onClick={() => openManualEditor()}><Plus size={18} />手动添加</button><button disabled={!shoppingList.length&&!legacyShoppingList.length} onClick={() => setModal("export")}><Download size={18} />导出</button></>}
             </div>
@@ -1514,14 +1540,34 @@ function App() {
                 {!compact && <button className="text-link" onClick={() => setEditingRecipe(false)}><ArrowLeft size={18}/>返回我的菜谱（保留草稿）</button>}
                 <div className="section-tools">
                   <h2>{recipeDraft.id ? "编辑菜谱" : "新建菜谱"}</h2>
-                  <button
+                  {!compact && <button
                     className="outline"
                     onClick={() => openRecognition("recipe-import")}
                   >
                     <Upload size={16} />
-                    上传
-                  </button>
+                    导入菜谱
+                  </button>}
                 </div>
+                <button type="button" className="photo-upload" onClick={()=>recipePhotoInput.current.click()}>
+                  {hasUsableImage(recipeDraft.image) ? <><img src={recipeDraft.image} alt="菜谱图片预览"/><span>更换菜谱图片</span></> : <><Plus size={25} aria-hidden="true"/><span>添加菜谱图片</span><small>点击从相册选择，可选</small></>}
+                </button>
+                <input
+                  ref={recipePhotoInput}
+                  hidden
+                  aria-label="菜谱图片"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () =>
+                      setRecipeDraft((draft) => ({...draft, image: reader.result}));
+                    reader.onerror = () => toast.error("图片读取失败");
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                {isMissingLocalImage(recipeDraft.image)&&<p role="status">原图片暂时无法读取；可重新选择图片替换，文字草稿已保留。</p>}
                 <label>
                   菜品名称
                   <input
@@ -1536,24 +1582,14 @@ function App() {
                   />
                 </label>
                 <div className="form-row">
-                  <label>
-                    分类
-                    <input
-                      aria-label="菜谱分类"
-                      value={recipeDraft.category}
-                      onChange={(event) =>
-                        setRecipeDraft((draft) => ({
-                          ...draft,
-                          category: event.target.value,
-                        }))
-                      }
-                    />
-                    <span className="category-suggestions">
-                      {recipeCategories.slice(1).map((categoryName) => (
+                  <div className="recipe-category-picker">
+                    <span>分类</span>
+                    <div className="category-suggestions" role="group" aria-label="菜谱分类">
+                      {[...new Set([...recipeCategories.slice(1), recipeDraft.category].filter(Boolean))].map((categoryName) => (
                         <button type="button" key={categoryName} aria-pressed={recipeDraft.category === categoryName} onClick={() => setRecipeDraft(draft => ({...draft, category: categoryName}))}>{categoryName}</button>
                       ))}
-                    </span>
-                  </label>
+                    </div>
+                  </div>
                   <label>
                     用时（分钟）
                     <input
@@ -1673,44 +1709,16 @@ function App() {
                 >
                   ＋ 添加食材
                 </button>
-                <button type="button" className="photo-upload outline" onClick={()=>recipePhotoInput.current.click()}><ImagePlus size={18}/>选择菜谱图片（可选）</button>
-                <input
-                  ref={recipePhotoInput}
-                  hidden
-                  aria-label="菜谱图片"
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () =>
-                      setRecipeDraft((draft) => ({...draft, image: reader.result}));
-                    reader.onerror = () => toast.error("图片读取失败");
-                    reader.readAsDataURL(file);
-                  }}
-                />
-                {hasUsableImage(recipeDraft.image) && <img className="detail-image" src={recipeDraft.image} alt="菜谱图片预览" />}
-                {isMissingLocalImage(recipeDraft.image)&&<p role="status">原图片暂时无法读取；可重新选择图片替换，文字草稿已保留。</p>}
                 <h3>制作步骤</h3>
+                <div className="recipe-steps-table"><div className="recipe-steps-head"><span>步骤内容</span><span>计时</span><span>操作</span></div>
                 {recipeDraft.steps.map((step, index) => (
-                  <div
-                    key={index}
+                  <div className="recipe-step-editor" key={index}
                     draggable
                     onDragStart={() => setDraggedStep(index)}
                     onDragOver={(event) => event.preventDefault()}
-                    onDrop={() =>
-                      setRecipeDraft((draft) => {
-                        const n = [...draft.steps];
-                        n.splice(index, 0, n.splice(draggedStep, 1)[0]);
-                        return {
-                          ...draft,
-                          steps: n,
-                        };
-                      })
-                    }
-                    className="step-row"
+                    onDrop={() => setRecipeDraft((draft) => moveRecipeStep(draft,draggedStep,index))}
                   >
+                    <div className="step-content">
                     <b>{String(index + 1).padStart(2, "0")}</b>
                     <textarea
                       aria-label={"步骤" + (index + 1)}
@@ -1725,41 +1733,27 @@ function App() {
                         }))
                       }
                     />
-                    <div>
+                    </div>
+                    <div className="step-duration">{recipeDraft.stepTimers?.[index] != null ? <label><input type="number" min="1" max="999" step="1" inputMode="numeric" aria-label={`步骤${index+1}计时分钟`} value={recipeDraft.stepTimers[index]} onChange={event=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?(event.target.value===''?'':Number(event.target.value)):draft.stepTimers?.[timerIndex]??null)}))}/><small>分</small></label> : <span aria-label="未添加计时">—</span>}</div>
+                    <details className="step-actions"><summary aria-label={`步骤${index+1}操作`}>⋯</summary><div>
                       <button
+                        type="button"
                         aria-label={"上移步骤" + (index + 1)}
                         disabled={index === 0}
-                        onClick={() =>
-                          setRecipeDraft((draft) => {
-                            const steps = [...draft.steps];
-                            [steps[index - 1], steps[index]] = [
-                              steps[index],
-                              steps[index - 1],
-                            ];
-                            return { ...draft, steps };
-                          })
-                        }
+                        onClick={() => setRecipeDraft((draft) => moveRecipeStep(draft,index,index-1))}
                       >
                         ↑
                       </button>
                       <button
+                        type="button"
                         aria-label={"下移步骤" + (index + 1)}
                         disabled={index === recipeDraft.steps.length - 1}
-                        onClick={() =>
-                          setRecipeDraft((draft) => {
-                            const steps = [...draft.steps];
-                            [steps[index + 1], steps[index]] = [
-                              steps[index],
-                              steps[index + 1],
-                            ];
-                            return { ...draft, steps };
-                          })
-                        }
+                        onClick={() => setRecipeDraft((draft) => moveRecipeStep(draft,index,index+1))}
                       >
                         ↓
                       </button>
-                    </div>
                     <button
+                      type="button"
                       aria-label="删除步骤"
                       onClick={() =>
                         setRecipeDraft((draft) => ({
@@ -1767,24 +1761,19 @@ function App() {
                           steps: draft.steps.filter(
                             (_step2, _index6) => _index6 !== index,
                           ),
+                          stepTimers: (draft.stepTimers||[]).filter((_,timerIndex)=>timerIndex!==index),
                         }))
                       }
                     >
                       ×
                     </button>
+                    {recipeDraft.stepTimers?.[index] == null && <button type="button" onClick={()=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?1:draft.stepTimers?.[timerIndex]??null)}))}>在此步后添加时间</button>}
+                    {recipeDraft.stepTimers?.[index] != null && <button type="button" aria-label={`移除步骤${index+1}计时`} onClick={()=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?null:draft.stepTimers?.[timerIndex]??null)}))}>移除计时</button>}
+                    </div></details>
                   </div>
                 ))}
-                <button
-                  className="text-link"
-                  onClick={() =>
-                    setRecipeDraft((draft) => ({
-                      ...draft,
-                      steps: [...draft.steps, ""],
-                    }))
-                  }
-                >
-                  ＋ 添加步骤
-                </button>
+                </div>
+                <div className="step-add-actions"><button className="outline" onClick={() => setRecipeDraft(draft=>({...draft,steps:[...draft.steps,''],stepTimers:[...(draft.stepTimers||[]),null]}))}>＋ 添加步骤</button><button className="outline" disabled={!recipeDraft.steps.length||recipeDraft.stepTimers?.[recipeDraft.steps.length-1]!=null} onClick={()=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,index)=>index===draft.steps.length-1?1:draft.stepTimers?.[index]??null)}))}>＋ 添加时间</button></div>
                 <details className="recipe-nutrition-tools"><summary>高级计算</summary><RecipeNutrition recipe={recipeDraft} onChange={setRecipeDraft}/></details>
 
               </section>
@@ -1810,7 +1799,7 @@ function App() {
           )}
           </>}
         </div>
-        {page === 1 && editingRecipe && !recognition && !showSettings && <footer className="editor-save-bar"><button className="primary save-recipe" disabled={recipeSaving} onClick={saveRecipe}><Check size={17}/>{recipeSaving ? "正在保存…" : "确认保存到菜品库"}</button></footer>}
+        {page === 1 && editingRecipe && !recognition && !showSettings && !keyboardOpen && <footer className="editor-save-bar"><button className="primary save-recipe" disabled={recipeSaving} onClick={saveRecipe}><Check size={17}/>{recipeSaving ? "正在保存…" : "确认保存到菜品库"}</button></footer>}
         <footer className="site-footer">
           {"食光 SHIGUANG "}
           <span>一餐一饭，皆是生活。</span>
@@ -1960,10 +1949,10 @@ function App() {
               })}
               <h3>制作步骤</h3>
               {activeRecipe.steps.map((step, index) => (
-                <p key={index}>
-                  <b className="step-number">{index + 1}</b>
-                  {step}
-                </p>
+                <div className="recipe-step-detail" key={index}>
+                  <p><b className="step-number">{index + 1}</b>{step}</p>
+                  {Number(activeRecipe.stepTimers?.[index])>0 && <RecipeTimer minutes={activeRecipe.stepTimers[index]} label={`步骤 ${index+1} 计时`}/>}
+                </div>
               ))}
 
             </>

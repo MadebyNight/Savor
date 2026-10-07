@@ -324,7 +324,7 @@ export default function RecognitionPanel({
               placeholder="粘贴菜谱链接或正文"
             />
           )}
-          <div className="actions">
+          <div className="actions recognition-actions">
             <button
               className="primary"
               disabled={busy || readingImage || fetching || loadingConfig || (!text.trim() && !image) || (!linkInput && isMissingLocalImage(image))}
@@ -347,7 +347,7 @@ export default function RecognitionPanel({
               </button>
             )}
             <button
-              className="text-link"
+              className="outline save-recognition-draft"
               disabled={busy || readingImage || fetching}
               onClick={() =>
                 persist()

@@ -42,6 +42,15 @@ test('备份校验覆盖渲染字段、嵌套食材、所有菜单和采购快�
     }
   }
 });
+test('步骤计时随菜谱和历史菜单保存，旧版无计时仍有效',()=>{
+  assert.deepEqual(validateBackup(state()).recipes[0].steps,['炒熟']);
+  const value=state();value.recipes[0].stepTimers=[3];value.weeks={week:{'0-午':[{...recipe(),stepTimers:[3]}]}};
+  assert.deepEqual(validateBackup(value).weeks.week['0-午'][0].stepTimers,[3]);
+  for(const stepTimers of [[0],[1.5],[1000],[1,2],['abc']]) {
+    const bad=state();bad.recipes[0].stepTimers=stepTimers;
+    assert.throws(()=>validateBackup(bad),/步骤计时|步计时/);
+  }
+});
 test('备份拒绝重复、缺失、危险 ID；不同餐次可使用同一个菜谱快照',()=>{
   for(const ids of [['r','r'],[1,'1'],['r',null],['r','__proto__']]) {
     const value=state();value.recipes=ids.map(id=>({...recipe(),id}));assert.throws(()=>validateBackup(value),/ID/);

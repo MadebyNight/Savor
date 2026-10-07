@@ -1901,7 +1901,12 @@ html [data-sonner-toaster][data-sonner-theme] {
 .recognition-heading h2 { margin:0; }
 .recognition-heading .text-link { margin-left:auto; }
 .compact-app .recipe-import-panel .recognition-heading h2 { display:none; }
-.recipe-import-panel .actions > .primary { flex:1; }
+.recipe-import-panel .recognition-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.recipe-import-panel .recognition-actions > button { width:100%; min-height:48px; padding:8px; white-space:normal; }
+.recipe-import-panel .recognition-actions > .primary { background:#f9cc4f; color:#3f361e; }
+.recipe-import-panel .recognition-actions > .primary:disabled { background:#f3e8bd; color:#62583d; border:1px solid #d7c994; opacity:1; }
+.recipe-import-panel .recognition-actions > .save-recognition-draft { background:#edf2e6; border:1px solid #aab99b; color:#405338; }
+.recipe-import-panel .recognition-actions > .outline:not(.save-recognition-draft) { grid-column:1/-1; order:3; }
 .storage-rules fieldset { border:0; padding:0; margin:0; min-width:0; }
 .storage-rules h3 { margin:20px 0 8px; }
 .storage-category-rules { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:16px 0 24px; }

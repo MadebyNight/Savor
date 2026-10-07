@@ -20,7 +20,7 @@ export default function RecipeSnapshotDialog({ recipe, onClose }) {
         )) : <p>快照中没有食材信息。</p>}
         <h3>制作步骤</h3>
         {recipe?.steps?.length ? recipe.steps.map((step, index) => (
-          <p key={index}><b className="step-number">{index + 1}</b>{step}</p>
+          <div className="recipe-step-detail" key={index}><p><b className="step-number">{index + 1}</b>{step}</p>{Number(recipe.stepTimers?.[index])>0 && <RecipeTimer minutes={recipe.stepTimers[index]} label={`步骤 ${index+1} 计时`}/>}</div>
         )) : <p>快照中没有制作步骤。</p>}
         {Number(recipe?.time) > 0 && <RecipeTimer key={recipe?.id ?? recipe?.name} minutes={recipe.time} alwaysOpen />}
       </DialogContent>
