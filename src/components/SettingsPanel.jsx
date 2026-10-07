@@ -23,6 +23,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdat
   const [hasPersonalKey,setHasPersonalKey] = useState(false);
   const [developer,setDeveloper]=useState(null);
   const [autoUpdate,setAutoUpdate]=useState(true);
+  const [restoreInfo,setRestoreInfo]=useState(null);
   const [savingAutoUpdate,setSavingAutoUpdate]=useState(false);
   const [loadingConfig,setLoadingConfig]=useState(true);
   const [unlockOpen,setUnlockOpen]=useState(false);
@@ -38,6 +39,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdat
   useEffect(()=>{setTestResult(null);},[config.url,config.model,key,developer]);
   useEffect(() => {let active=true;Promise.all([getPreference('ai-config',defaultAI),getDeveloperConfig(),getSecret('ai')]).then(([saved,profile,personalKey])=>{if(active){setConfig(saved);setDeveloper(profile);setHasPersonalKey(!!personalKey);}}).catch(()=>toast.error('AI 配置读取失败，请重新打开设置')).finally(()=>{if(active)setLoadingConfig(false);});return()=>{active=false;};},[]);
   useEffect(()=>{let active=true;autoCheckEnabled().then(value=>{if(active)setAutoUpdate(value);}).catch(()=>toast.error('自动更新检查设置读取失败'));return()=>{active=false;};},[]);
+  useEffect(()=>{if(page!=='backup')return;let active=true;getPreference('before-restore').then(value=>{if(active)setRestoreInfo(value?{time:value.createdAt,recipes:value.state?.recipes?.length??0,fridge:value.state?.fridge?.length??0}:null);}).catch(()=>toast.error('恢复前备份信息读取失败'));return()=>{active=false;};},[page]);
   async function testConnection(){
     if(testRunning.current)return;
     testRunning.current=true;
@@ -56,7 +58,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdat
   }
   async function restore(file) {
     if(!file)return;
-    try {const incoming=validateBackup(JSON.parse(await file.text()));if(!(await ask('恢复将整体替换当前业务数据，应用会先保留恢复前备份。',{title:'恢复备份？',label:'确认恢复',danger:true})))return;await setPreference('before-restore',backup(state));await onRestore(incoming);toast.success('备份已恢复');}catch(e){toast.error(e.message);}
+    try {const incoming=validateBackup(JSON.parse(await file.text()));if(!(await ask('恢复将整体替换当前业务数据，应用会先保留恢复前备份。',{title:'恢复备份？',label:'确认恢复',danger:true})))return;const previous=backup(state);await setPreference('before-restore',previous);setRestoreInfo({time:previous.createdAt,recipes:previous.state.recipes.length,fridge:previous.state.fridge.length});await onRestore(incoming);toast.success('备份已恢复');}catch(e){toast.error(e.message);}
   }
   return <div className="panel settings-panel">
     <h2 className="settings-home-heading" hidden={page!=='home'}>设置与数据</h2>
@@ -70,7 +72,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdat
     </nav>
     <div className="settings-detail-header" hidden={page==='home'}><button type="button" className="outline" onClick={()=>onPageChange('home')}><ArrowLeft size={18}/>返回设置</button><h2>{settingsEntries.find(([id])=>id===page)?.[1]}</h2></div>
     <section id="settings-reminders" className="settings-page" hidden={page!=='reminders'} aria-label="营养周报提醒"><ReminderSettings/></section>
-    <section id="settings-update" className="settings-page" hidden={page!=='update'} aria-label="版本更新"><p>当前版本：{currentVersion} · {isPublicEdition?'公开版':'开发者版'}</p><label className="update-auto-check"><input type="checkbox" checked={autoUpdate} disabled={savingAutoUpdate} onChange={async event=>{const enabled=event.target.checked;setAutoUpdate(enabled);setSavingAutoUpdate(true);try{await setAutoCheckEnabled(enabled);}catch{setAutoUpdate(!enabled);toast.error('设置保存失败，请重试');}finally{setSavingAutoUpdate(false);}}}/>自动更新检查</label><button className="outline" onClick={onCheckUpdate}>检查更新</button></section>
+    <section id="settings-update" className="settings-page" hidden={page!=='update'} aria-label="版本更新"><p>当前版本：{currentVersion} · {isPublicEdition?'公开版':'开发者版'}</p>{!isPublicEdition&&<p className="update-channel-note">更新将切换为公开版，开发者配置不可用。</p>}<label className="update-auto-check"><input type="checkbox" checked={autoUpdate} disabled={savingAutoUpdate} onChange={async event=>{const enabled=event.target.checked;setAutoUpdate(enabled);setSavingAutoUpdate(true);try{await setAutoCheckEnabled(enabled);}catch{setAutoUpdate(!enabled);toast.error('设置保存失败，请重试');}finally{setSavingAutoUpdate(false);}}}/>自动更新检查</label><button className="outline" onClick={onCheckUpdate}>检查更新</button></section>
     <section id="settings-ai" className="settings-page" hidden={page!=='ai'} aria-label="AI 配置">
 
     <label>接口地址<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
@@ -108,7 +110,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdat
     </DialogContent></Dialog>}
     <section id="settings-backup" className="settings-page" hidden={page!=='backup'} aria-label="备份恢复">
     <button className="outline" onClick={downloadBackup}>导出完整备份</button><button className="outline" onClick={()=>backupInput.current.click()}>导入备份</button><input ref={backupInput} hidden aria-label="备份文件" type="file" accept=".json,application/json" onChange={e=>{restore(e.target.files?.[0]);e.target.value="";}}/>
-    <button className="outline" onClick={async()=>{try{const previous=await getPreference('before-restore');if(!previous)return toast('没有恢复前备份');if(await ask('当前业务数据将替换为上次导入前保留的备份。',{title:'恢复导入前数据？',label:'确认恢复',danger:true}))await onRestore(validateBackup(previous));}catch(e){toast.error(e.message);}}}>恢复上次导入前数据</button>
+    <div className="previous-backup"><p>{restoreInfo?`导入前备份：${restoreInfo.time&&!Number.isNaN(Date.parse(restoreInfo.time))?new Date(restoreInfo.time).toLocaleString('zh-CN',{hour12:false}):'时间未知'} · ${restoreInfo.recipes} 道菜、${restoreInfo.fridge} 条库存`:'暂无导入前备份'}</p>{restoreInfo&&<button className="outline" onClick={async()=>{try{const previous=await getPreference('before-restore');if(!previous)return toast('没有恢复前备份');if(await ask('当前业务数据将替换为上次导入前保留的备份。',{title:'恢复导入前数据？',label:'确认恢复',danger:true}))await onRestore(validateBackup(previous));}catch(e){toast.error(e.message);}}}>恢复上次导入前数据</button>}</div>
     </section>
     <section id="settings-sync" className="settings-page" hidden={page!=='sync'} aria-label="坚果云同步"><div ref={onSyncTarget}/></section>
     {confirmation}
