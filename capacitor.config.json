@@ -4,7 +4,8 @@
   "webDir": "dist",
   "plugins": {
     "SystemBars": {
-      "insetsHandling": "native"
+      "insetsHandling": "native",
+      "style": "LIGHT"
     }
   }
 }
