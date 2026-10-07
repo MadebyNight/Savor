@@ -37,7 +37,9 @@ export async function latestPublicUpdate(){
     throw new Error('新版安装包或校验值缺失，请稍后重试');
   return {version,url:asset.browser_download_url,sha256:asset.digest.slice(7).toLowerCase()};
 }
-export async function installPublicUpdate(update){
+export async function installPublicUpdate(update,onProgress){
   if(!isNative())throw new Error('请在 Android 应用内更新');
-  return LocalData.installAppUpdate(update);
+  const listener=await LocalData.addListener('appUpdateProgress',onProgress);
+  try{return await LocalData.installAppUpdate(update);}
+  finally{try{await listener.remove();}catch{}}
 }

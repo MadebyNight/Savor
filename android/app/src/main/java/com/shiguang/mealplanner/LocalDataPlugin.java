@@ -232,6 +232,12 @@ public class LocalDataPlugin extends Plugin {
         if (Build.VERSION.SDK_INT >= 28) return info.signingInfo == null ? new Signature[0] : info.signingInfo.getApkContentsSigners();
         return info.signatures == null ? new Signature[0] : info.signatures;
     }
+    private void updateProgress(String phase,long downloaded,long total,long speed) {
+        JSObject progress=new JSObject();
+        progress.put("phase",phase);progress.put("downloadedBytes",downloaded);
+        progress.put("totalBytes",total);progress.put("speedBytesPerSecond",speed);
+        notifyListeners("appUpdateProgress",progress);
+    }
     @PluginMethod public void installAppUpdate(PluginCall call) {
         network.execute(() -> {
             File apk = new File(getContext().getCacheDir(), "public-update.apk");
@@ -244,20 +250,27 @@ public class LocalDataPlugin extends Plugin {
                     !expected.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid update metadata");
                 Request request = new Request.Builder().url(url).header("Accept", "application/octet-stream").build();
                 MessageDigest sha = MessageDigest.getInstance("SHA-256");
+                updateProgress("connecting",0,-1,0);
                 try (Response response = new OkHttpClient.Builder().connectTimeout(30,TimeUnit.SECONDS)
                         .readTimeout(120,TimeUnit.SECONDS).followRedirects(true).build().newCall(request).execute()) {
                     if (!response.isSuccessful() || response.body() == null || response.body().contentLength() > 100_000_000)
                         throw new IOException("Download failed");
+                    long length=response.body().contentLength();
+                    updateProgress("downloading",0,length,0);
                     try (InputStream input=response.body().byteStream(); FileOutputStream output=new FileOutputStream(apk)) {
-                        byte[] buffer=new byte[8192]; int count; long total=0;
+                        byte[] buffer=new byte[8192]; int count; long total=0,lastBytes=0,lastTime=System.nanoTime();
                         while ((count=input.read(buffer))!=-1) {
                             total+=count;
                             if(total>100_000_000)throw new IOException("Update too large");
                             sha.update(buffer,0,count);output.write(buffer,0,count);
+                            long now=System.nanoTime(),elapsed=now-lastTime;
+                            if(elapsed>=500_000_000L){updateProgress("downloading",total,length,(total-lastBytes)*1_000_000_000L/elapsed);lastBytes=total;lastTime=now;}
                         }
                         if(total==0)throw new IOException("Empty update");
+                        updateProgress("downloading",total,length,0);
                     }
                 }
+                updateProgress("verifying",0,-1,0);
                 String actual=bytesToHex(sha.digest());
                 if(!actual.equals(expected))throw new SecurityException("Update checksum mismatch");
                 PackageManager pm=getContext().getPackageManager();
@@ -275,6 +288,7 @@ public class LocalDataPlugin extends Plugin {
                 Intent intent=new Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(uri,"application/vnd.android.package-archive")
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 intent.setClipData(ClipData.newRawUri("食光更新",uri));
+                updateProgress("installing",0,-1,0);
                 getActivity().runOnUiThread(()->{try{getActivity().startActivity(intent);call.resolve();}
                     catch(Exception error){call.reject("无法打开系统安装界面");}});
             } catch(Exception error) {
