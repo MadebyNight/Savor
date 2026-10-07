@@ -1679,6 +1679,9 @@ html [data-sonner-toaster][data-sonner-theme] {
 .stock-status-filter select { min-width:0; max-width:70%; min-height:48px; }
 .stock-risk-summary { margin:12px 0; padding:10px 12px; border:1px solid #df9a8e; border-left:3px solid #bd493d; border-radius:8px; background:#fff0ed; color:#983b30; font-size:.93rem; line-height:1.6; }
 .meal-table { border:1px solid #e9ebe3; border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 2px 4px #50462e08; }
+.meal-table.is-empty-day { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.meal-table.is-empty-day .meal-table-row { display:flex; align-items:center; justify-content:space-between; gap:4px; padding-inline:8px; }
+.meal-table.is-empty-day .meal-table-row>strong,.meal-table.is-empty-day .meal-table-dishes>span { font-size:.86rem; white-space:nowrap; }
 .meal-table-row { display:grid; grid-template-columns:4.5em minmax(0,1fr); width:100%; min-height:52px; padding:8px 12px; gap:12px; text-align:left; border-bottom:1px solid #e9ebe3; }
 .meal-table-row.is-empty { min-height:48px; padding-block:5px; }
 .meal-table-row.is-empty .meal-table-dishes>span { border:0; padding:0; background:transparent; color:#596a53; }
