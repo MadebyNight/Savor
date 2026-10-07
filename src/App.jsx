@@ -2000,8 +2000,11 @@ function App() {
               <p>按实际买到的数量填写；修改不会增加排单需求。</p>
             </section>
             <section className="basket-edit-section" aria-label="需求核算"><h3>需求核算</h3>
-              <div className="basket-demand-grid"><div><span>排单共需</span><strong>{basketItem.requiredQty??'待确认'} <small>{basketItem.unit}</small></strong></div><div><span>冰箱可用</span><strong>{basketItem.availableQty} <small>{basketItem.unit}</small></strong></div><div className="basket-demand-gap"><span>还需购买</span><strong>{basketItem.qty??'待确认'} <small>{basketItem.unit}</small></strong></div></div>
-              {!!purchaseDrafts[shoppingKey(basketItem)]?.qty&&purchaseDrafts[shoppingKey(basketItem)].sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&<p className="basket-edit-alert" role="alert">排单或库存已变化，请复核购买量。</p>}
+              <div className={`basket-demand-grid ${purchaseDrafts[shoppingKey(basketItem)]?.sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&purchaseDrafts[shoppingKey(basketItem)]?.qty?'has-previous':''}`}>
+                {!!purchaseDrafts[shoppingKey(basketItem)]?.qty&&purchaseDrafts[shoppingKey(basketItem)].sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&<div><span>上次拟购买</span><strong>{purchaseDrafts[shoppingKey(basketItem)].qty} <small>{basketItem.unit}</small></strong></div>}
+                <div><span>当前排单共需</span><strong>{basketItem.requiredQty??'待确认'} <small>{basketItem.unit}</small></strong></div><div><span>冰箱可用</span><strong>{basketItem.availableQty} <small>{basketItem.unit}</small></strong></div><div className="basket-demand-gap"><span>当前还需购买</span><strong>{basketItem.qty??'待确认'} <small>{basketItem.unit}</small></strong></div>
+              </div>
+              {!!purchaseDrafts[shoppingKey(basketItem)]?.qty&&purchaseDrafts[shoppingKey(basketItem)].sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&<p className="basket-edit-alert" role="alert">排单或库存已变化。请对照上次拟购和当前需求，确认实际买到的数量。</p>}
             </section>
             <section className="basket-edit-section" aria-label="排单来源"><h3>排单来源</h3>
               {basketItem.sources?.length?<ul className="basket-source-list">{basketItem.sources.map((source,index)=><li key={index}><span>{source.date} · {MEALS.find(([key])=>key===source.meal)?.[1]||'待分配'}</span><strong>{source.recipeName} ×{source.servings}</strong><small>需 {source.requiredQty??'待确认'}{basketItem.unit}</small></li>)}</ul>:<p>原排单已变更；已买记录仍可核对入库。</p>}
