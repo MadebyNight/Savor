@@ -2,7 +2,7 @@
 
 React + Vite 高保真界面，通过 Capacitor 封装为 Android APK。核心菜谱、采购、周菜单和库存离线工作。V1.2.1 已实现独立识别入口、紧凑布局、五餐、参考保存期、菜单预计营养及双渠道周回顾提醒；真机覆盖安装、拍照回传及通知交互已验证；OPPO 后台定时提醒发现系统延迟，尚未通过可靠性验收，进度见 [V1.2.1 清单](docs/V1.2.1-TODO.md)。
 
-当前源码版本为 V2.1.12（Android versionCode 21）：公开版汇集 V2.1.x 的点单、排餐、采购、入库及界面更新，并修复采购需求变化后的逐项复核。V2.1.11 开发者版已完成真机保留数据覆盖安装和入库验证；V2.1.12 公开包未在测试机安装。详情见[开发规划](docs/开发规划.md)。公开版不含共享 AI 配置，需填写个人 AI Key。
+当前源码版本为 V2.2.0（Android versionCode 22），包含更新进度显示和界面检查清单中的修复。最新已发布的公开版仍为 V2.1.12；V2.2.0 尚未发布公开安装包。详情见[开发规划](docs/开发规划.md)。公开版不含共享 AI 配置，需填写个人 AI Key。
 
 需求见 [产品需求确认](docs/产品需求确认.md)，实施及验收见 [开发规划](docs/开发规划.md)，当前证据和外部待办见 [开发进度](docs/开发进度.md)。
 
@@ -91,7 +91,7 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 
 公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。当前公开版从 [GitHub Release](https://github.com/MadebyNight/Savor/releases/tag/v2.1.12) 下载 `Savor-v2.1.12-public.apk`，用同页的 `SHA256SUMS.txt` 核对；本地开发者版由维护者自行分发，不上传。
 
-V2.1.12 提供应用内更新：设置 → 版本更新可手动检查，默认每天首次启动自动检查且可关闭；有更高的公开版时在应用内下载并校验 APK，再由 Android 系统确认安装。开发者版也检查公开版，下载前提示会切换为公开版、开发者配置不再可用。发布新包必须沿用兼容签名、提高 versionCode，并保留命名为 `Savor-v<版本>-public.apk` 的 Release 附件及 GitHub 提供的 SHA-256 digest。真实应用内安装验收尚未完成。
+V2.2.0 源码的应用内更新可显示下载进度和速度；设置 → 版本更新可手动检查，默认每天首次启动自动检查且可关闭。有更高的公开版时在应用内下载并校验 APK，再由 Android 系统确认安装。开发者版也检查公开版，下载前提示会切换为公开版、开发者配置不再可用。发布新包必须沿用兼容签名、提高 versionCode，并保留命名为 `Savor-v<版本>-public.apk` 的 Release 附件及 GitHub 提供的 SHA-256 digest。
 
 公开版必须从新的、干净的源码工作区执行 `npm run build:public` → `npx cap sync android` → Android `:app:assembleRelease`，然后使用维护者密钥签名。公开构建只复制白名单中的图片和字体资源，隐藏开发者入口，并忽略已有设备上的开发者凭据槽。不能用普通 `npm run build` 的输出代替公开版。
 
