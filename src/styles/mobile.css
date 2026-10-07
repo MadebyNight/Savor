@@ -1271,7 +1271,8 @@
 .recipe-step-editor .step-content b { flex:none; color:#a28b4e; font-size:11px; }
 .recipe-step-editor .step-content textarea { flex:1; min-width:0; min-height:56px; padding:5px; border:0; background:transparent; resize:vertical; }
 .recipe-step-editor .step-duration { display:grid; place-items:center; min-width:0; border-left:1px solid #e4e8dd; color:#707b68; }
-.compact-app .editor .recipe-step-editor .step-duration label { display:flex; align-items:center; gap:2px; margin:0; }
+.editor .recipe-step-editor .step-duration label { display:flex; flex-direction:row; align-items:center; gap:2px; margin:0; }
+.recipe-step-editor .step-duration > button { width:100%; min-height:44px; padding:2px; border:0; background:transparent; color:#6b775f; font-size:11px; white-space:nowrap; cursor:pointer; }
 .recipe-step-editor .step-duration input { width:42px; min-width:0; min-height:44px; padding:3px; text-align:center; }
 .recipe-step-editor .step-duration small { font-size:11px; }
 .recipe-step-editor .step-actions { position:relative; display:grid; place-items:center; border-left:1px solid #e4e8dd; }

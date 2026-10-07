@@ -131,6 +131,16 @@ function App() {
     update();
     return () => { viewport?.removeEventListener('resize', update); window.removeEventListener('resize', update); };
   }, [editingRecipe, compact]);
+  useEffect(() => {
+    if (!editingRecipe) return;
+    const closeStepActions = event => {
+      document.querySelectorAll('.step-actions[open]').forEach(menu => {
+        if (!menu.contains(event.target)) menu.open = false;
+      });
+    };
+    document.addEventListener('pointerdown', closeStepActions);
+    return () => document.removeEventListener('pointerdown', closeStepActions);
+  }, [editingRecipe]);
   const [selectedDay, setSelectedDay] = useState((new Date().getDay() + 6) % 7);
   const [mealSlot, setMealSlot] = useState(null);
   const [mealTargetOpen, setMealTargetOpen] = useState(false);
@@ -1734,8 +1744,8 @@ function App() {
                       }
                     />
                     </div>
-                    <div className="step-duration">{recipeDraft.stepTimers?.[index] != null ? <label><input type="number" min="1" max="999" step="1" inputMode="numeric" aria-label={`步骤${index+1}计时分钟`} value={recipeDraft.stepTimers[index]} onChange={event=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?(event.target.value===''?'':Number(event.target.value)):draft.stepTimers?.[timerIndex]??null)}))}/><small>分</small></label> : <span aria-label="未添加计时">—</span>}</div>
-                    <details className="step-actions"><summary aria-label={`步骤${index+1}操作`}>⋯</summary><div>
+                    <div className="step-duration">{recipeDraft.stepTimers?.[index] != null ? <label><input autoFocus={recipeDraft.stepTimers[index]===''} type="number" min="1" max="999" step="1" inputMode="numeric" aria-label={`步骤${index+1}计时分钟`} value={recipeDraft.stepTimers[index]} onChange={event=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?(event.target.value===''?'':Number(event.target.value)):draft.stepTimers?.[timerIndex]??null)}))} onBlur={event=>{if(event.target.value==='')setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?null:draft.stepTimers?.[timerIndex]??null)}));}}/><small>分</small></label> : <button type="button" aria-label={`为步骤${index+1}添加计时`} onClick={()=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?'':draft.stepTimers?.[timerIndex]??null)}))}>＋ 计时</button>}</div>
+                    <details className="step-actions" onToggle={event=>{if(event.currentTarget.open)document.querySelectorAll('.step-actions[open]').forEach(menu=>{if(menu!==event.currentTarget)menu.open=false;});}}><summary aria-label={`步骤${index+1}操作`}>⋯</summary><div onClick={event=>{if(event.target.closest('button'))event.currentTarget.parentElement.open=false;}}>
                       <button
                         type="button"
                         aria-label={"上移步骤" + (index + 1)}
@@ -1767,13 +1777,12 @@ function App() {
                     >
                       ×
                     </button>
-                    {recipeDraft.stepTimers?.[index] == null && <button type="button" onClick={()=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?1:draft.stepTimers?.[timerIndex]??null)}))}>在此步后添加时间</button>}
                     {recipeDraft.stepTimers?.[index] != null && <button type="button" aria-label={`移除步骤${index+1}计时`} onClick={()=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,timerIndex)=>timerIndex===index?null:draft.stepTimers?.[timerIndex]??null)}))}>移除计时</button>}
                     </div></details>
                   </div>
                 ))}
                 </div>
-                <div className="step-add-actions"><button className="outline" onClick={() => setRecipeDraft(draft=>({...draft,steps:[...draft.steps,''],stepTimers:[...(draft.stepTimers||[]),null]}))}>＋ 添加步骤</button><button className="outline" disabled={!recipeDraft.steps.length||recipeDraft.stepTimers?.[recipeDraft.steps.length-1]!=null} onClick={()=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,index)=>index===draft.steps.length-1?1:draft.stepTimers?.[index]??null)}))}>＋ 添加时间</button></div>
+                <div className="step-add-actions"><button className="outline" onClick={() => setRecipeDraft(draft=>({...draft,steps:[...draft.steps,''],stepTimers:[...(draft.stepTimers||[]),null]}))}>＋ 添加步骤</button><button className="outline" disabled={!recipeDraft.steps.length||recipeDraft.stepTimers?.[recipeDraft.steps.length-1]!=null} onClick={()=>setRecipeDraft(draft=>({...draft,stepTimers:draft.steps.map((_,index)=>index===draft.steps.length-1?'':draft.stepTimers?.[index]??null)}))}>＋ 添加时间</button></div>
                 <details className="recipe-nutrition-tools"><summary>高级计算</summary><RecipeNutrition recipe={recipeDraft} onChange={setRecipeDraft}/></details>
 
               </section>
