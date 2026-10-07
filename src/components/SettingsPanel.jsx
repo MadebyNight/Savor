@@ -5,7 +5,7 @@ import useConfirm from './useConfirm.jsx';
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from './Dialog.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { getPreference,setPreference,setSecret,isNative,exportBlob } from '../storage.js';
+import { getPreference,setPreference,setSecret,getSecret,isNative,exportBlob } from '../storage.js';
 import { defaultAI,testAIConnection,backup,validateBackup } from '../services.js';
 import { ArrowLeft, Bell, ChevronRight, Cloud, DatabaseBackup, Sparkles, Download } from 'lucide-react';
 const settingsEntries=[
@@ -20,6 +20,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdat
   const [ask, confirmation] = useConfirm();
   const [config,setConfig] = useState(defaultAI);
   const [key,setKey] = useState('');
+  const [hasPersonalKey,setHasPersonalKey] = useState(false);
   const [developer,setDeveloper]=useState(null);
   const [autoUpdate,setAutoUpdate]=useState(true);
   const [savingAutoUpdate,setSavingAutoUpdate]=useState(false);
@@ -35,7 +36,7 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdat
   const testRunning=useRef(false);
   useEffect(()=>()=>{testGeneration.current++;},[]);
   useEffect(()=>{setTestResult(null);},[config.url,config.model,key,developer]);
-  useEffect(() => {let active=true;Promise.all([getPreference('ai-config',defaultAI),getDeveloperConfig()]).then(([saved,profile])=>{if(active){setConfig(saved);setDeveloper(profile);}}).catch(()=>toast.error('AI 配置读取失败，请重新打开设置')).finally(()=>{if(active)setLoadingConfig(false);});return()=>{active=false;};},[]);
+  useEffect(() => {let active=true;Promise.all([getPreference('ai-config',defaultAI),getDeveloperConfig(),getSecret('ai')]).then(([saved,profile,personalKey])=>{if(active){setConfig(saved);setDeveloper(profile);setHasPersonalKey(!!personalKey);}}).catch(()=>toast.error('AI 配置读取失败，请重新打开设置')).finally(()=>{if(active)setLoadingConfig(false);});return()=>{active=false;};},[]);
   useEffect(()=>{let active=true;autoCheckEnabled().then(value=>{if(active)setAutoUpdate(value);}).catch(()=>toast.error('自动更新检查设置读取失败'));return()=>{active=false;};},[]);
   async function testConnection(){
     if(testRunning.current)return;
@@ -75,8 +76,8 @@ export default function SettingsPanel({state,onRestore,onSyncTarget,onCheckUpdat
     <label>接口地址<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.url} onChange={e=>setConfig({...config,url:e.target.value})}/></label>
 
     <label>模型<input disabled={testing||!!developer||loadingConfig||unlocking} value={effectiveConfig.model} onChange={e=>setConfig({...config,model:e.target.value})}/></label>
-    <label>API Key<input disabled={testing||!!developer||loadingConfig||unlocking} type="password" autoComplete="new-password" value={developer?'':key} onChange={e=>setKey(e.target.value)} placeholder={developer?'开发者 Key 已加密保管':'留空保留已保存的 Key'}/></label>
-    <div className="actions"><button className="primary" disabled={testing||!!developer||loadingConfig||unlocking} onClick={async()=>{try{await setPreference('ai-config',config);if(key)await setSecret('ai',key);setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||loadingConfig||unlocking} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>
+    <label>API Key<input disabled={testing||!!developer||loadingConfig||unlocking} type="password" autoComplete="new-password" value={developer?'':key} onChange={e=>setKey(e.target.value)} placeholder={developer?'开发者 Key 已加密保管':'留空保留已保存的 Key'}/><small className="credential-status">{developer?'当前使用开发者配置':hasPersonalKey?'个人 Key 已保存':'尚未保存个人 Key'}</small></label>
+    <div className="actions"><button className="primary" disabled={testing||!!developer||loadingConfig||unlocking} onClick={async()=>{try{await setPreference('ai-config',config);if(key){await setSecret('ai',key);setHasPersonalKey(true);}setKey('');toast.success(isNative()?'配置已保存，凭据已加密':'配置已保存；预览环境 Key 仅在内存保留');}catch(e){toast.error(e.message);}}}>保存 AI 配置</button><button className="outline" disabled={testing||loadingConfig||unlocking} onClick={testConnection}>{testing?'正在测试…':'测试连接'}</button>{testing&&<button className="outline" onClick={()=>{testGeneration.current++;testRunning.current=false;setTesting(false);setTestResult({ok:false,message:'已停止等待；服务端可能仍在处理。'});}}>停止等待</button>}</div>
 
     {developerAvailable&&<details className="developer-config"><summary>开发者配置</summary>
       <button className={developer?'primary':'outline'} aria-pressed={!!developer} disabled={testing||loadingConfig||unlocking} onClick={async()=>{
