@@ -1255,7 +1255,7 @@ function App() {
                       <h3><button type="button" className="basket-name" aria-label={item.manual?`编辑${item.name}手动采购项`:`编辑${item.name}购买量与来源`} onClick={()=>item.manual?openManualEditor(item):openPurchaseEditor(item)}>{item.name}<span aria-hidden="true"> ›</span></button></h3>
                       <button type="button" className="basket-quantity" aria-label={item.manual?`编辑${item.name}手动采购项数量`:`修改${item.name}实际购买量`} onClick={()=>item.manual?openManualEditor(item):openPurchaseEditor(item)}>
                         <small>{basketDraft(item)?.checked?'已买 ':item.manual?'还需买 ':basketDraft(item)?.qty?'拟购买 ':'还需买 '}</small>
-                        {basketDraft(item)?.qty??item.qty??"待确认"} <small>{item.unit}</small>
+                        <span>{basketDraft(item)?.qty??item.qty??"待确认"} <small>{item.unit}</small></span>
                       </button>
                       <p className="shopping-category">{item.manual?'手动添加 · ':''}{item.category}{item.manual&&item.stockOnPurchase?' · 买后入库':''}</p>
                       {item.manual?<p className="shopping-stock-note">{item.note?`备注：${item.note}`:'临时采购项'}</p>:<p className="shopping-stock-note">
