@@ -62,6 +62,8 @@
   place-items: center;
   color: #758266;
   background: #eef1e5;
+  font-size:.9rem;
+  font-weight:700;
 }
 .library-recipe > span:not(.library-placeholder) {
   flex: 1;

@@ -121,7 +121,7 @@ export default function MobileWeek({
               const mealKey = `${dayIndex}-${key}`;
               return (
                 <button
-                  className="meal-table-row"
+                  className={`meal-table-row ${plan[mealKey]?.length?'':'is-empty'}`}
                   key={key}
                   aria-label={`安排周${dayIndex + 1}${key}餐`}
                   onClick={() => setSlot(mealKey)}

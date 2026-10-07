@@ -1524,7 +1524,7 @@ function App() {
             </div>
             <h2>我的菜谱 <small>{filteredRecipes.length} 道</small></h2>
             {filteredRecipes.map(recipe => <button key={recipe.id} className="library-recipe" onClick={() => {setActiveRecipe(recipe);setModal("detail");}}>
-              {hasUsableImage(recipe.image) ? <img src={recipe.image} alt=""/> : <span className="library-placeholder"><Utensils size={22}/></span>}
+              {hasUsableImage(recipe.image) ? <img src={recipe.image} alt=""/> : <span className="library-placeholder" aria-hidden="true">{recipe.name.trim().slice(0,2)||'菜'}</span>}
               <span><strong>{recipe.name}</strong><small>{recipe.category}{recipe.time ? ` · ${recipe.time} 分钟` : ""}</small></span><ArrowRight size={18}/>
             </button>)}
             {!filteredRecipes.length && <div className="empty">没有找到符合条件的菜谱。<button className="text-link" onClick={()=>{setSearch("");setLibraryFilter({category:"全部",time:"all"});}}>清除搜索与筛选</button></div>}
