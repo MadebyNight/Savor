@@ -89,7 +89,7 @@ debug 签名固定为 `.android-tools/android-home/legacy-debug.keystore`；在�
 
 ## GitHub 公开分发
 
-公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。当前公开版从 [GitHub Release](https://github.com/MadebyNight/Savor/releases/tag/v2.1.12) 下载 `Savor-v2.1.12-public.apk`，用同页的 `SHA256SUMS.txt` 核对；本地开发者版由维护者自行分发，不上传。
+公开仓库为 `MadebyNight/Savor`。源码不包含密文配置、API Key、签名密钥或本地数据。当前公开版从 [GitHub Release](https://github.com/MadebyNight/Savor/releases/tag/v2.2.0) 下载 `Savor-v2.2.0-public.apk`，用同页的 `SHA256SUMS.txt` 核对；本地开发者版由维护者自行分发，不上传。
 
 V2.2.0 源码的应用内更新可显示下载进度和速度；设置 → 版本更新可手动检查，默认每天首次启动自动检查且可关闭。有更高的公开版时在应用内下载并校验 APK，再由 Android 系统确认安装。开发者版也检查公开版，下载前提示会切换为公开版、开发者配置不再可用。发布新包必须沿用兼容签名、提高 versionCode，并保留命名为 `Savor-v<版本>-public.apk` 的 Release 附件及 GitHub 提供的 SHA-256 digest。
 
