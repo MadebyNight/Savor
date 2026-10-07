@@ -1777,6 +1777,7 @@ html [data-sonner-toaster][data-sonner-theme] {
 .review-dates button > span:first-child { font-size:.85rem; white-space:nowrap; }
 .review-dates button strong { font-size:1.2rem; font-weight:600; }
 .review-dates button[aria-pressed=true] { background:#667956; color:white; }
+.review-dates-hint { margin:0; color:#52604b; font-size:.8rem; }
 .review-day-dot { width:4px; height:4px; border-radius:50%; background:transparent; }
 .review-day-dot.has-menu { background:currentColor; }
 .review-values { background:#f3f4ec; border-radius:14px; padding:16px; }

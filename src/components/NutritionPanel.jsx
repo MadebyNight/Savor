@@ -437,6 +437,7 @@ export default function NutritionPanel({
             </button>
           ))}
         </div>
+        <p className="review-dates-hint">左右滑动日期，可查看周一至周日</p>
         <div className="review-day-content" aria-live="polite">
           <ReviewValues
             summary={summarizeNutrition(plan, day)}
