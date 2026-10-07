@@ -1861,6 +1861,11 @@ html [data-sonner-toaster][data-sonner-theme] {
 .basket-source-list strong { min-width:0; overflow-wrap:anywhere; font-size:14px; }
 .basket-source-list small { align-self:end; color:#52604b; white-space:nowrap; }
 .basket-stock-content { display:grid; gap:10px; }
+.basket-stock-content .list-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+.basket-stock-content .list-row small,.basket-stock-content .list-row button { grid-column:1/-1; }
+.basket-stock-content .list-row small { color:#52604b; line-height:1.5; white-space:normal; }
+.basket-stock-content .list-row button { min-height:48px; white-space:normal; text-align:center; }
+.basket-stock-content > p[role="alert"] { margin:0; padding:10px; border-radius:10px; background:#fff3d6; color:#614915; line-height:1.5; }
 .menu-view-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; padding:4px; margin:0 0 14px; border-radius:14px; background:#edf0e7; }
 .menu-view-tabs button { min-height:48px; border:0; border-radius:11px; background:#fffdf8; color:#52604b; font-size:1rem; font-weight:700; cursor:pointer; }
 .menu-view-tabs button[aria-selected="true"] { background:#f9cc4f; color:#3f361e; box-shadow:0 1px 5px #34452b18; }

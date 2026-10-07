@@ -412,6 +412,7 @@ function App() {
   const basketDraft=item=>item.manual?item:purchaseDrafts[shoppingKey(item)];
   const remainingShopping=shoppingList.filter(item=>!basketDraft(item)?.checked).length;
   const checkedShopping=shoppingList.filter(item=>basketDraft(item)?.checked);
+  const staleCheckedShopping=checkedShopping.filter(item=>!item.manual&&purchaseDrafts[shoppingKey(item)]?.sourceFingerprint!==currentPurchaseFingerprint(item));
   const stockingCount=checkedShopping.filter(item=>!item.manual||item.stockOnPurchase).length;
   const purchaseActionLabel=stockingCount?`确认入库 · ${checkedShopping.length} 项`:`完成采购 · ${checkedShopping.length} 项`;
   const shoppingExportLines=[...shoppingList.flatMap(item=>{
@@ -456,7 +457,20 @@ function App() {
     const key=shoppingKey(item),current=purchaseDrafts[key];
     const qty=current?.qty??item.qty;
     if(checked&&(!Number.isFinite(Number(qty))||Number(qty)<=0)){openPurchaseEditor(item);toast('先填写实际购买量，再勾选已买');return;}
-    setPurchaseDrafts(drafts=>({...drafts,[key]:{...drafts[key],qty:Number(qty),checked,sourceFingerprint:drafts[key]?.sourceFingerprint||currentPurchaseFingerprint(item)}}));
+    setPurchaseDrafts(drafts=>({...drafts,[key]:{...drafts[key],qty:Number(qty),checked,sourceFingerprint:checked?currentPurchaseFingerprint(item):drafts[key]?.sourceFingerprint}}));
+  };
+  const confirmPurchaseReview=async item=>{
+    if(basketSaveLock.current)return;
+    basketSaveLock.current=true;setBasketSaving(true);
+    try{
+      const before=latestState.current,key=shoppingKey(item);
+      const current=datedProcurement({weeks:before.weeks,pendingOrders:before.pendingOrders,fridge:before.fridge,from:today()}).items.find(value=>shoppingKey(value)===key);
+      const nextDrafts={...before.purchaseDrafts,[key]:{...before.purchaseDrafts[key],sourceFingerprint:current?purchaseFingerprint(current):'missing'}};
+      await saveState({...before,purchaseDrafts:nextDrafts});
+      setPurchaseDrafts(nextDrafts);
+      toast.success('购买量已复核');
+    }catch(error){toast.error('复核保存失败：'+error.message);}
+    finally{basketSaveLock.current=false;setBasketSaving(false);}
   };
   const assignLegacy=async()=>{
     if(!/^\d{4}-\d{2}-\d{2}$/.test(legacyDate)){toast.error('请选择有效用餐日期');return;}
@@ -1868,7 +1882,7 @@ function App() {
             : modal === "selection" ? <button className="primary" disabled={orderSaving} onClick={confirmSelection}>{orderSaving?'正在保存…':`确认并同步 · ${selectedCount} 份菜品`}</button>
             : modal === "purchase-edit" ? <button className="primary" onClick={savePurchaseQuantity}>保存购买量</button>
             : modal === "manual-shopping" ? <button className="primary" disabled={manualSaving} type="submit" form="manual-shopping-form">{manualSaving?'正在保存…':manualDraft.id?'保存采购项':'加入菜篮子'}</button>
-            : modal === "purchase-stock" ? <button className="primary" disabled={basketSaving} onClick={stockPurchased}>{basketSaving?'正在处理…':purchaseActionLabel}</button>
+            : modal === "purchase-stock" ? <button className="primary" disabled={basketSaving||!!staleCheckedShopping.length} onClick={stockPurchased}>{basketSaving?'正在处理…':staleCheckedShopping.length?`先复核 ${staleCheckedShopping.length} 项购买量`:purchaseActionLabel}</button>
             : modal === "export" ? exportActions
             : modal === "stock" ? <button className="primary" disabled={stockSaving} type="submit" form="stock-edit-form">{stockSaving?'正在保存…':editingStock===null?'确认放入冰箱':'保存食材修改'}</button> : undefined} >
           <DialogTitle>
@@ -2002,7 +2016,7 @@ function App() {
             <label className="basket-manual-stock"><input type="checkbox" checked={manualDraft.stockOnPurchase} onChange={event=>setManualDraft(current=>({...current,stockOnPurchase:event.target.checked}))}/><span>购买后放入冰箱库存</span></label>
             {manualDraft.id&&<button type="button" className="text-link basket-manual-remove" disabled={manualSaving} onClick={removeManualItem}>移除此项</button>}
           </form>}
-          {modal === 'purchase-stock' && <div className="basket-stock-content">{checkedShopping.map(item=><div className="list-row" key={basketKey(item)}><span>{item.name}{item.manual&&!item.stockOnPurchase?' · 仅完成采购':''}</span><strong>{basketDraft(item)?.qty} {item.unit}</strong>{!item.manual&&purchaseDrafts[shoppingKey(item)]?.sourceFingerprint!==currentPurchaseFingerprint(item)&&<button type="button" className="text-link" onClick={()=>{const key=shoppingKey(item);setPurchaseDrafts(current=>({...current,[key]:{...current[key],sourceFingerprint:currentPurchaseFingerprint(item)}}));}}>需求已变化，复核后确认此数量</button>}</div>)}<p>{stockingCount?'需入库的项目会新增今天的冰箱批次；其他手动项仅完成采购。':'这些手动采购项完成后将从菜篮子移除，不会放入冰箱。'}</p></div>}
+          {modal === 'purchase-stock' && <div className="basket-stock-content">{!!staleCheckedShopping.length&&<p role="alert">排单来源或库存与上次保存购买量时不同。请逐项核对当前来源及实际买到的数量，再确认入库。</p>}{checkedShopping.map(item=><div className="list-row" key={basketKey(item)}><span>{item.name}{item.manual&&!item.stockOnPurchase?' · 仅完成采购':''}</span><strong>{basketDraft(item)?.qty} {item.unit}</strong>{staleCheckedShopping.includes(item)&&<><small>当前来源：{item.sources?.length?item.sources.map(source=>`${source.date} ${source.recipeName} ×${source.servings}`).join('；'):'已无相关排单'}。{item.requiredQty==null?'菜谱未填写用量，请核对实际购买量。':`当前共需 ${item.requiredQty}${item.unit}，冰箱可用 ${item.availableQty}${item.unit}。`}</small><button type="button" className="outline" disabled={basketSaving} onClick={()=>confirmPurchaseReview(item)}>确认购买量为 {basketDraft(item)?.qty}{item.unit}</button></>}</div>)}<p>{stockingCount?'需入库的项目会新增今天的冰箱批次；其他手动项仅完成采购。':'这些手动采购项完成后将从菜篮子移除，不会放入冰箱。'}</p></div>}
           {modal === "stock" && (
             <form id="stock-edit-form" className="editor stock-editor" onSubmit={event=>{event.preventDefault();saveIngredient();}}>
               <fieldset disabled={stockSaving}><StockFields rules={storageRules} autoFill={editingStock===null} value={ingredientDraft} onChange={setIngredientDraft}/></fieldset>
