@@ -1780,6 +1780,8 @@ html [data-sonner-toaster][data-sonner-theme] {
 .review-day-dot { width:4px; height:4px; border-radius:50%; background:transparent; }
 .review-day-dot.has-menu { background:currentColor; }
 .review-values { background:#f3f4ec; border-radius:14px; padding:16px; }
+.review-empty { margin:0; padding:18px 16px; border-radius:14px; background:#f3f4ec; color:#53634d; }
+.review-partial { margin:14px 0 0; padding:9px 11px; border-radius:8px; background:#fff3d1; color:#614915; font-size:.86rem; line-height:1.5; }
 .review-values .review-section-heading h3 { font-size:.93rem; font-weight:500; }
 .review-energy { margin:18px 0; }
 .review-energy > span { color:#727965; font-size:.85rem; }

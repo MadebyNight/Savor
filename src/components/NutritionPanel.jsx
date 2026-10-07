@@ -96,6 +96,7 @@ export function NutritionReviewButton({ onClick }) {
 }
 
 function ReviewValues({ summary, title }) {
+  if (!summary.recipes) return <p className="review-empty">{title === "本周预计营养" ? "本周还没有安排菜品" : "这一天还没有安排菜品"}</p>;
   const known = Object.values(summary.values).some((value) => value !== null);
   const format = (value) =>
     value === null ? "—" : Math.round(value * 10) / 10;
@@ -135,7 +136,7 @@ function ReviewValues({ summary, title }) {
         <p className="subtle">还没有营养计算结果，可到高级计算中完善。</p>
       )}
       {known && !!summary.missing.length && (
-        <p className="subtle">部分食材尚未计入，数值为已知部分合计。</p>
+        <p className="review-partial" role="note">部分食材尚未计入，以上仅为已知部分合计。</p>
       )}
     </section>
   );
@@ -441,11 +442,9 @@ export default function NutritionPanel({
             summary={summarizeNutrition(plan, day)}
             title={`${dayAt(week, day)} 预计营养`}
           />
-          <p className="review-day-menu">
-            {plannedItems(plan, day)
-              .map(({ recipe }) => recipe.name)
-              .join(" · ") || "这一天还没有安排菜品"}
-          </p>
+          {!!plannedItems(plan, day).length && <p className="review-day-menu">
+            {plannedItems(plan, day).map(({ recipe }) => recipe.name).join(" · ")}
+          </p>}
         </div>
       </section>
       <details className="review-week-total">
