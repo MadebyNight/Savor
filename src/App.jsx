@@ -1254,17 +1254,11 @@ function App() {
                       <label className="shopping-check"><input type="checkbox" aria-label={`已买${item.name}（${item.unit}）`} checked={!!basketDraft(item)?.checked} onChange={event=>togglePurchased(item,event.target.checked)}/><span className="sr-only">已买</span></label>
                       <h3><button type="button" className="basket-name" aria-label={item.manual?`编辑${item.name}手动采购项`:`编辑${item.name}购买量与来源`} onClick={()=>item.manual?openManualEditor(item):openPurchaseEditor(item)}>{item.name}<span aria-hidden="true"> ›</span></button></h3>
                       <button type="button" className="basket-quantity" aria-label={item.manual?`编辑${item.name}手动采购项数量`:`修改${item.name}实际购买量`} onClick={()=>item.manual?openManualEditor(item):openPurchaseEditor(item)}>
-                        <small>{basketDraft(item)?.checked?'已买 ':item.manual?'还需买 ':basketDraft(item)?.qty?'拟购买 ':'还需买 '}</small>
-                        <span>{basketDraft(item)?.qty??item.qty??"待确认"} <small>{item.unit}</small></span>
+                        <span>{basketDraft(item)?.checked?'已买 ':basketDraft(item)?.qty?'拟买 ':''}{basketDraft(item)?.qty??item.qty??"待确认"} <small>{item.unit}</small></span>
                       </button>
-                      <p className="shopping-category">{item.manual?'手动添加 · ':''}{item.category}{item.manual&&item.stockOnPurchase?' · 买后入库':''}</p>
-                      {item.manual?<p className="shopping-stock-note">{item.note?`备注：${item.note}`:'临时采购项'}</p>:<p className="shopping-stock-note">
-                        {item.requiredQty == null ? '用量待确认' : `共需 ${item.requiredQty}${item.unit}`}
-                        {` · 冰箱可用 ${item.availableQty}${item.unit}`}
-                      </p>}
-                      {!item.manual&&(item.qty == null || item.availableQty > 0) && <p className="shopping-stock-reason"><span>
-                        {item.qty == null ? '请核对所需用量' : '库存不足，补买差额'}
-                      </span></p>}
+                      <p className="shopping-category">{item.category}</p>
+                      {item.manual&&(item.note||item.stockOnPurchase)&&<p className="shopping-stock-note">{item.note?`备注：${item.note}`:'买后入库'}</p>}
+                      {!item.manual&&item.qty == null && <p className="shopping-stock-reason"><span>请核对所需用量</span></p>}
                       {!item.manual&&!!purchaseDrafts[shoppingKey(item)]?.qty&&purchaseDrafts[shoppingKey(item)].sourceFingerprint!==currentPurchaseFingerprint(item)&&<p className="shopping-stock-reason" role="status"><span>排单或库存已变化，请复核购买量</span></p>}
                     </article>
                   ))}
@@ -1989,7 +1983,7 @@ function App() {
             <section className="basket-edit-section" aria-label="需求核算"><h3>需求核算</h3>
               <div className={`basket-demand-grid ${purchaseDrafts[shoppingKey(basketItem)]?.sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&purchaseDrafts[shoppingKey(basketItem)]?.qty?'has-previous':''}`}>
                 {!!purchaseDrafts[shoppingKey(basketItem)]?.qty&&purchaseDrafts[shoppingKey(basketItem)].sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&<div><span>上次拟购买</span><strong>{purchaseDrafts[shoppingKey(basketItem)].qty} <small>{basketItem.unit}</small></strong></div>}
-                <div><span>当前排单共需</span><strong>{basketItem.requiredQty??'待确认'} <small>{basketItem.unit}</small></strong></div><div><span>冰箱可用</span><strong>{basketItem.availableQty} <small>{basketItem.unit}</small></strong></div><div className="basket-demand-gap"><span>当前还需购买</span><strong>{basketItem.qty??'待确认'} <small>{basketItem.unit}</small></strong></div>
+                <div><span>当前排单共需</span><strong>{basketItem.requiredQty??'待确认'} <small>{basketItem.unit}</small></strong></div><div className="basket-demand-gap"><span>当前还需购买</span><strong>{basketItem.qty??'待确认'} <small>{basketItem.unit}</small></strong></div>
               </div>
               {!!purchaseDrafts[shoppingKey(basketItem)]?.qty&&purchaseDrafts[shoppingKey(basketItem)].sourceFingerprint!==currentPurchaseFingerprint(basketItem)&&<p className="basket-edit-alert" role="alert">排单或库存已变化。请对照上次拟购和当前需求，确认实际买到的数量。</p>}
             </section>
@@ -2006,7 +2000,7 @@ function App() {
             <label className="basket-manual-stock"><input type="checkbox" checked={manualDraft.stockOnPurchase} onChange={event=>setManualDraft(current=>({...current,stockOnPurchase:event.target.checked}))}/><span>购买后放入冰箱库存</span></label>
             {manualDraft.id&&<button type="button" className="text-link basket-manual-remove" disabled={manualSaving} onClick={removeManualItem}>移除此项</button>}
           </form>}
-          {modal === 'purchase-stock' && <div className="basket-stock-content">{!!staleCheckedShopping.length&&<p role="alert">排单来源或库存与上次保存购买量时不同。请逐项核对当前来源及实际买到的数量，再确认入库。</p>}{checkedShopping.map(item=><div className="list-row" key={basketKey(item)}><span>{item.name}{item.manual&&!item.stockOnPurchase?' · 仅完成采购':''}</span><strong>{basketDraft(item)?.qty} {item.unit}</strong>{staleCheckedShopping.includes(item)&&<><small>当前来源：{item.sources?.length?item.sources.map(source=>`${source.date} ${source.recipeName} ×${source.servings}`).join('；'):'已无相关排单'}。{item.requiredQty==null?'菜谱未填写用量，请核对实际购买量。':`当前共需 ${item.requiredQty}${item.unit}，冰箱可用 ${item.availableQty}${item.unit}。`}</small><button type="button" className="outline" disabled={basketSaving} onClick={()=>confirmPurchaseReview(item)}>确认购买量为 {basketDraft(item)?.qty}{item.unit}</button></>}</div>)}<p>{stockingCount?'需入库的项目会新增今天的冰箱批次；其他手动项仅完成采购。':'这些手动采购项完成后将从菜篮子移除，不会放入冰箱。'}</p></div>}
+          {modal === 'purchase-stock' && <div className="basket-stock-content">{!!staleCheckedShopping.length&&<p role="alert">排单来源或库存与上次保存购买量时不同。请逐项核对当前来源及实际买到的数量，再确认入库。</p>}{checkedShopping.map(item=><div className="list-row" key={basketKey(item)}><span>{item.name}{item.manual&&!item.stockOnPurchase?' · 仅完成采购':''}</span><strong>{basketDraft(item)?.qty} {item.unit}</strong>{staleCheckedShopping.includes(item)&&<><small>当前来源：{item.sources?.length?item.sources.map(source=>`${source.date} ${source.recipeName} ×${source.servings}`).join('；'):'已无相关排单'}。{item.requiredQty==null?'菜谱未填写用量，请核对实际购买量。':`当前共需 ${item.requiredQty}${item.unit}，还需购买 ${item.qty??'待确认'}${item.unit}。`}</small><button type="button" className="outline" disabled={basketSaving} onClick={()=>confirmPurchaseReview(item)}>确认购买量为 {basketDraft(item)?.qty}{item.unit}</button></>}</div>)}<p>{stockingCount?'需入库的项目会新增今天的冰箱批次；其他手动项仅完成采购。':'这些手动采购项完成后将从菜篮子移除，不会放入冰箱。'}</p></div>}
           {modal === "stock" && (
             <form id="stock-edit-form" className="editor stock-editor" onSubmit={event=>{event.preventDefault();saveIngredient();}}>
               <fieldset disabled={stockSaving}><StockFields rules={storageRules} autoFill={editingStock===null} value={ingredientDraft} onChange={setIngredientDraft}/></fieldset>

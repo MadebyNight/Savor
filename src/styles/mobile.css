@@ -1033,9 +1033,11 @@
   .compact-app .page-4 .stock-add-actions svg { width:16px; height:16px; }
   .compact-app .page-2 > .section-tools { padding:2px 12px 6px; }
   .compact-app .page-2 .stock-results { padding:0 8px 8px; }
-  .compact-app .page-2 .stock-card.shopping-card { padding:6px 8px; gap:0 8px; grid-template-columns:40px minmax(0,1fr); }
-  .compact-app .page-2 .shopping-card .basket-quantity { grid-column:2; justify-self:start; display:flex; align-items:center; gap:6px; min-height:36px; padding:0; text-align:left; line-height:1.3; }
+  .compact-app .page-2 .stock-card.shopping-card { padding:3px 6px; gap:0 6px; grid-template-columns:40px minmax(0,max-content) max-content max-content; justify-content:start; }
+  .compact-app .page-2 .shopping-card .basket-quantity { grid-column:3; min-height:44px; padding:0; font-size:.88rem; line-height:1.2; }
   .compact-app .page-2 .shopping-card .basket-quantity > span { white-space:nowrap; }
+  .compact-app .page-2 .stock-card.shopping-card .shopping-category { grid-column:4; grid-row:1; font-size:.72rem; white-space:nowrap; }
+  .compact-app .page-2 .shopping-card .basket-name { font-size:.9rem; }
   .compact-app .page-2 .shopping-check { min-width:40px; min-height:48px; }
   .compact-app .page-2 .shopping-card strong { font-size:14px; }
   .compact-app .page-2 .shopping-card p { font-size:11px; line-height:1.3; }
