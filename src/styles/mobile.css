@@ -1105,6 +1105,7 @@
 .dialog-page-body > p { margin:0; line-height:1.7; }
 .dialog-page-footer, .editor-save-bar { flex:none; display:flex; gap:8px; padding:8px 14px max(8px,env(safe-area-inset-bottom)); background:var(--chrome); border-top:1px solid var(--chrome-line); }
 .dialog-page-footer > button, .editor-save-bar > button { width:100%; min-height:48px; margin:0; }
+.compact-app:has(.editor input:focus, .editor textarea:focus) .editor-save-bar { display:none; }
 .detail-overview { display:flex; align-items:center; gap:12px; position:relative; min-height:64px; }
 .detail-photo { padding:0; flex:none; border-radius:10px; overflow:hidden; }
 .detail-photo img { width:64px; height:64px; object-fit:cover; }
