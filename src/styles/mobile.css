@@ -1027,15 +1027,7 @@
 @media (max-width:767px), (max-height:500px) and (max-width:1024px) {
   .fridge-total { color:#737c68; font-size:12px; white-space:nowrap; }
   .compact-app .page-4:not(.show-settings) { padding-left:10px; padding-right:10px; }
-  .compact-app .page-4 .fridge-search-row { min-height:48px; padding:0 8px; gap:6px; margin-bottom:6px; }
-  .fridge-search-row > svg { flex-shrink:0; }
-  .compact-app .fridge-search-row > input { flex:1; width:0; padding:6px 0; }
-  .compact-app .fridge-search-row .stock-status-filter { display:block; flex:0 0 auto; margin:0; padding:0; border-left:1px solid #e5e7dc; }
-  .compact-app .stock-status-filter .picker-trigger { min-height:46px; width:auto; max-width:none; min-width:76px; padding:0 6px; gap:5px; border:0; border-radius:8px; box-shadow:none; background:transparent; font-size:13px; }
-  .compact-app .stock-status-filter[data-active="true"] .picker-trigger { color:#536347; background:#eef1e5; font-weight:600; }
-  .compact-app .page-4 .stock-categories { padding:0 2px; gap:2px; margin-bottom:4px; }
-  .compact-app .page-4 .stock-categories button { padding:4px 8px; min-height:44px; }
-  .compact-app .page-4 .category-swipe-hint { display:block; margin:0 2px 8px; color:#596753; font-size:.78rem; }
+  .compact-app .page-4 .fridge-search-row { min-height:44px; margin:5px 0 6px; padding:0 8px; border-radius:10px; }
   .compact-app .page-4 .stock-add-actions { margin:0 0 6px; gap:6px; }
   .compact-app .page-4 .stock-add-actions button { flex-direction:row; gap:4px; min-height:48px; padding:4px 2px; font-size:12px; border-radius:10px; box-shadow:none; }
   .compact-app .page-4 .stock-add-actions svg { width:16px; height:16px; }
@@ -1215,8 +1207,7 @@
   .mobile-bottom-nav { background:var(--chrome); border-color:var(--chrome-line); }
   .compact-app .mobile-search, .compact-app .library-tools { background:#f2f4ed; border-color:var(--chrome-line); }
   .compact-app .library-tools { padding:5px 0; margin-bottom:3px; }
-  .compact-app .library-tools .search { background:white; }
-  .compact-app .fridge-search-row { background:var(--chrome); }
+  .compact-app .library-tools .search, .compact-app .page-4 .fridge-search-row { background:#fff; border-color:#ddd3b9; }
   .compact-app.order-page .mobile-search { background:#fff; border-color:#ddd3b9; }
   .compact-app .page-1:not(.is-editing):not(.show-settings) { padding-top:0; }
   .compact-app .settings-panel { gap:10px; margin-bottom:0; }

@@ -1,6 +1,7 @@
 import StorageRules from './components/StorageRules.jsx';
 import {DEFAULT_STORAGE_RULES,suggestStorage,validateStorageRules} from './food-storage.js';
 import RecipeFilters from "./components/RecipeFilters.jsx";
+import FridgeFilters from "./components/FridgeFilters.jsx";
 import CategoryManager from './components/CategoryManager.jsx';
 import {categoryNames, changeCategory} from './categories.js';
 import { AppSelect, DateTimePicker } from "./components/Pickers.jsx";
@@ -56,7 +57,6 @@ import {
   Utensils,
   BookOpen,
   Settings2,
-  ListFilter,
   ArrowLeft,
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
@@ -1469,25 +1469,10 @@ function App() {
           )}
           {page === 4 && (
             <>
-              <div className="search mobile-search fridge-search-row">
+              <div className="search mobile-search library-search fridge-search-row">
                 <Search size={18}/><input aria-label="搜索冰箱食材" placeholder="搜索食材" value={search} onChange={event => setSearch(event.target.value)}/>
-                <div className="stock-status-filter" data-active={stockFilter !== 'all'}>
-                  <AppSelect aria-label="期限筛选" icon={ListFilter} displayValue={({all:'期限',expired:'过期',soon:'临期',unknown:'待补充',normal:'正常'})[stockFilter]} value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="all">全部状态</option><option value="expired">过期</option><option value="soon">临期</option><option value="unknown">保存期待补充</option><option value="normal">正常期限</option></AppSelect>
-                </div>
+                <FridgeFilters categories={stockCategories} category={category} status={stockFilter} onChange={next=>{setCategory(next.category);setStockFilter(next.status);}}/>
               </div>
-              <aside className="chip-row dashed stock-categories" aria-label="食材分类">
-                {stockCategories.map((categoryName) => (
-                  <button
-                    key={categoryName}
-                    className={category === categoryName ? "active" : ""}
-                    aria-pressed={category === categoryName}
-                    onClick={() => setCategory(categoryName)}
-                  >
-                    {categoryName}
-                  </button>
-                ))}
-              </aside>
-              <p className="category-swipe-hint">左右滑动查看全部分类</p>
               <div className="stock-add-actions">
                 <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeAlbum.current.click()}><ImagePlus size={18}/>相册选择</button>
                 <button type="button" className="outline" disabled={readingStockImage} onClick={()=>fridgeCamera.current.click()}><Camera size={18}/>拍摄</button>

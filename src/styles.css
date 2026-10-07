@@ -560,7 +560,6 @@ small {
   padding: 7px;
   font-size: 12px;
 }
-.category-swipe-hint { display:none; }
 .stock-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
@@ -1670,13 +1669,12 @@ html [data-sonner-toaster][data-sonner-theme] {
 .stock-list .stock-compact-row:last-child { border-bottom:0; }
 .stock-compact-row strong { font-size:1.14rem; overflow-wrap:anywhere; }
 .stock-compact-row>span { font-size:.86rem; color:#666f60; overflow-wrap:anywhere; }
+.stock-compact-row>span:first-of-type { white-space:nowrap; }
 .stock-compact-row .stock-status { color:#588443; }
 .stock-compact-row.expired .stock-status { color:#fff; background:#b9473b; font-weight:650; }
 .stock-compact-row.soon .stock-status { color:#604312; background:#f2d27d; }
 .stock-compact-row:is(.expired,.soon) .stock-status { padding:4px; border-radius:4px; }
 .stock-compact-row.unknown .stock-status { color:#666f60; }
-.stock-status-filter { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; font-size:.93rem; color:#666f60; }
-.stock-status-filter select { min-width:0; max-width:70%; min-height:48px; }
 .stock-risk-summary { margin:12px 0; padding:10px 12px; border:1px solid #df9a8e; border-left:3px solid #bd493d; border-radius:8px; background:#fff0ed; color:#983b30; font-size:.93rem; line-height:1.6; }
 .meal-table { border:1px solid #e9ebe3; border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 2px 4px #50462e08; }
 .meal-table.is-empty-day { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -1740,7 +1738,6 @@ html [data-sonner-toaster][data-sonner-theme] {
 .time-options button { min-height:44px; border:0; border-radius:10px; background:#f3f4ef; color:var(--foreground); }
 .category-suggestions { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
 .category-suggestions button { padding:6px 10px; min-height:36px; border:0; border-radius:12px; background:#f3f4ef; color:#59664d; }
-.stock-status-filter .picker-trigger { width:auto; max-width:70%; }
 
 /* 营养回顾：已有估算先于按需生成的 AI 建议。 */
 .nutrition-review-entry { width:100%; min-height:82px; display:flex; justify-content:flex-start; gap:14px; padding:16px; margin:12px 0; border:1px solid #d9dfcc; border-radius:18px; background:linear-gradient(110deg,#edf1e6,#f9f5e7); color:#35472c; text-align:left; }
