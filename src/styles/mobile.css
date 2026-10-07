@@ -1041,7 +1041,9 @@
   .compact-app .page-4 .stock-add-actions svg { width:16px; height:16px; }
   .compact-app .page-2 > .section-tools { padding:2px 12px 6px; }
   .compact-app .page-2 .stock-results { padding:0 8px 8px; }
-  .compact-app .page-2 .stock-card.shopping-card { padding:5px 0; gap:0 6px; grid-template-columns:40px minmax(0,1fr) auto; }
+  .compact-app .page-2 .stock-card.shopping-card { padding:6px 8px; gap:0 8px; grid-template-columns:40px minmax(0,1fr) 88px; }
+  .compact-app .page-2 .shopping-card .basket-quantity { padding-left:2px; line-height:1.3; }
+  .compact-app .page-2 .shopping-card .basket-quantity small:first-child { display:block; }
   .compact-app .page-2 .shopping-check { min-width:40px; min-height:48px; }
   .compact-app .page-2 .shopping-card strong { font-size:14px; }
   .compact-app .page-2 .shopping-card p { font-size:11px; line-height:1.3; }
