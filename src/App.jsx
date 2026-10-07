@@ -1018,7 +1018,7 @@ function App() {
           </div>
           {page === 0 && (
             <>
-              {compact && <label className="search mobile-search"><Search size={18}/><input aria-label="搜索菜品" placeholder="搜索菜名或食材" value={search} onChange={event => setSearch(event.target.value)} /></label>}
+              {compact && <label className="search mobile-search library-search"><Search size={18}/><input aria-label="搜索菜品" placeholder="搜索菜名或食材" value={search} onChange={event => setSearch(event.target.value)} /></label>}
               <div className="welcome-banner">
                 <div className="banner-icon">
                   <ChefHat size={38} />
